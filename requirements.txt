@@ -1,0 +1,6 @@
+easygui
+pyautogui
+pillow
+pyzbar
+requests
+pyinstaller
