@@ -2,6 +2,19 @@
 
 Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
 
+
+打开手动代理（系统设置）
+访问mitm.it
+下载安装根证书到“”本地机器“受信任的证书发布者”
+关闭手动代理
+打开profixer key：4MHDA-C3FNN-EV6YH-ZENEQ-5A2CP
+新建代理IP：127.0.0.1port=8080协议HTTPS
+代理规则dwrg.exe——proxyHTTPS127.0.0.1
+python.exe——Direct
+启动cmd命令：
+mitmweb -s netease.py
+
+
 * 自己构建
     * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
     * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
