@@ -19,7 +19,6 @@ if ctypes.windll.shell32.IsUserAnAdmin() == 0:
     sys.exit(0)
 
 print("Installing mitmproxy...")
-subprocess.check_call(["pip", "uninstall", "mitmproxy"])
 subprocess.check_call(["pip", "install", "mitmproxy"])
 #生成证书
 #启动mitmproxy，运行5s，然后关闭
