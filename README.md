@@ -1,7 +1,28 @@
-# idv-login(已过时)
+## idv-login-netease(绕过注册时间限制)
 
 Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
+* 自己构建
+    * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
+    * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
+    * 安装时带"pip"和"path"的选项要打勾
+    * Windows7 只能用老版本，百度自搜
+    * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
+    * 进入解压后的目录，shift+鼠标右键呼出 Powershell
+```plain
+pip install pyinstaller
+python setUp.py
+pyinstaller -F  run.py
+* 注意：这一步对网络环境要求较高（你懂的），如果实在很慢，百度搜索 *pip 换源*
+```
 
+* 登录方法
+    * 点击run.exe，打开游戏，登录进入游戏后退出run.exe
+ 
+
+
+## idv-login (模拟扫码)
+
+Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
 * 自己构建
     * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
     * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
