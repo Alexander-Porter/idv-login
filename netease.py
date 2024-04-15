@@ -1,6 +1,6 @@
 import json
 from mitmproxy import http, ctx
-loginMethod=[  {
+loginMethod=[{
                 "name": "手机账号",
                 "icon_url": "",
                 "text_color": "",
@@ -24,7 +24,17 @@ loginMethod=[  {
                 "hot": True,
                 "type": 1,
                 "icon_url_large": ""
-            }]
+            },
+            {
+                "login_url": "",
+                "name": "扫码登录",
+                "icon_url": "",
+                "text_color": "",
+                "hot": True,
+                "type": 17,
+                "icon_url_large": ""
+            }
+]
 pcIndo={
             "extra_unisdk_data": "",
             "from_game_id": "h55",
@@ -37,7 +47,7 @@ pcIndo={
             "src_udid": ""
         }
 def request(flow = None):
-    if "mpay" in flow.request.url:
+    if "mpay" in flow.request.url and 'qrcode' not in flow.request.url:
         ctx.log("Hit")
         flow.request.query["cv"]="i4.7.0"
         if(flow.request.method == "POST"):
@@ -75,5 +85,3 @@ def response(flow = None):
         newDevices["user"]["pc_ext_info"] = pcIndo
         flow.response.set_text(json.dumps(newDevices))
         return None
-        
-
