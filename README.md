@@ -4,8 +4,8 @@ Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https:/
 * 自己构建
     * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
     * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
-    * 安装时带"pip"和"path"的选项要打勾
-    * Windows7 只能用老版本，百度自搜
+    * 安装Python时要选择**添加到Path**和**为所有用户安装**
+    * Windows7 下mitmproxy可能会出现问题，不推荐使用。
     * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
 ```plain
