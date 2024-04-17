@@ -1,3 +1,6 @@
+### QQ群[https://www.bilibili.com/opus/920131433914171416]
+### 视频教程（与文字版冲突时以文字版为准）[https://www.bilibili.com/video/BV1qM4m1Q7i8]
+
 ## idv-login-netease(绕过注册时间限制-一键法)
 
 Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
@@ -19,7 +22,6 @@ python setUp.py
  
 ## idv-login-netease(绕过注册时间限制-Proxifier法)
 
-Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
 * 自己构建
     * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
     * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
@@ -37,15 +39,15 @@ pip install mitmproxy
     * 点击`mitmproxy-ca`文件，安装位置选本地机器，一路下一步，直到选择证书存储位置，选自己选择，选**受信任的根证书颁发者**，完成安装。
 * 配置Proxifier
     * 下载Proxifier 4
-    *  左上角**文件**->**导入配置文件**，选择下载下来的`netease.ppx`，确定
-    *  至此，准备阶段结束
+    * 双击下载下来的`netease.ppx`，确定导入配置
+    * 至此，准备阶段结束
 * 登录方法
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
     * 在Powershell中输入`mitmweb -s netease.py`回车，等待出现浏览器窗口
     * 打开Proxifier
-    * 登录游戏并进入庄园后关闭Proxifier[可选]
+    * 登录游戏并**进入庄园后**关闭Proxifier[可选]
 
-## idv-login (模拟扫码)
+## idv-login (模拟扫码：过时，非以前登陆过PC端勿用)
 
 Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
 * 自己构建
