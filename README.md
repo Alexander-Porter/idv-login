@@ -15,6 +15,7 @@ python setUp.py
 ```
 
 * 登录方法
+    * 更改path.txt内容为游戏完整路径。
     * 右键run.bat，用管理员权限打开。
  
 
