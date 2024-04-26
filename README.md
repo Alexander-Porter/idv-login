@@ -11,13 +11,14 @@ Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https:/
     * Windows7 下mitmproxy可能会出现问题，不推荐使用。
     * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
-```bash
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-python setUp.py
-```
+    ```bash
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+    python setUp.py
+    ```
+    * 右键dwrg.lnk，打开属性，将“目标”处修改为第五人格游戏路径的文件（默认为C:\dwrg\dwrg.exe）
 
 * 登录方法
-    * 右键run.bat，用管理员权限打开
+    * 打开dwrg.exe（推荐创建快捷方式到桌面）
     * 登录游戏并进入庄园后关闭终端窗口
  
 ## idv-login-netease(绕过注册时间限制-Proxifier法)
@@ -29,10 +30,10 @@ python setUp.py
     * Windows7 下mitmproxy可能会出现问题，不推荐使用。
     * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
-```bash
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-pip install mitmproxy
-```
+    ```bash
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install mitmproxy
+    ```
 * 安装证书
     * 在Powershell中输入`mitmweb -s netease.py`回车，等待出现浏览器窗口
     * 打开文件管理器，输入`%userprofile%/.mitmproxy`回车
@@ -62,11 +63,11 @@ pip install -r requirements.txt
 * 注意：这一步对网络环境要求较高（你懂的），如果实在很慢，百度搜索 *pip 换源*
 ```
     * 在 powershell 窗口中输入以下两行命令
-```plain
-pyinstaller -F login.py --collect-all pyzbar
-pyinstaller -F importer.py
-* 在 dist 文件夹得到成品login.exe importer.exe
-```
+    ```plain
+    pyinstaller -F login.py --collect-all pyzbar
+    pyinstaller -F importer.py
+    * 在 dist 文件夹得到成品login.exe importer.exe
+    ```
 
 * 账号导入方法
     * 所需：安卓设备一台，PC客户端
