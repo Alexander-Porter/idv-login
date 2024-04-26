@@ -30,10 +30,10 @@ Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https:/
     * Windows7 下mitmproxy可能会出现问题，不推荐使用。
     * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
-    ```bash
-    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-    pip install mitmproxy
-    ```
+        ```bash
+        pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+        pip install mitmproxy
+        ```
 * 安装证书
     * 在Powershell中输入`mitmweb -s netease.py`回车，等待出现浏览器窗口
     * 打开文件管理器，输入`%userprofile%/.mitmproxy`回车
