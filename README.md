@@ -5,20 +5,24 @@
 
 Github地址：[https://github.com/Alexander-Porter/idv-login/tree/main](https://github.com/Alexander-Porter/idv-login/tree/main)
 * 自己构建
-    * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
-    * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
-    * 安装Python时要选择**添加到Path**和**为所有用户安装**
-    * Windows7 下mitmproxy可能会出现问题，不推荐使用。
-    * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
-    * 进入解压后的目录，shift+鼠标右键呼出 Powershell
+    * 在 Python 官网下载 Python [Python.org](https://www.python.org/downloads/release/python-3123/)
+    * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe)
+    * 安装Python时要自定义(Custom)安装，**添加到Path**和**为所有用户安装**和**pip**。
+    * Windows7 下未经测试
+    * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/server.zip)到本地，解压
+    * 进入解压后的目录，shift+鼠标右键，选择打开Powershell或终端
+    * 输入以下代码并回车
 ```bash
 python serverSetup.py
 ```
 
 * 登录方法
-    * 运行run.bat
-    * 登录游戏并进入庄园后关闭终端窗口
- 
+    * 鼠标双击运行run.bat (注意:部分杀软可能会因为修改hosts文件报毒，放行即可)
+    * 保持终端窗口打开，同时打开第五人格
+
+* 不想丸啦
+    * 鼠标双击运行恢复hosts.bat
+
 ## idv-login-netease(绕过注册时间限制-Proxifier法)
 
 * 自己构建
@@ -26,7 +30,6 @@ python serverSetup.py
     * 在 Python 官网下载 Python [Python Release Python 3.11.4 | Python.org](https://www.python.org/downloads/release/python-3114/)
     * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.11.4/python-3.11.4-amd64.exe)
     * 安装Python时要选择**添加到Path**和**为所有用户安装**
-    * Windows7 下mitmproxy可能会出现问题，不推荐使用。
     * 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/main.zip)到本地，解压
     * 进入解压后的目录，shift+鼠标右键呼出 Powershell
 ```bash
