@@ -11,8 +11,8 @@ os.chdir(script_path)
 # Check if we are running as an administrator
 if ctypes.windll.shell32.IsUserAnAdmin() == 0:
     # We are not running "as Administrator" - so relaunch as administrator
-    print("当前非管理员，按回车尝试以管理员身份重试")
-    input("Press Enter to continue...")
+    print("非管理员，按回车尝试以管理员身份重试")
+    input("等待回车")
     ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
     sys.exit(0)
 
