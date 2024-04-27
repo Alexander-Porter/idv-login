@@ -1,6 +1,3 @@
-easygui
-pyautogui
-pillow
-pyzbar
+Flask
 requests
-pyinstaller
+cryptography
