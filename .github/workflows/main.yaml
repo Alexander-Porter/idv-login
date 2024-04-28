@@ -46,8 +46,8 @@ jobs:
 
     - name: Install hashdeep
       run: |
-      ls -R
-      sudo apt-get install hashdeep
+        ls -R
+        sudo apt-get install hashdeep
 
     - name: Compute checksum
       run: hashdeep -rlc sha256 ./dist/* > checksum.txt
