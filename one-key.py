@@ -208,7 +208,7 @@ if __name__ == '__main__':
             input("等待回车")
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
             sys.exit(0)
-        print(f"工作目录：{os.path.join("D:","idv-login")}")
+        print(f"工作目录：{WORKDIR}")
 
 
 
