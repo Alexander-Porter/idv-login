@@ -18,7 +18,7 @@ if ctypes.windll.shell32.IsUserAnAdmin() == 0:
 
 #准备环境
 #询问用户是否需要换源
-if input("是否需要换pip源到清华源？(y/n)") == "y":
+if input("是否需要换pip源到清华源？(y/n) 输入选项并按回车确定") == "y":
 #pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
     subprocess.check_call(["pip", "config", "set", "global.index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
 print("准备环境...")
@@ -133,3 +133,5 @@ with open("domain_key.pem", "wb") as f:
 print("安装根证书...")
 subprocess.check_call(["certutil", "-addstore", "-f", "Root", "root_ca.pem"])
 input("Press Enter to continue...")
+
+
