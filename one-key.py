@@ -61,7 +61,8 @@ pcInfo={
 HOSTS_FILE = r'C:\Windows\System32\drivers\etc\hosts'
 DOMAIN = 'service.mkey.163.com'
 BACKUP_HOSTS_FILE = HOSTS_FILE + '.bak'
-WORKDIR=r"D:\idv-login"
+#保存到一个所有用户都能访问到的位置
+WORKDIR=os.path.join(os.environ['PROGRAMDATA'], 'idv-login')
 #DNS查询
 result = subprocess.check_output(['nslookup', DOMAIN])
 result = result.decode('cp437')
@@ -74,11 +75,29 @@ for line in result.splitlines():
         print(f'DNS解析结果: {ip_address}')
         break
 if IP=="":
-    print("DNS解析失败")
+    print("DNS解析失败，请检查网络环境！")
+    input("回车退出。")
     quit()
 TARGET_URL = f'https://{IP}'
 
-
+def requestGetAsCv(request,cv):
+    global TARGET_URL
+    query = request.args.copy()
+    if cv:
+        query["cv"] =cv
+    resp = requests.request(
+    method=request.method,
+    url=TARGET_URL+request.path,
+    params=query,
+    headers=request.headers,
+    cookies=request.cookies,
+    allow_redirects=False,
+    verify=False
+    )
+    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in resp.raw.headers.items()
+               if name.lower() not in excluded_headers]
+    return Response(resp.text, resp.status_code, headers)
 
 
 def proxy(request):
@@ -170,29 +189,24 @@ def handle_login(game_id, device_id, user_id):
     except:
         return proxy(request)
 
+@app.route('/mpay/games/pc_config', methods=['GET'])
+def handle_pc_config():
+    try:
+        resp:Response=requestGetAsCv(request,'i4.7.0')
+        new_config = resp.get_json()
+        new_config["game"]["config"]["cv_review_status"] = 1
+        resp.set_data(json.dumps(new_config))
+        return resp
+    except:
+        return proxy(request)
 
-@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def thisProxy(path):
-    return proxy(request)
-def requestGetAsCv(request,cv):
-    global TARGET_URL
-    query = request.args.copy()
-    if cv:
-        query["cv"] =cv
-    resp = requests.request(
-    method=request.method,
-    url=TARGET_URL+request.path,
-    params=query,
-    headers=request.headers,
-    cookies=request.cookies,
-    allow_redirects=False,
-    verify=False
-    )
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in resp.raw.headers.items()
-               if name.lower() not in excluded_headers]
-    return Response(resp.text, resp.status_code, headers)
 
+@app.route('/<path:path>', methods=['GET', 'POST'])
+def globalProxy(path):
+    if request.method == 'GET':
+        return requestGetAsCv(request,'i4.7.0')
+    else:
+        return requestPostAsCv(request,'i4.7.0')
 
 
 if __name__ == '__main__':
