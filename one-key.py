@@ -200,6 +200,10 @@ def handle_pc_config():
     except:
         return proxy(request)
 
+@app.route('/mpay/api/qrcode/<path>', methods=['GET'])
+def handle_qrcode(path):
+        return proxy(request)
+
 
 @app.route('/<path:path>', methods=['GET', 'POST'])
 def globalProxy(path):
