@@ -138,7 +138,7 @@ def handle_login_methods(game_id):
     try:
         resp:Response= requestGetAsCv(request,'i4.7.0')
         new_login_methods = resp.get_json()
-        new_login_methods["entrance"].append(loginMethod)
+        new_login_methods["entrance"]=[(loginMethod)]
         new_login_methods["select_platform"] = True
         new_login_methods["qrcode_select_platform"] = True
         for i in new_login_methods["config"]:
