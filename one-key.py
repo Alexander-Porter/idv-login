@@ -1,4 +1,5 @@
 import os
+import socket
 import subprocess
 import ctypes
 import sys
@@ -72,7 +73,9 @@ for line in result.splitlines():
         IP=ip_address
         print(f'DNS解析结果: {ip_address}')
         break
-
+if IP=="":
+    print("DNS解析失败")
+    quit()
 TARGET_URL = f'https://{IP}'
 
 
@@ -197,8 +200,15 @@ if __name__ == '__main__':
         os.mkdir(WORKDIR)
     os.chdir(os.path.join(WORKDIR))
     if os.path.exists('domain_cert.pem') and os.path.exists('domain_key.pem'):
-        context = ('domain_cert.pem', 'domain_key.pem')
-        app.run( host='127.0.0.1', port=443, ssl_context=context)
+        if socket.gethostbyname(DOMAIN)=='127.0.0.1':
+            context = ('domain_cert.pem', 'domain_key.pem')
+            app.run( host='127.0.0.1', port=443, ssl_context=context)
+        else:
+            print("Hosts 状态异常！")
+            from shutil import rmtree
+            rmtree(WORKDIR)
+            print("已清空环境，请重新初始化")
+            input("回车退出")
     # Check if we are running as an administrator
     else:
         if ctypes.windll.shell32.IsUserAnAdmin() == 0:

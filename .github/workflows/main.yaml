@@ -22,6 +22,7 @@ jobs:
         pip install pyinstaller
         pip install flask
         pip install requests
+        pip install cryptography
 
     - name: Build with PyInstaller
       run: pyinstaller --onefile one-key.py 
