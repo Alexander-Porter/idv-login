@@ -1,6 +1,4 @@
-easygui
-pyautogui
-pillow
-pyzbar
 requests
+flask
+cryptography
 pyinstaller
