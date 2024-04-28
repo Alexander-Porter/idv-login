@@ -57,7 +57,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: one-key
+        tag_name: one-key-auto-release
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
