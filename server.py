@@ -76,30 +76,17 @@ TARGET_URL = f'https://{IP}'
 
 
 
-
-
-
-@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def proxy(path):
-    #得到请求参数
-    query = request.args.copy()
-    if "mpay" in request.url:
-        query["cv"] = "i4.7.0"
-        if request.method == "POST":
-            new_body = dict(x.split("=") for x in request.get_data(as_text=True).split("&"))
-            new_body["cv"] = "i4.7.0"
-            new_body.pop("arch", None)
-        if 'devices' in request.url:
-            query["app_mode"] = 2
-    # 原始的代理请求处理代码
+def proxy(request):
     global TARGET_URL
-    
+    query = request.args.copy()
+    new_body=request.get_data(as_text=True)    
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
-        url=TARGET_URL+"/"+path,params=query,
-        headers={key: value for (key, value) in request.headers if key != 'Host'},
-        data=request.get_data(),
+        url=TARGET_URL+request.path,
+        params=query,
+        headers=request.headers,
+        data=new_body,
         cookies=request.cookies,
         allow_redirects=False,
         verify=False
@@ -109,39 +96,110 @@ def proxy(path):
     excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     headers = [(name, value) for (name, value) in resp.raw.headers.items()
                if name.lower() not in excluded_headers]
-    new_body = resp.content
-    if 'login_methods' in request.url:
-        app.logger.info('Hit!')
-        new_login_methods = resp.json()
+    
+    response = Response(resp.content, resp.status_code, headers)
+    return response
+def requestPostAsCv(request,cv):
+    query = request.args.copy()
+    if cv:
+        query["cv"] =cv
+    try:
+        new_body=request.get_json()
+        new_body["cv"] = cv
+        new_body.pop("arch", None)
+    except:
+        new_body = dict(x.split("=") for x in request.get_data(as_text=True).split("&"))
+        new_body["cv"] = cv
+        new_body.pop("arch", None)
+        new_body="&".join([f"{k}={v}" for k,v in new_body.items()])
+
+    app.logger.info(new_body)
+    resp = requests.request(
+    method=request.method,
+    url=TARGET_URL+request.path,
+    params=query,
+    data=new_body,
+    headers=request.headers,
+    cookies=request.cookies,
+    allow_redirects=False,
+    verify=False
+    )
+    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in resp.raw.headers.items()
+               if name.lower() not in excluded_headers]
+    return Response(resp.text, resp.status_code, headers)
+@app.route('/mpay/games/<game_id>/login_methods', methods=['GET'])
+def handle_login_methods(game_id):
+    try:
+        resp:Response= requestGetAsCv(request,'i4.7.0')
+        new_login_methods = resp.get_json()
         new_login_methods["entrance"].append(loginMethod)
         new_login_methods["select_platform"] = True
         new_login_methods["qrcode_select_platform"] = True
         for i in new_login_methods["config"]:
             new_login_methods["config"][i]["select_platforms"] = [0, 1, 2, 3, 4]
-        new_body = json.dumps(new_login_methods)
-    elif 'pc_config' in request.url:
-        new_pc_config = resp.json()
-        new_pc_config["game"]["config"]["cv_review_status"] = 1
-        new_body = json.dumps(new_pc_config)
-    elif 'devices' in request.url:
-        new_devices = resp.json()
+        resp.set_data(json.dumps(new_login_methods))
+        return resp
+    except:
+        return proxy(request)
+
+
+@app.route('/mpay/api/users/login/mobile/finish',methods=['POST'])
+@app.route('/mpay/api/users/login/mobile/get_sms',methods=['POST'])
+@app.route('/mpay/api/users/login/mobile/verify_sms',methods=['POST'])
+@app.route('/mpay/games/<game_id>/devices/<device_id>/users',methods=['POST'])
+def handle_first_login(game_id=None, device_id=None):
+    try:
+        return requestPostAsCv(request,"i4.7.0")
+    except:
+        return proxy(request)
+
+@app.route('/mpay/games/<game_id>/devices/<device_id>/users/<user_id>', methods=['GET'])
+def handle_login(game_id, device_id, user_id):
+    try:
+        resp:Response=requestGetAsCv(request,'i4.7.0')
+        new_devices = resp.get_json()
         new_devices["user"]["pc_ext_info"] = pcInfo
-        new_body = json.dumps(new_devices)
-    
-    response = Response(new_body, resp.status_code, headers)
-    return response
+        resp.set_data(json.dumps(new_devices))
+        return resp
+    except:
+        return proxy(request)
+
+
+@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def thisProxy(path):
+    return proxy(request)
+def requestGetAsCv(request,cv):
+    global TARGET_URL
+    query = request.args.copy()
+    if cv:
+        query["cv"] =cv
+    resp = requests.request(
+    method=request.method,
+    url=TARGET_URL+request.path,
+    params=query,
+    headers=request.headers,
+    cookies=request.cookies,
+    allow_redirects=False,
+    verify=False
+    )
+    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in resp.raw.headers.items()
+               if name.lower() not in excluded_headers]
+    return Response(resp.text, resp.status_code, headers)
+
+
+
+
+
+
 import os
-import atexit
 
 
 def modify_hosts():
     with open(HOSTS_FILE, 'w') as file:
         file.seek(0, 0)
-        #备份
         file.write('127.0.0.1    ' + DOMAIN + '\n' )
-
-
-
 
 
 
@@ -158,6 +216,10 @@ if __name__ == '__main__':
         os.rename(HOSTS_FILE, BACKUP_HOSTS_FILE)
 
     modify_hosts()
-
-    context = ('domain_cert.pem', 'domain_key.pem')
-    app.run(debug=True, host='127.0.0.1', port=443, ssl_context=context)
+    #检查证书是否存在
+    if os.path.exists('domain_cert.pem') and os.path.exists('domain_key.pem'):
+        context = ('domain_cert.pem', 'domain_key.pem')
+        app.run(debug=True, host='127.0.0.1', port=443, ssl_context=context)
+    else:
+        print("证书不存在！请检查目录下是否有domain_cert和domain_key")
+        print("如果没有，重新执行serveSetup")
