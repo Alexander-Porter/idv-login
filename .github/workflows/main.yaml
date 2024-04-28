@@ -49,9 +49,7 @@ jobs:
       run: sudo apt-get install hashdeep
 
     - name: Compute checksum
-      run: |
-      cd 
-      hashdeep -rlc sha256 ./dist/* > checksum.txt
+      run: hashdeep -rlc sha256 ./dist/* > checksum.txt
 
     - name: Release
       uses: softprops/action-gh-release@v2
