@@ -1,9 +1,7 @@
 name: Build and Release
 
 on:
-  push:
-    branches:
-      - one-key
+  push
 
 jobs:
   build:
