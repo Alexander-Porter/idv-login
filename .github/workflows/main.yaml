@@ -43,10 +43,11 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: dist
-      run: ls -R
 
     - name: Install hashdeep
-      run: sudo apt-get install hashdeep
+      run: |
+      ls -R
+      sudo apt-get install hashdeep
 
     - name: Compute checksum
       run: hashdeep -rlc sha256 ./dist/* > checksum.txt
