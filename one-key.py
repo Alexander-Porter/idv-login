@@ -66,15 +66,22 @@ result = result.decode('cp437')
 IP=""
 # 找到包含'Address'的行，并提取IP地址
 for line in result.splitlines():
-    if 'Addresses' in line:
+    if 'Addresses' in line or 'Address' in line:
         ip_address = line.split()[-1]
-        IP=ip_address
-        print(f'DNS解析结果: {ip_address}')
-        break
+        if ip_address != TRUSTED_DNS:
+            IP=ip_address
+            print(f'DNS解析结果: {ip_address}')
+            break
 if IP=="":
-    print("DNS解析失败，请检查网络环境！")
-    input("回车退出。")
-    quit()
+    resp = requests.get(f'https://doh.pub/dns-query?name={DOMAIN}')
+    ips = [i["data"] for i in resp.json()["Answer"] if i["type"]==1]
+    if ips:
+        IP=ips[0]
+        print(f'[Fallback]HTTP DNS解析结果: {IP}')
+    else:
+        print("DNS解析失败，请检查网络环境！")
+        input("回车退出。")
+        quit()
 TARGET_URL = f'https://{IP}'
 
 def requestGetAsCv(request,cv):
