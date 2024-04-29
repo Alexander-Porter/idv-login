@@ -3,12 +3,9 @@ import socket
 import subprocess
 import ctypes
 import sys
-import subprocess
-import sys
 from flask import Flask, request, Response
 import requests
 import json
-import urllib3
 import ctypes
 app = Flask(__name__)
 loginMethod=[{
@@ -57,14 +54,14 @@ pcInfo={
             "src_sdk_version": "3.15.0",
             "src_udid": ""
         }
-# 反向代理的目标域名
+
 HOSTS_FILE = r'C:\Windows\System32\drivers\etc\hosts'
 DOMAIN = 'service.mkey.163.com'
 BACKUP_HOSTS_FILE = HOSTS_FILE + '.bak'
-#保存到一个所有用户都能访问到的位置
+TRUSTED_DNS = '114.114.114.114'
 WORKDIR=os.path.join(os.environ['PROGRAMDATA'], 'idv-login')
 #DNS查询
-result = subprocess.check_output(['nslookup', DOMAIN])
+result = subprocess.check_output(['nslookup', DOMAIN,TRUSTED_DNS])
 result = result.decode('cp437')
 IP=""
 # 找到包含'Address'的行，并提取IP地址
@@ -216,6 +213,7 @@ def globalProxy(path):
 if __name__ == '__main__':
     if not os.path.exists(WORKDIR):
         os.mkdir(WORKDIR)
+    print(f"工作目录：{WORKDIR}")
     os.chdir(os.path.join(WORKDIR))
     if os.path.exists('domain_cert.pem') and os.path.exists('domain_key.pem'):
         if socket.gethostbyname(DOMAIN)=='127.0.0.1':
@@ -236,7 +234,7 @@ if __name__ == '__main__':
             input("等待回车")
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
             sys.exit(0)
-        print(f"工作目录：{WORKDIR}")
+        
 
 
 
@@ -284,12 +282,6 @@ if __name__ == '__main__':
         # 证书和密钥写入文件
         with open("root_ca.pem", "wb") as f:
             f.write(cert.public_bytes(Encoding.PEM))
-        with open("root_ca_key.pem", "wb") as f:
-            f.write(key.private_bytes(
-                Encoding.PEM,
-                PrivateFormat.TraditionalOpenSSL,
-                NoEncryption()
-            ))
 
         # 生成域名密钥对
         domain_key = rsa.generate_private_key(
@@ -300,7 +292,6 @@ if __name__ == '__main__':
         # 创建CSR
         csr = x509.CertificateSigningRequestBuilder().subject_name(
             x509.Name([
-                # 提供证书的详细信息
                 x509.NameAttribute(NameOID.COUNTRY_NAME, u"CN"),
                 x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"BeiJing"),
                 x509.NameAttribute(NameOID.LOCALITY_NAME, u"BeiJing"),
@@ -309,7 +300,6 @@ if __name__ == '__main__':
             ])
         ).add_extension(
             x509.SubjectAlternativeName([
-                # 这里添加域名和子域名
                 x509.DNSName(DOMAIN),
             ]),
             critical=False,
@@ -346,7 +336,6 @@ if __name__ == '__main__':
                 NoEncryption()
             ))
         #安装根证书
-        # Install the root certificate
         print("安装根证书...")
         subprocess.check_call(["certutil", "-addstore", "-f", "Root", "root_ca.pem"])
         print("改写Hosts...")
