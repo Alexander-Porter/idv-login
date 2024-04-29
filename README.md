@@ -6,7 +6,7 @@
 Github地址：[https://github.com/Alexander-Porter/idv-login](https://github.com/Alexander-Porter/idv-login)
 
 * 使用预打包版
-    * **重要**关于安全性：仓库中的成品exe为*自动化*打包，不存在被注入恶意盗号代码的可能性。然而，对于网络上的转载链接，请自行确认其SHA256校验值与release->checksum中的SHA256是否相同，否则有被盗号风险。[在线计算SHA256](https://www.metools.info/code/c92.html)。如果希望自己构建，请参看下一节。
+    * **重要**！关于安全性：仓库中的成品exe为*自动化*打包，不存在被注入恶意盗号代码的可能性。然而，对于网络上的转载链接，请自行确认其SHA256校验值与release->checksum中的SHA256是否相同，否则有被盗号风险。[此处可以在线计算SHA256](https://www.metools.info/code/c92.html)。如果希望自己构建，请参看下一节。
     * 下载方式：在页面右侧的auto-release处下载
 * 自己构建（可选）
     * 在 Python 官网下载 Python [Python.org](https://www.python.org/downloads/release/python-3123/)
