@@ -1,7 +1,9 @@
 name: Build and Release
 
 on:
-  push
+  label:
+    types:
+      - created
 
 jobs:
   build:
