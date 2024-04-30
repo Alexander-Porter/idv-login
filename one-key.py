@@ -346,7 +346,7 @@ if __name__ == '__main__':
         print("安装根证书...")
         subprocess.check_call(["certutil", "-addstore", "-f", "Root", "root_ca.pem"])
         print("改写Hosts...")
-        if not os.path.exists(BACKUP_HOSTS_FILE):
+        if (not os.path.exists(BACKUP_HOSTS_FILE)) and os.path.exists(HOSTS_FILE):
             os.rename(HOSTS_FILE, BACKUP_HOSTS_FILE)
         with open(HOSTS_FILE, 'w') as file:
             file.seek(0, 0)
