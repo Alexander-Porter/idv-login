@@ -1,0 +1,40 @@
+name: Sync Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  sync_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get latest release
+        id: latest_release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const release = await github.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            return release.data;
+
+      - name: Create release on Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+        run: |
+          curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
+          -H "Content-Type: application/json;charset=UTF-8" \
+          -d '{
+            "access_token": "${{ secrets.GITEE_TOKEN }}",
+            "tag_name": "${{ steps.latest_release.outputs.tag_name }}",
+            "name": "${{ steps.latest_release.outputs.name }}",
+            "body": "${{ steps.latest_release.outputs.body }}",
+            "prerelease": false,
+            "target_commitish": ${{steps.latest_release.outputs.target_commitish}},
+          }'
