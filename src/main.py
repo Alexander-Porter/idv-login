@@ -41,10 +41,15 @@ def precheck() :
 def handle_exit():
     print("[Main] Goodbye!")
     m_hostmgr.remove("service.mkey.163.com")
+    os.system("pause")
 
 if __name__ == '__main__':
     precheck()
-    print("Welcome to use IdentityV login helper beta version 10.0.1")
+    print("Welcome to use IdentityV login helper beta version 10.0.0.1")
+    print("This program is free software: you can redistribute it and/or modify")
+    print("it under the terms of the GNU General Public License as published by")
+    print("the Free Software Foundation, either version 3 of the License, or")
+    print("(at your option) any later version.")
     if not os.path.exists(WORKDIR):
         os.mkdir(WORKDIR)
 
@@ -67,13 +72,13 @@ if __name__ == '__main__':
         srv_key = m_certmgr.generate_private_key(bits=2048)
         srv_cert = m_certmgr.generate_cert(hostname='service.mkey.163.com', privatekey=srv_key, ca_cert=ca_cert, ca_key=ca_key)
 
-        m_certmgr.export_cert("domain_cert.pem", srv_cert)
-        m_certmgr.export_key("domain_key.pem", srv_key)
-
         if (m_certmgr.import_to_root("root_ca.pem") == False) : 
             print("[Main] Failed to import CA to ROOT store!")
             os.system("pause")
             sys.exit(-1)
+        
+        m_certmgr.export_cert("domain_cert.pem", srv_cert)
+        m_certmgr.export_key("domain_key.pem", srv_key)
         print("[Main] Initialized successfully.")
 
     print("[Main] Redirecting the target to localhost...")
