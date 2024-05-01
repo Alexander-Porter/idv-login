@@ -41,5 +41,5 @@ jobs:
         with:
           body_path: ext/${{github.ref_name}}-CHANGELOG
           files: |
-            dist/idv-login-${{github.ref_name}}.exe
+            dist/idv-login-v10beta-${{github.ref_name}}.exe
             dist/checksum.txt
