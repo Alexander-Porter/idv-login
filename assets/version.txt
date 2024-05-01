@@ -33,8 +33,8 @@ VSVersionInfo(
         StringStruct('LegalCopyright', 'Copyright (C) 2024 Alexander-Porter & fwilliamhe. All rights reserved'),
         StringStruct('OriginalFilename', 'idv-login-v10beta.exe'),
         StringStruct('ProductName', 'Identity Login Helper'),
-        StringStruct('ProductVersion', '10.0.0.1'),
-        StringStruct('SquirrelAwareVersion', '1')])
-      ])
+        StringStruct('ProductVersion', '10.0.0.1')])
+      ]),
+      VarFileInfo([VarStruct('Translation', [1033, 1252])])
   ]
 )
