@@ -94,4 +94,4 @@ jobs:
           files: |
             one-key-${{github.ref_name}}.exe
             one-key-${{github.ref_name}}-win7.exe
-            checksum-{${{github.ref_name}}}.txt
+            checksum-${{github.ref_name}}.txt
