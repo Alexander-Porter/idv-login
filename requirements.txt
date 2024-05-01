@@ -3,3 +3,4 @@ flask
 cryptography
 pyinstaller
 gevent
+python-hosts
