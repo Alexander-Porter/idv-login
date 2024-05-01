@@ -36,7 +36,7 @@ def precheck() :
     if ctypes.windll.shell32.IsUserAnAdmin() == 0:
         # relaunch as administrator
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
-        sys.exit(0)
+        sys.exit()
 
 def handle_exit():
     print("[Main] Goodbye!")
@@ -50,6 +50,7 @@ if __name__ == '__main__':
     print("it under the terms of the GNU General Public License as published by")
     print("the Free Software Foundation, either version 3 of the License, or")
     print("(at your option) any later version.")
+
     if not os.path.exists(WORKDIR):
         os.mkdir(WORKDIR)
 
@@ -89,5 +90,4 @@ if __name__ == '__main__':
 
     if (m_proxy.run() == False) :
         print("[Main] failed to start proxy!")
-        os.system("pause")
-        sys.exit(-1)
+        sys.exit()

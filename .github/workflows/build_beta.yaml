@@ -1,6 +1,9 @@
-name: Build
+name: Build Beta version
 
 on:
+  create:
+    tags:
+      - "v[0-100]+.[0-9]+.[0-9]+.[0-1000]-beta"
   workflow_dispatch:
 jobs:
   build:
@@ -30,3 +33,12 @@ jobs:
         with:
           name: Windows-x64
           path: dist/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: ext/${{github.ref_name}}-CHANGELOG
+          files: |
+            dist/idv-login-${{github.ref_name}}.exe
+            dist/checksum.txt

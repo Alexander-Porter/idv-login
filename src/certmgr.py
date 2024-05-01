@@ -16,12 +16,12 @@
  """
 
 import subprocess
+import sys
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
-from cryptography.hazmat.primitives.serialization import BestAvailableEncryption
 from datetime import datetime, timedelta
 
 class certmgr:
@@ -98,19 +98,29 @@ class certmgr:
     def import_to_root(self, fn) -> bool:
         try :
             subprocess.check_call(["certutil", "-addstore", "-f", "Root", fn], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-        except:
-            print("failed to import the CA certificate to system store, don't you have enough privilege to do it?")
+        except Exception as e:
+            print(str(e))
+            print("[certmgr] failed to import the CA certificate to system store, don't you have enough privilege to do it?")
             return False
         else:
             return True
-    
     def export_key(self, fn, key) :
-        with open(fn, "wb") as f:
-            f.write(key.private_bytes(
-                Encoding.PEM,
-                PrivateFormat.TraditionalOpenSSL,
-                NoEncryption()
-            ))
+        try:
+            with open(fn, "wb") as f:
+                f.write(key.private_bytes(
+                    Encoding.PEM,
+                    PrivateFormat.TraditionalOpenSSL,
+                    NoEncryption()
+                ))
+        except Exception as e:
+            print(str(e))
+            print("[certmgr] failed to write key into file.")
+            sys.exit()
     def export_cert(self, fn, cert):
-        with open(fn, "wb") as f:
-            f.write(cert.public_bytes(Encoding.PEM))
+        try:
+            with open(fn, "wb") as f:
+                f.write(cert.public_bytes(Encoding.PEM))
+        except Exception as e:
+            print(str(e))
+            print("[certmgr] failed to write certificate into file.")
+            sys.exit()

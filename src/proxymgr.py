@@ -21,6 +21,10 @@ from gevent import pywsgi
 import socket
 import requests
 import json
+import os
+import sys
+import psutil
+import subprocess
 
 app = Flask(__name__)
 
@@ -211,14 +215,39 @@ DOMAIN = 'service.mkey.163.com'
 class proxymgr:
     def __init__(self) -> None:
         pass
+    def check_port(self) :
+        with os.popen('netstat -ano | findstr ":443"') as r :
+            r = r.read().split('\n')
+        for cur in r :
+            info = [i for i in cur.split(' ') if i != '']
+            if len(info) > 4 :
+                if info[1].find(":443") != -1:
+                    t_pid = info[4]
+                    print("[proxymgr] warning :", psutil.Process(int(t_pid)).exe(), "has used the port 443, in which could cause fatal error. Do you want to force to terminate the process? (y/n)")
+                    user_op = input()
+                    if user_op == 'y':
+                        subprocess.check_call(["taskkill", "/f", "/im", t_pid], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                    elif user_op == 'n':
+                        print("[proxymgr] process stopped (reason : been canceled by the user).")
+                        sys.exit()
+                    else :
+                        print("[proxymgr] process stopped (reason : unknown option, only 'y' or 'n' is allowed).")
+                        sys.exit()
+                    break
+        
     def run(self):
         global TARGET_URL
         from dnsmgr import SecureDNS
         resolver = SecureDNS()
         target = resolver.gethostbyname(DOMAIN)
+        if target == None:
+            print("[Proxy] failed to resolve the DNS.")
+            return False
+
         TARGET_URL = f'https://{target}'
 
         if socket.gethostbyname(DOMAIN)=='127.0.0.1':
+            self.check_port()
             server = pywsgi.WSGIServer(listener=('127.0.0.1', 443), certfile='domain_cert.pem',keyfile='domain_key.pem', application=app)
             print("[Proxy] proxy server has been started!")
             server.serve_forever()
