@@ -64,7 +64,7 @@ jobs:
           path: dist/
 
   release:
-    needs: build
+    needs: [build,build-win7]
     runs-on: ubuntu-latest
 
     steps:
