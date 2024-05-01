@@ -65,8 +65,12 @@ class SecureDNS(object):
         if self.params['random_padding']:
             padding = self.generate_padding()
             self.params.update({'random_padding': padding})
+        
+        # Disable proxy for resolving DNS
+        s = requests.session()
+        s.trust_env=False
 
-        r = requests.get(self.url, params=self.params)
+        r = s.get(self.url, params=self.params, proxies=None)
         if r.status_code == 200:
             response = r.json()
 
