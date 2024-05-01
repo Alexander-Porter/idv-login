@@ -77,13 +77,15 @@ pcInfo={
             "src_udid": ""
         }
 
+g_req = requests.session()
+g_req.trust_env = False
 
 def requestGetAsCv(request,cv):
     global TARGET_URL
     query = request.args.copy()
     if cv:
         query["cv"] =cv
-    resp = requests.request(
+    resp = g_req.request(
     method=request.method,
     url=TARGET_URL+request.path,
     params=query,
@@ -103,7 +105,7 @@ def proxy(request):
     query = request.args.copy()
     new_body=request.get_data(as_text=True)    
     # 向目标服务发送代理请求
-    resp = requests.request(
+    resp = g_req.request(
         method=request.method,
         url=TARGET_URL+request.path,
         params=query,
@@ -136,7 +138,7 @@ def requestPostAsCv(request,cv):
         new_body="&".join([f"{k}={v}" for k,v in new_body.items()])
 
     app.logger.info(new_body)
-    resp = requests.request(
+    resp = g_req.request(
     method=request.method,
     url=TARGET_URL+request.path,
     params=query,
