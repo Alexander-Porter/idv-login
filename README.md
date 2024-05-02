@@ -8,19 +8,19 @@
 ### 使用预编译版本
 1. 从本仓库的``release``页下载最新版本的可执行文件(*.exe)，并校验其``sha256``是否与 ``release``中``checksum.txt``的值相同。
     如果``sha256``不同，那么您下载的文件是不安全的，可能存在盗号风险，请检查您的网络环境并重新在**官方仓库（本仓库）**下载文件。
-2. 您可以使用 ``Windows Powershell`` 的 ``Get-FileHash`` 命令来获取文件的``sha256``值，例如，计算v10.0.0.3-beta版本的`sha256`可以使用以下命令：
+2. 您可以使用 ``Windows Powershell`` 的 ``Get-FileHash`` 命令来获取文件的``sha256``值，例如，计算v10.0.0.4-beta版本的`sha256`可以使用以下命令：
     ```bash
-    PS D:\> Get-FileHash idv-login-v10beta-v10.0.0.3-beta.exe
+    PS D:\> Get-FileHash idv-login-v10beta-v10.0.0.4-beta.exe
 
     Algorithm       Hash
     ---------       ----
     SHA256          <这里会显示HASH值>
     ```
-3. - **如果您是``中国大陆``用户**，您可以直接右键**以管理员身份运行**下载的可执行文件，例如``Get-FileHash idv-login-v10beta-v10.0.0.3-beta.exe``，等观察到脚本中有``[Proxy] proxy server has been started!``字样时，保持终端窗口**打开**，然后您可以打开游戏。
+3. - **如果您是``中国大陆``用户**，您可以直接右键**以管理员身份运行**下载的可执行文件，例如``Get-FileHash idv-login-v10beta-v10.0.0.4-beta.exe``，等观察到脚本中有``[Proxy] proxy server has been started!``字样时，保持终端窗口**打开**，然后您可以打开游戏。
     - **如果您是海外用户**，由于海外对于中国大陆服务器的DNS污染较严重，所以您需要指定一个适合您地区的DNS服务器，下面是使用`Google DNS`服务器的例子，注意，您提供的服务器必须支持`DoH`，如果您不知道`DoH`是什么，请直接在终端里运行下方命令。等观察到脚本中有``[Proxy] proxy server has been started!``字样时，保持终端窗口**打开**，然后您可以打开游戏。
     ```bash
         cd <你下载的文件所在的目录>
-        idv-login-v10beta-v10.0.0.3-beta.exe -d dns.google
+        idv-login-v10beta-v10.0.0.4-beta.exe -d dns.google
     ```
     
     

@@ -249,7 +249,11 @@ class proxymgr:
         TARGET_URL = f'https://{target}'
         
         # For overseas users
-        if g_req.get(TARGET_URL, verify=False).status_code != 200 : 
+        try:
+            if g_req.get(TARGET_URL, verify=False).status_code != 200 : 
+                print("[Proxy] warning : invalid dns result, fallback to internal result!")
+                TARGET_URL = 'https://42.186.193.21'
+        except:
             print("[Proxy] warning : invalid dns result, fallback to internal result!")
             TARGET_URL = 'https://42.186.193.21'
 
