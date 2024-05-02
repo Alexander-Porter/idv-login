@@ -100,7 +100,7 @@ class certmgr:
             subprocess.check_call(["certutil", "-addstore", "-f", "Root", fn], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         except Exception as e:
             print(str(e))
-            print("[certmgr] failed to import the CA certificate to system store, don't you have enough privilege to do it?")
+            print("[certmgr] 导入CA证书失败，您是否拥有足够的权限?")
             return False
         else:
             return True
@@ -114,7 +114,7 @@ class certmgr:
                 ))
         except Exception as e:
             print(str(e))
-            print("[certmgr] failed to write key into file.")
+            print("[certmgr] 导出私钥失败！")
             sys.exit()
     def export_cert(self, fn, cert):
         try:
@@ -122,5 +122,5 @@ class certmgr:
                 f.write(cert.public_bytes(Encoding.PEM))
         except Exception as e:
             print(str(e))
-            print("[certmgr] failed to write certificate into file.")
+            print("[certmgr] 导出证书失败！")
             sys.exit()

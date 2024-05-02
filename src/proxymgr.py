@@ -18,6 +18,8 @@
 
 from flask import Flask, request, Response
 from gevent import pywsgi
+from envmgr import genv
+
 import socket
 import requests
 import json
@@ -28,7 +30,6 @@ import subprocess
 
 app = Flask(__name__)
 
-TARGET_URL = ""
 
 loginMethod=[{
                 "name": "手机账号",
@@ -81,13 +82,12 @@ g_req = requests.session()
 g_req.trust_env = False
 
 def requestGetAsCv(request,cv):
-    global TARGET_URL
     query = request.args.copy()
     if cv:
         query["cv"] =cv
     resp = g_req.request(
     method=request.method,
-    url=TARGET_URL+request.path,
+    url=genv.get("URI_REMOTEIP")+request.path,
     params=query,
     headers=request.headers,
     cookies=request.cookies,
@@ -101,13 +101,12 @@ def requestGetAsCv(request,cv):
 
 
 def proxy(request):
-    global TARGET_URL
     query = request.args.copy()
     new_body=request.get_data(as_text=True)    
     # 向目标服务发送代理请求
     resp = g_req.request(
         method=request.method,
-        url=TARGET_URL+request.path,
+        url=genv.get("URI_REMOTEIP")+request.path,
         params=query,
         headers=request.headers,
         data=new_body,
@@ -140,7 +139,7 @@ def requestPostAsCv(request,cv):
     app.logger.info(new_body)
     resp = g_req.request(
     method=request.method,
-    url=TARGET_URL+request.path,
+    url=genv.get("URI_REMOTEIP")+request.path,
     params=query,
     data=new_body,
     headers=request.headers,
@@ -212,7 +211,7 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request,'i4.7.0')
     
-DOMAIN = 'service.mkey.163.com'
+
 
 class proxymgr:
     def __init__(self) -> None:
@@ -225,44 +224,40 @@ class proxymgr:
             if len(info) > 4 :
                 if info[1].find(":443") != -1:
                     t_pid = info[4]
-                    print("[proxymgr] warning :", psutil.Process(int(t_pid)).exe(), "has used the port 443, in which could cause fatal error. Do you want to force to terminate the process? (y/n)")
+                    print("[proxymgr] 警告 :", psutil.Process(int(t_pid)).exe(), f"(pid={t_pid})", "已经占用了443端口，是否强行终止该程序？ (y/n)")
                     user_op = input()
                     if user_op == 'y':
                         subprocess.check_call(["taskkill", "/f", "/im", t_pid], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
                     elif user_op == 'n':
-                        print("[proxymgr] process stopped (reason : been canceled by the user).")
+                        print("[proxymgr] 程序结束 (原因 : 用户手动取消).")
                         sys.exit()
                     else :
-                        print("[proxymgr] process stopped (reason : unknown option, only 'y' or 'n' is allowed).")
+                        print("[proxymgr] 程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项).")
                         sys.exit()
                     break
         
     def run(self):
-        global TARGET_URL
         from dnsmgr import SecureDNS
         resolver = SecureDNS()
-        target = resolver.gethostbyname(DOMAIN)
-        if target == None:
-            print("[Proxy] failed to resolve the DNS.")
-            return False
-
-        TARGET_URL = f'https://{target}'
+        target = resolver.gethostbyname(genv.get("URI_TARGET"))
         
-        # For overseas users
+        # result check
         try:
-            if g_req.get(TARGET_URL, verify=False).status_code != 200 : 
-                print("[Proxy] warning : invalid dns result, fallback to internal result!")
-                TARGET_URL = 'https://42.186.193.21'
+            if target == None or g_req.get(f'https://{target}', verify=False).status_code != 200 : 
+                print("[proxymgr] 警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）")
+                target = "42.186.193.21"
         except:
-            print("[Proxy] warning : invalid dns result, fallback to internal result!")
-            TARGET_URL = 'https://42.186.193.21'
+            print("[proxymgr] 警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）")
+            target = "42.186.193.21"
 
-        if socket.gethostbyname(DOMAIN)=='127.0.0.1':
+        genv.set("URI_REMOTEIP", f'https://{target}')
+
+        if socket.gethostbyname(genv.get("URI_TARGET"))=='127.0.0.1':
             self.check_port()
-            server = pywsgi.WSGIServer(listener=('127.0.0.1', 443), certfile='domain_cert.pem',keyfile='domain_key.pem', application=app)
-            print("[Proxy] proxy server has been started!")
+            server = pywsgi.WSGIServer(listener=('127.0.0.1', 443), certfile=genv.get("FP_WEBCERT"),keyfile=genv.get("FP_WEBKEY"), application=app)
+            print("[proxymgr] 代理服务器启动成功! 您现在可以打开游戏了")
             server.serve_forever()
             return True
         else:
-            print("[Proxy] Failed to redirect target to localhost!")
+            print("[proxymgr] 重定向目标地址失败！")
             return False

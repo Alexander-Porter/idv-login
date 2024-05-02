@@ -42,20 +42,20 @@ class SecureDNS(object):
         edns_client_subnet='0.0.0.0/0',
         random_padding=True,
     ):
-        self.url = 'https://'+ genv.get("custom_dns") + '/dns-query'
+        self.url = 'https://dns.pub/dns-query'
         self.params = {
             'type': query_type,
             'cd': cd,
             'edns_client_subnet': edns_client_subnet,
             'random_padding': random_padding,
         }
-        print("[dnsmgr] DNS query url is", self.url)
+        print("[dnsmgr] DNS服务器地址为", self.url)
 
     def gethostbyname(self, hostname):
         '''mimic functionality of socket.gethostbyname'''
         answers = self.resolve(hostname)
         if answers is not None:
-            print("[dnsmgr] resolve", hostname, "to", answers[0])
+            print("[dnsmgr] 已将", hostname, "解析至", answers[0])
             return answers[0]
         return None
 
