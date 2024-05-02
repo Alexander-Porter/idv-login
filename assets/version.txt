@@ -28,12 +28,12 @@ VSVersionInfo(
         '040904b0',
         [StringStruct('CompanyName', 'Identity Login Helper Community'),
         StringStruct('FileDescription', 'Identity Login Helper'),
-        StringStruct('FileVersion', '10.0.0.1'),
+        StringStruct('FileVersion', '10.0.0.2'),
         StringStruct('InternalName', 'idv-login-v10beta.exe'),
         StringStruct('LegalCopyright', 'Copyright (C) 2024 Alexander-Porter & fwilliamhe. All rights reserved'),
         StringStruct('OriginalFilename', 'idv-login-v10beta.exe'),
         StringStruct('ProductName', 'Identity Login Helper'),
-        StringStruct('ProductVersion', '10.0.0.1')])
+        StringStruct('ProductVersion', '10.0.0.2')])
       ]),
       VarFileInfo([VarStruct('Translation', [1033, 1252])])
   ]
