@@ -2,3 +2,6 @@ requests
 flask
 cryptography
 pyinstaller
+gevent
+python-hosts
+psutil
