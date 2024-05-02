@@ -22,7 +22,12 @@ jobs:
               repo: context.repo.repo
             });
             console.log(release.data);
-            return release.data;
+            return {
+              body: release.data.body,
+              name: release.data.name,
+              tag_name: release.data.tag_name,
+              target_commitish: release.data.target_commitish
+            };
 
       - name: Create release on Gitee
         env:
