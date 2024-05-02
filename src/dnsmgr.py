@@ -17,6 +17,7 @@
 
 import random
 import requests
+from envmgr import genv
 
 # Resource Record Types
 A = 1
@@ -33,7 +34,6 @@ class InvalidHostName(Exception):
     pass
 
 class SecureDNS(object):
-    '''Resolve domains using Google's Public DNS-over-HTTPS API'''
 
     def __init__(
         self,
@@ -42,18 +42,20 @@ class SecureDNS(object):
         edns_client_subnet='0.0.0.0/0',
         random_padding=True,
     ):
-        self.url = 'https://dns.pub/dns-query'
+        self.url = 'https://'+ genv.get("custom_dns") + '/dns-query'
         self.params = {
             'type': query_type,
             'cd': cd,
             'edns_client_subnet': edns_client_subnet,
             'random_padding': random_padding,
         }
+        print("[dnsmgr] DNS query url is", self.url)
 
     def gethostbyname(self, hostname):
         '''mimic functionality of socket.gethostbyname'''
         answers = self.resolve(hostname)
         if answers is not None:
+            print("[dnsmgr] resolve", hostname, "to", answers[0])
             return answers[0]
         return None
 
@@ -70,7 +72,7 @@ class SecureDNS(object):
         s = requests.session()
         s.trust_env=False
 
-        r = s.get(self.url, params=self.params, proxies=None)
+        r = s.get(self.url, params=self.params, proxies=None, timeout=3)
         if r.status_code == 200:
             response = r.json()
 

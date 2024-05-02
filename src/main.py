@@ -20,7 +20,8 @@ import sys
 import ctypes
 import atexit
 import signal
-
+import argparse
+from envmgr import genv
 
 from certmgr import certmgr
 from hostmgr import hostmgr
@@ -35,7 +36,7 @@ m_proxy = proxymgr()
 def precheck() :
     if ctypes.windll.shell32.IsUserAnAdmin() == 0:
         # relaunch as administrator
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
         sys.exit()
 
 def handle_exit():
@@ -45,7 +46,8 @@ def handle_exit():
 
 if __name__ == '__main__':
     precheck()
-    print("Welcome to use IdentityV login helper beta version 10.0.0.1")
+    print("Welcome to use IdentityV login helper beta version 10.0.0.2")
+    print("Project : https://github.com/Alexander-Porter/idv-login/")
     print("This program is free software: you can redistribute it and/or modify")
     print("it under the terms of the GNU General Public License as published by")
     print("the Free Software Foundation, either version 3 of the License, or")
@@ -61,6 +63,12 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, handle_exit)
     signal.signal(signal.SIGINT, handle_exit)
 
+    global parser
+    parser = argparse.ArgumentParser(
+        description="Enter custom parameters to modify the behavior of this script."
+        )
+    parser.add_argument("-d", "--dns", help="custom the DNS server (Must be DoH)", dest="custom_dns", type=str, default="dns.pub")
+    genv.set("custom_dns", parser.parse_args().custom_dns)
 
     if (os.path.exists('domain_cert.pem') == False) or (os.path.exists('domain_key.pem') == False):
         print("Initializing SSL certificates & keys...")

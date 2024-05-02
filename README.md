@@ -9,9 +9,9 @@
     ```bash
     Get-FileHash <FileName>
     ```
-    例如，计算v10.0.0.1-beta版本的`sha256`可以使用以下命令：
+    例如，计算v10.0.0.2-beta版本的`sha256`可以使用以下命令：
     ```bash
-    PS D:\> Get-FileHash idv-login-v10beta-v10.0.0.1-beta.exe
+    PS D:\> Get-FileHash idv-login-v10beta-v10.0.0.2-beta.exe
 
     Algorithm       Hash
     ---------       ----
@@ -31,11 +31,11 @@
     pip install -r requirements.txt
     pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
     ```
-    * dist文件夹中的idv-login-v10beta.exe就是成品
+    * dist文件夹中的`idv-login-v10beta.exe`就是成品
 
 
 * 登录方法
-    * 鼠标双击运行idv-login-v10beta.exe (注意:部分杀软可能会因为修改hosts文件报毒，放行即可)
+    * 鼠标双击运行`idv-login-v10beta.exe` (注意:部分杀软可能会因为修改hosts文件报毒，放行即可)
     * 保持终端窗口**打开**，然后打开第五人格
 
 * 不想丸啦
