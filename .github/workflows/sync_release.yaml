@@ -27,7 +27,7 @@ jobs:
       - name: Create release on Gitee
         env:
           release_data: ${{steps.latest_release.outputs.result}}
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_TOKEN: ${secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
         run: |
           echo ${{ env.release_data.tag_name }}
