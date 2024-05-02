@@ -28,6 +28,8 @@
 
 ![图1](assets/image1.png)
 
+5. 当你成功登录进入游戏大厅后，你可以在本程序界面中使用``Ctrl+C``关闭本程序。
+
 ### 手动构建（Optional）
 
 * 在 Python 官网下载 Python [Python.org](https://www.python.org/downloads/release/python-3123/)
