@@ -46,7 +46,7 @@ def handle_exit():
 
 if __name__ == '__main__':
     precheck()
-    print("Welcome to use IdentityV login helper beta version 10.0.0.2")
+    print("Welcome to use IdentityV login helper beta version 10.0.0.3")
     print("Project : https://github.com/Alexander-Porter/idv-login/")
     print("This program is free software: you can redistribute it and/or modify")
     print("it under the terms of the GNU General Public License as published by")
