@@ -247,6 +247,11 @@ class proxymgr:
             return False
 
         TARGET_URL = f'https://{target}'
+        
+        # For overseas users
+        if g_req.get(TARGET_URL, verify=False).status_code != 200 : 
+            print("[Proxy] warning : invalid dns result, fallback to internal result!")
+            TARGET_URL = 'https://42.186.193.21'
 
         if socket.gethostbyname(DOMAIN)=='127.0.0.1':
             self.check_port()
@@ -257,4 +262,3 @@ class proxymgr:
         else:
             print("[Proxy] Failed to redirect target to localhost!")
             return False
-        
