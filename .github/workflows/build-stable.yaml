@@ -27,7 +27,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
-        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
+        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
 
       - name: Calcaulate checksum
         run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.sha256
