@@ -27,7 +27,7 @@ jobs:
         run: pyinstaller -F src/main.py -n idv-login-v10beta-${{github.ref_name}}.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
 
       - name: Calcaulate checksum
-        run: pwsh /c Get-FileHash dist/idv-login-v10beta-${{github.ref_name}}.exe | select-object -ExpandProperty Hash > dist/checksum.txt
+        run: Get-FileHash "dist/idv-login-v10beta-${{github.ref_name}}.exe" | select-object -ExpandProperty Hash > dist/checksum.txt
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
