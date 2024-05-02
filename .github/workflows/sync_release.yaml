@@ -21,7 +21,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            consloe.log(release.data);
+            console.log(release.data);
             return release.data;
 
       - name: Create release on Gitee
