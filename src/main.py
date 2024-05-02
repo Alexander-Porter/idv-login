@@ -68,7 +68,7 @@ def initialize() :
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
-    print(f"[main] 已将工作目录设置为 -> {genv.get("FP_WORKDIR")}")
+    print(f"[main] 已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
