@@ -1,3 +1,4 @@
+# coding=UTF-8
 class genv:
     global _list
     _list = {}
