@@ -46,7 +46,11 @@ jobs:
         with:
           name: windows-x86_64-${{ matrix.python-version }}
           path: upload/
-
+      - name: Release body
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: ext/${{github.ref_name}}-CHANGELOG
   release:
     needs: [build]
     runs-on: ubuntu-latest
