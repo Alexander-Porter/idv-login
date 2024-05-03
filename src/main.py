@@ -17,6 +17,7 @@
  """
 
 import os
+import shutil
 import sys
 import ctypes
 import atexit
@@ -27,6 +28,7 @@ import requests.packages
 from certmgr import certmgr
 from hostmgr import hostmgr
 from proxymgr import proxymgr
+from channelmgr import ChannelManager
 from envmgr import genv
 
 
@@ -52,6 +54,11 @@ def initialize() :
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"),"domain_cert.pem"))
     genv.set("FP_WEBKEY",  os.path.join(genv.get("FP_WORKDIR"),"domain_key.pem"))
     genv.set("FP_CACERT",  os.path.join(genv.get("FP_WORKDIR"),"root_ca.pem"))
+    genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"),"channels.json"))
+    
+    #关于线程安全：谁？
+    genv.set("CHANNELS_HELPER",ChannelManager())
+    genv.set("CHANNEL_ACCOUNT_SELECTED","")
 
     # handle exit
     atexit.register(handle_exit)
@@ -67,6 +74,10 @@ def initialize() :
     # initialize workpath
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
+    
+    #(Can't) copy web assets! Have trouble using pyinstaller = =
+    #shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
+
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
     print(f"[main] 已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
 
