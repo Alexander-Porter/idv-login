@@ -16,7 +16,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-from third_party.python_hosts import Hosts, HostsEntry
+from python_hosts import Hosts, HostsEntry
 import os
 
 FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
