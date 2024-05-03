@@ -24,13 +24,13 @@ QQ群：[click](https://www.bilibili.com/opus/920131433914171416)
 2. 您可以使用 ``Windows Powershell`` 的 ``Get-FileHash`` 命令来获取文件的``sha256``值，例如，计算v5.0.0-stable版本的`sha256`可以使用以下命令：
     ```bash
     PS D:\> Get-FileHash idv-login-v5.0.0-stable.exe
-
+    
     Algorithm       Hash
     ---------       ----
     SHA256          <这里会显示HASH值>
     ```
 3. 直接右键**以管理员身份运行**下载的可执行文件，例如``idv-login-v5.0.0-stable.exe``，等观察到脚本提示``可以开启游戏``时，保持终端窗口**打开**，然后您可以打开游戏。    
-    
+   
 4. 打开游戏后，点击登录框**右下角的"电脑"图标**（如下图所示），即可使用账号密码登录，以绕过注册时间限制。
 
 ![图1](assets/image1.png)
