@@ -33,7 +33,7 @@ jobs:
         run: New-Item -Force -Path upload -ItemType Directory
           
       - name: Copy LICENSES
-        run: Copy-Item -Path "LICENSE/*" -Destination "dist" -Recurse
+        run: Copy-Item -Path "LICENSES/*" -Destination "dist" -Recurse
 
       - name: Compress Archieve
         run: Compress-Archive -Path dist/* -DestinationPath upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
