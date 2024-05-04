@@ -240,7 +240,7 @@ def handle_create_login():
         resp: Response = proxy(request)
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
         new_config = resp.get_json()
-        new_config["qrcode_scanners"][0]["url"] = "https://service.mkey.163.com/_idv-login/index"
+        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index"
         return jsonify(new_config)
     except:
         return proxy(request)
@@ -371,7 +371,7 @@ class proxymgr:
         from dnsmgr import SecureDNS
 
         resolver = SecureDNS()
-        target = resolver.gethostbyname(genv.get("URI_TARGET"))
+        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
 
         # result check
         try:
@@ -391,7 +391,7 @@ class proxymgr:
 
         genv.set("URI_REMOTEIP", f"https://{target}")
 
-        if socket.gethostbyname(genv.get("URI_TARGET")) == "127.0.0.1":
+        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             self.check_port()
             server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
