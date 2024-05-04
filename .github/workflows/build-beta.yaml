@@ -2,6 +2,8 @@ name: Build Beta
 
 on:
   push:
+    tags:
+      - "v[0-100]+.[0-9]+.[0-1000]-beta"
   workflow_dispatch:
   
 jobs:
