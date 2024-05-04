@@ -18,12 +18,12 @@
 
 import subprocess
 import sys
+import datetime
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
-from datetime import datetime, timedelta
 
 class certmgr:
     def __init__(self) -> None:
@@ -51,9 +51,9 @@ class certmgr:
         ).serial_number(
             x509.random_serial_number()
         ).not_valid_before(
-            datetime.now()
+            datetime.datetime.now(datetime.UTC)
         ).not_valid_after(
-            datetime.now() + timedelta(days=365)
+            datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
         ).add_extension(
             x509.BasicConstraints(ca=True, path_length=None), critical=True,
         ).sign(privatekey, hashes.SHA256())
@@ -86,9 +86,9 @@ class certmgr:
         ).serial_number(
             x509.random_serial_number()
         ).not_valid_before(
-            datetime.now()
+            datetime.datetime.now(datetime.UTC)
         ).not_valid_after(
-            datetime.now() + timedelta(days=365)
+            datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
         ).add_extension(
             x509.SubjectAlternativeName([
                 x509.DNSName(hostname),
