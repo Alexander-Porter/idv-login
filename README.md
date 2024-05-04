@@ -52,6 +52,12 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 ```
 * dist文件夹中的`idv-login-v10beta.exe`就是成品
 
+### 渠道服登录(Beta)
+
+* 在扫码界面以对应渠道扫码一次
+* 下次需要登录该区服时，点击扫码登录二维码下方的游戏图标，进入一个浏览器界面
+* 在该界面内管理账号登录信息
+
 ### 如果程序意外退出导致开游戏后无法登录
 * 在文件资源管理器里输入`%windir%\System32\drivers\etc`并回车，删除`hosts`文件，即可解除工具对网易登录的劫持。
 ## 2. 开源协议
