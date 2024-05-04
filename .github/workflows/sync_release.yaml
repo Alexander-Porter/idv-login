@@ -44,7 +44,7 @@ jobs:
       - name: Upload release assets to Gitee
         id: upload_assets
         env:
-          release_data: ${{steps.latest_release.outputs.result}}
+          release_data: ${{steps.latest_release.outputs.GITEE_RES}}
           gitee_data: ${{fromJson(steps.create_release.outputs.GITEE_TOKEN)}}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
