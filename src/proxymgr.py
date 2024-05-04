@@ -116,7 +116,7 @@ def proxy(request):
     query = request.args.copy()
     new_body = request.get_data(as_text=True)
     # 向目标服务发送代理请求
-    resp = g_req.request(
+    resp = requests.request(
         method=request.method,
         url=genv.get("URI_REMOTEIP") + request.path,
         params=query,
@@ -293,9 +293,11 @@ def handle_qrcode_query():
             "login_info": login_info,
             "qrcode": {"status": 2, "uuid": request.args["uuid"]},
         }
+        print(f"[proxymgr] 尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
         return jsonify(body)
     else:
         resp: Response = proxy(request)
+        print("[proxymgr] 监听扫码结果.")
         qrCodeStatus = resp.get_json()["qrcode"]["status"]
         if qrCodeStatus == 2:
             genv.set("pending_login_info", resp.get_json()["login_info"])
