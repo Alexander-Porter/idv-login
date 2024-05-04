@@ -30,14 +30,12 @@ jobs:
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
         run: |
-          result=${{ fromJSON(env.release_data) }}
-          echo ${{result}}
           curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
           -H "Content-Type: application/json;charset=UTF-8" \
           -d '{
             "access_token": "${{ secrets.GITEE_TOKEN }}",
-            "tag_name": "${{ result.tag_name }}",
-            "name": "${{ result.name }}",
-            "body": "${{ result.body }}",
-            "target_commitish": ${{result.target_commitish}},
+            "tag_name": "${{  fromJSON(env.release_data).tag_name }}",
+            "name": "${{  fromJSON(env.release_data).name }}",
+            "body": "${{  fromJSON(env.release_data).body }}",
+            "target_commitish": ${{ fromJSON(env.release_data).target_commitish}},
           }'
