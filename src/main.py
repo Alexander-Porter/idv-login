@@ -55,9 +55,6 @@ def initialize() :
     genv.set("FP_WEBKEY",  os.path.join(genv.get("FP_WORKDIR"),"domain_key.pem"))
     genv.set("FP_CACERT",  os.path.join(genv.get("FP_WORKDIR"),"root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"),"channels.json"))
-    
-    #关于线程安全：谁？
-    genv.set("CHANNELS_HELPER",ChannelManager())
     genv.set("CHANNEL_ACCOUNT_SELECTED","")
 
     # handle exit
@@ -80,6 +77,9 @@ def initialize() :
 
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
     print(f"[main] 已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
+
+    #关于线程安全：谁？
+    genv.set("CHANNELS_HELPER",ChannelManager())
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
