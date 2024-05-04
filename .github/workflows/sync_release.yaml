@@ -37,5 +37,5 @@ jobs:
             "tag_name": "${{  fromJSON(env.release_data).tag_name }}",
             "name": "${{  fromJSON(env.release_data).name }}",
             "body": "${{  fromJSON(env.release_data).body }}",
-            "target_commitish": ${{ fromJSON(env.release_data).target_commitish}},
+            "target_commitish":"${{ fromJSON(env.release_data).target_commitish}}"
           }'
