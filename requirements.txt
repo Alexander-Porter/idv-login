@@ -2,4 +2,5 @@ cryptography
 Flask
 gevent
 psutil
+pyinstaller
 Requests
