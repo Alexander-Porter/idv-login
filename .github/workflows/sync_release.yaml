@@ -25,12 +25,13 @@ jobs:
             return release.data;
 
       - name: Create release on Gitee
+        id: create_release
         env:
           release_data: ${{steps.latest_release.outputs.result}}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
         run: |
-          curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
+          GITEE_RES=curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
           -H "Content-Type: application/json;charset=UTF-8" \
           -d '{
             "access_token": "${{ secrets.GITEE_TOKEN }}",
@@ -38,4 +39,23 @@ jobs:
             "name": "${{  fromJSON(env.release_data).name }}",
             "body": "${{  fromJSON(env.release_data).body }}",
             "target_commitish":"${{ fromJSON(env.release_data).target_commitish}}"
-          }'
+          }' >> $GITHUB_OUTPUT
+      
+      - name: Upload release assets to Gitee
+        id: upload_assets
+        env:
+          release_data: ${{steps.latest_release.outputs.result}}
+          gitee_data: ${{fromJson(steps.create_release.outputs.GITEE_TOKEN)}}
+          GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
+          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+        run: |
+          for asset_item in ${{ fromJSON(env.release_data).assets }}; do
+            #下载assets到本地
+            $asset = asset_item
+            echo $asset
+            curl -LJO -H "Accept: application/octet-stream" ${{ fromJson(env.asset).browser_download_url }}
+            curl -X POST \
+              -H "Authorization: token ${{env.GITEE_TOKEN}}" \
+              -F "file=@${{ fromJson(env.asset).name}}" \
+              "https://gitee.com/api/v5/repos/${{env.GITEE_ROPE}}/releases/${{env.gitee_data.id}}/attach_files"
+          done
