@@ -60,6 +60,12 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 
 ### 如果程序意外退出导致开游戏后无法登录
 * 在文件资源管理器里输入`%windir%\System32\drivers\etc`并回车，删除`hosts`文件，即可解除工具对网易登录的劫持。
+
+### 网易第五人格PC端下载
+* 大陆 [下载游戏](https://adl.netease.com/d/g/id5/c/gw?type=pc)
+* 海外 [下载游戏](https://h55na.gdl.easebar.com/identityv_setup_release_oversea_0112.exe)
+
+
 ## 2. 开源协议
 本仓库使用 ``GNU General Public License 3`` 进行开源，请使用/分发本仓库的软件或源代码或衍生产品时请遵守该开源协议，并保留原始项目地址。**需要特别注意的是，根据``GPLv3``许可证的要求，如果你使用了本仓库的代码进行二次开发，那么您的代码也必须使用`GPLv3`协议开源。**
 
