@@ -39,7 +39,7 @@ m_proxy = None
 def handle_exit():
     print("[main] 再见!")
     if m_hostmgr != None:
-        m_hostmgr.remove(genv.get("URI_TARGET"))
+        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
     os.system("pause")
 
 def initialize() :
@@ -49,10 +49,10 @@ def initialize() :
         sys.exit()
 
     # initialize the global vars at first
-    genv.set("URI_TARGET", "service.mkey.163.com")
+    genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WORKDIR", os.path.join(os.environ['PROGRAMDATA'], 'idv-login'))    
-    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"),"domain_cert.pem"))
-    genv.set("FP_WEBKEY",  os.path.join(genv.get("FP_WORKDIR"),"domain_key.pem"))
+    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"),"domain_cert_2.pem"))
+    genv.set("FP_WEBKEY",  os.path.join(genv.get("FP_WORKDIR"),"domain_key_2.pem"))
     genv.set("FP_CACERT",  os.path.join(genv.get("FP_WORKDIR"),"root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"),"channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED","")
@@ -107,7 +107,7 @@ if __name__ == '__main__':
         m_certmgr.export_cert(genv.get("FP_CACERT"), ca_cert)
 
         srv_key = m_certmgr.generate_private_key(bits=2048)
-        srv_cert = m_certmgr.generate_cert(genv.get("URI_TARGET"), srv_key, ca_cert, ca_key)
+        srv_cert = m_certmgr.generate_cert([genv.get("DOMAIN_TARGET"),'localhost'], srv_key, ca_cert, ca_key)
 
         if (m_certmgr.import_to_root(genv.get("FP_CACERT")) == False) : 
             print("[main] 导入CA证书失败!")
@@ -120,7 +120,8 @@ if __name__ == '__main__':
 
     print("[main] 正在重定向目标地址到本机...")
 
-    m_hostmgr.add(genv.get("URI_TARGET"), "127.0.0.1")
+    m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+    m_hostmgr.add('localhost', "127.0.0.1")
 
     print("[main] 正在启动代理服务器...")
 
