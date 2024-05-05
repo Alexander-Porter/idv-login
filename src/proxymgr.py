@@ -21,6 +21,7 @@ from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 from envmgr import genv
 from channelmgr import ChannelManager
+from logutil import setup_logger
 
 import socket
 import requests
@@ -306,7 +307,7 @@ def handle_qrcode_query():
 @app.route("/mpay/api/users/login/qrcode/exchange_token", methods=['POST'])
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
-        print(f"[proxymgr] 尝试登录{genv.get("CHANNEL_ACCOUNT_SELECTED")}")
+        print(f"[proxymgr] 尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
         body = genv.get("CHANNELS_HELPER").login(genv.get("CHANNEL_ACCOUNT_SELECTED"))
         return jsonify(body)
     else:
@@ -370,11 +371,14 @@ class proxymgr:
                     break
 
     def run(self):
-        from dnsmgr import SecureDNS
+        from dnsmgr import SecureDNS,SimulatedDNS
 
-        resolver = SecureDNS()
-        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-
+        resolver,fallbackResolver = SecureDNS(),SimulatedDNS()
+        try:
+            target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        except:
+            target = fallbackResolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        
         # result check
         try:
             if (

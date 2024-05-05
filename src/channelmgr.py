@@ -21,6 +21,7 @@ import json
 import time
 
 from envmgr import genv
+from logutil import setup_logger
 
 class channel:
     def __init__(self,
@@ -44,7 +45,7 @@ class channel:
 
         self.create_time = create_time
         self.last_login_time = last_login_time
-        self.uuid = f"{login_info['login_channel']}-{login_info["code"]}"
+        self.uuid = f"{login_info['login_channel']}-{login_info['code']}"
         if name is "":
             self.name=self.uuid
         else:
@@ -76,12 +77,13 @@ class channel:
 
 class ChannelManager:
     def __init__(self):
+        self.logger = setup_logger(__name__)
         self.channels = []    
         if (os.path.exists(genv.get('FP_CHANNEL_RECORD'))):
             with open(genv.get('FP_CHANNEL_RECORD'), 'r') as file:
                 try:
                     data = json.load(file)
-                    print(f"[channelmgr] 解析渠道服登录信息成功！")
+                    self.logger.info("[channelmgr] 解析渠道服登录信息成功！")
                     for item in data:
                         self.channels.append(channel.from_dict(item))
                 except:
@@ -96,7 +98,7 @@ class ChannelManager:
         with open(genv.get('FP_CHANNEL_RECORD'), 'w') as file:
             data = [channel.__dict__ for channel in self.channels]
             json.dump(data, file)
-        print(f"[channelmgr] 渠道服登录信息已更新")
+        self.logger.info("[channelmgr] 渠道服登录信息已更新")
 
 
     def list_channels(self):

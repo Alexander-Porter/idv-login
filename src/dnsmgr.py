@@ -19,6 +19,8 @@
 import random
 import requests
 from envmgr import genv
+import socket
+from logutil import setup_logger
 
 # Resource Record Types
 A = 1
@@ -34,6 +36,26 @@ UNRESERVED_CHARS = 'abcdefghijklmnopqrstuvwxyz' \
 class InvalidHostName(Exception):
     pass
 
+class SimulatedDNS(object):
+
+    def __init__(self):
+        self.logger = setup_logger(__name__)
+        self.hostname_to_ip = {}
+
+    def gethostbyname(self, hostname):
+        '''mimic functionality of socket.gethostbyname'''
+        if hostname in self.hostname_to_ip:
+            self.logger.info("[SimulatedDNS] 已将 %s 解析至 %s", hostname, self.hostname_to_ip[hostname])
+            return self.hostname_to_ip[hostname]
+        
+        try:
+            ip = socket.gethostbyname(hostname)
+            self.hostname_to_ip[hostname] = ip
+            self.logger.info("[SimulatedDNS] 已将 %s 解析至 %s", hostname, ip)
+            return ip
+        except socket.gaierror:
+            return None
+
 class SecureDNS(object):
 
     def __init__(
@@ -43,6 +65,7 @@ class SecureDNS(object):
         edns_client_subnet='0.0.0.0/0',
         random_padding=True,
     ):
+        self.logger = setup_logger(__name__)
         self.url = 'https://dns.pub/dns-query'
         self.params = {
             'type': query_type,
@@ -50,13 +73,13 @@ class SecureDNS(object):
             'edns_client_subnet': edns_client_subnet,
             'random_padding': random_padding,
         }
-        print("[dnsmgr] DNS服务器地址为", self.url)
+        self.logger.info("[dnsmgr] DNS服务器地址为 %s", self.url)
 
     def gethostbyname(self, hostname):
         '''mimic functionality of socket.gethostbyname'''
         answers = self.resolve(hostname)
         if answers is not None:
-            print("[dnsmgr] 已将", hostname, "解析至", answers[0])
+            self.logger.info("[dnsmgr] 已将 %s 解析至 %s", hostname, answers[0])
             return answers[0]
         return None
 

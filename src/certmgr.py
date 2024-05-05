@@ -29,10 +29,11 @@ from cryptography.hazmat.primitives.serialization import (
     PrivateFormat,
     NoEncryption,
 )
-
+from logutil import setup_logger
 
 class certmgr:
     def __init__(self) -> None:
+        self.logger = setup_logger(__name__)
         pass
 
     def generate_private_key(self, bits: int):
@@ -128,8 +129,8 @@ class certmgr:
                 shell=True,
             )
         except Exception as e:
-            print(str(e))
-            print("[certmgr] 导入CA证书失败，您是否拥有足够的权限?")
+            self.logger.error(str(e))
+            self.logger.error("导入CA证书失败，您是否拥有足够的权限?")
             return False
         else:
             return True
@@ -143,8 +144,8 @@ class certmgr:
                     )
                 )
         except Exception as e:
-            print(str(e))
-            print("[certmgr] 导出私钥失败！")
+            self.logger.error(str(e))
+            self.logger.error("导出私钥失败！")
             sys.exit()
 
     def export_cert(self, fn, cert):
@@ -152,6 +153,6 @@ class certmgr:
             with open(fn, "wb") as f:
                 f.write(cert.public_bytes(Encoding.PEM))
         except Exception as e:
-            print(str(e))
-            print("[certmgr] 导出证书失败！")
+            self.logger.error(str(e))
+            self.logger.error("导出证书失败！")
             sys.exit()
