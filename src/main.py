@@ -19,7 +19,6 @@
 from gevent import monkey
 monkey.patch_all()
 import os
-import shutil
 import sys
 import ctypes
 import atexit
@@ -140,4 +139,4 @@ if __name__ == '__main__':
             sys.exit()
 
     except Exception as e:
-        logger.exception(f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt")
+        logger.exception(f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",stack_info=True)

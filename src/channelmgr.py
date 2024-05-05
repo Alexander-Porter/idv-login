@@ -83,7 +83,7 @@ class ChannelManager:
             with open(genv.get('FP_CHANNEL_RECORD'), 'r') as file:
                 try:
                     data = json.load(file)
-                    self.logger.info("[channelmgr] 解析渠道服登录信息成功！")
+                    self.logger.info("解析渠道服登录信息成功！")
                     for item in data:
                         self.channels.append(channel.from_dict(item))
                 except:
@@ -98,7 +98,7 @@ class ChannelManager:
         with open(genv.get('FP_CHANNEL_RECORD'), 'w') as file:
             data = [channel.__dict__ for channel in self.channels]
             json.dump(data, file)
-        self.logger.info("[channelmgr] 渠道服登录信息已更新")
+        self.logger.info("渠道服登录信息已更新")
 
 
     def list_channels(self):

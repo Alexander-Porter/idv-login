@@ -17,12 +17,16 @@
  """
 
 from python_hosts import Hosts, HostsEntry, HostsException
+from logutil import setup_logger
+
 import os
+import traceback
 
 FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
 class hostmgr:
     def __init__(self) -> None:
+        self.logger=setup_logger(__name__)
         if (os.path.isfile(FN_HOSTS) == False):
             open(FN_HOSTS, 'w').close()
     def add(self, dnsname, ip) :
@@ -30,11 +34,11 @@ class hostmgr:
         m_host.add([HostsEntry(entry_type="ipv4", address=ip, names=[dnsname])])
         try:
             m_host.write()
-        except HostsException as e:
-            print(e)
-            print("[hostmgr] 写hosts文件时出现错误，请检查是否有足够的权限")
-            print(f"[hostmgr] 请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
-            input("[hostmgr] 推荐下载火绒安全软件，使用其Hosts文件修改小工具。")
+        except:
+            self.logger.error("写hosts文件时出现错误，请检查是否有足够的权限")
+            self.logger.error(f"请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
+            self.logger.error("推荐下载火绒安全软件，使用其Hosts文件修改小工具。")
+            self.logger.error(traceback.format_exc())
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)
