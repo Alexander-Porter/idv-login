@@ -120,9 +120,12 @@ if __name__ == '__main__':
         print("[main] 初始化成功!")
 
     print("[main] 正在重定向目标地址到本机...")
-
-    m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
-    m_hostmgr.add('localhost', "127.0.0.1")
+    if (m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True) :
+        print("[main] 识别到手动定向!")
+        print("[main] 请确保已经将", genv.get("DOMAIN_TARGET"), "和localhost指向127.0.0.1")
+    else:
+        m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+        m_hostmgr.add('localhost', "127.0.0.1")
 
     print("[main] 正在启动代理服务器...")
 
