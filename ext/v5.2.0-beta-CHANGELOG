@@ -1,0 +1,16 @@
+## Improvement 🚀
+[+] Windows 7支持
+[+] 增加了全局日志，便于定位错误点(Windows 7版本暂不支持)
+
+## Rollback
+[-] 回滚了beta版本的Actions中checksum的计算策略，现在只会计算exe文件的checksum
+
+## To do ➡️
+[·] 更合理的HTML资源加载/打包方式
+[·] 华为渠道服支持
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.7版
