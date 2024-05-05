@@ -73,13 +73,13 @@ class SecureDNS(object):
             'edns_client_subnet': edns_client_subnet,
             'random_padding': random_padding,
         }
-        self.logger.info("[dnsmgr] DNS服务器地址为 %s", self.url)
+        self.logger.info("DNS服务器地址为 %s", self.url)
 
     def gethostbyname(self, hostname):
         '''mimic functionality of socket.gethostbyname'''
         answers = self.resolve(hostname)
         if answers is not None:
-            self.logger.info("[dnsmgr] 已将 %s 解析至 %s", hostname, answers[0])
+            self.logger.info("已将 %s 解析至 %s", hostname, answers[0])
             return answers[0]
         return None
 
