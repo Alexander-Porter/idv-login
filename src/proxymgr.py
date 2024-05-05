@@ -32,7 +32,7 @@ import psutil
 import subprocess
 
 app = Flask(__name__)
-
+logger=setup_logger(__name__)
 
 loginMethod = [
     {
@@ -294,11 +294,10 @@ def handle_qrcode_query():
             "login_info": login_info,
             "qrcode": {"status": 2, "uuid": request.args["uuid"]},
         }
-        print(f"[proxymgr] 尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
+        logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
         return jsonify(body)
     else:
         resp: Response = proxy(request)
-        print("[proxymgr] 监听扫码结果.")
         qrCodeStatus = resp.get_json()["qrcode"]["status"]
         if qrCodeStatus == 2:
             genv.set("pending_login_info", resp.get_json()["login_info"])
@@ -307,11 +306,11 @@ def handle_qrcode_query():
 @app.route("/mpay/api/users/login/qrcode/exchange_token", methods=['POST'])
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
-        print(f"[proxymgr] 尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
+        logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
         body = genv.get("CHANNELS_HELPER").login(genv.get("CHANNEL_ACCOUNT_SELECTED"))
         return jsonify(body)
     else:
-        print("[proxymgr] 捕获到渠道服登录Token.")
+        logger.info(f"捕获到渠道服登录Token.")
         resp: Response = proxy(request)
         if resp.status_code == 200:
             genv.get("CHANNELS_HELPER").import_from_scan(
@@ -333,6 +332,14 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request, "i4.7.0")
 
+@app.before_request
+def before_request_func():
+    logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
+
+@app.after_request
+def after_request_func(response):
+    logger.debug(f"发送 {response.status} {response.headers} {response.get_data(as_text=True)}")
+    return response
 
 class proxymgr:
     def __init__(self) -> None:
@@ -346,8 +353,8 @@ class proxymgr:
             if len(info) > 4:
                 if info[1].find(":443") != -1:
                     t_pid = info[4]
-                    print(
-                        "[proxymgr] 警告 :",
+                    logger.warning(
+                        "警告 :",
                         psutil.Process(int(t_pid)).exe(),
                         f"(pid={t_pid})",
                         "已经占用了443端口，是否强行终止该程序？ (y/n)",
@@ -361,11 +368,11 @@ class proxymgr:
                             shell=True,
                         )
                     elif user_op == "n":
-                        print("[proxymgr] 程序结束 (原因 : 用户手动取消).")
+                        logger.info("程序结束 (原因 : 用户手动取消).")
                         sys.exit()
                     else:
-                        print(
-                            "[proxymgr] 程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项)."
+                        logger.warning(
+                            "程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项)."
                         )
                         sys.exit()
                     break
@@ -385,13 +392,13 @@ class proxymgr:
                 target == None
                 or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
-                print(
-                    "[proxymgr] 警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                logger.warning(
+                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
                 )
                 target = "42.186.193.21"
         except:
-            print(
-                "[proxymgr] 警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+            logger.warning(
+                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
 
@@ -405,9 +412,9 @@ class proxymgr:
                 keyfile=genv.get("FP_WEBKEY"),
                 application=app,
             )
-            print("[proxymgr] 代理服务器启动成功! 您现在可以打开游戏了")
+            logger.info("代理服务器启动成功! 您现在可以打开游戏了")
             server.serve_forever()
             return True
         else:
-            print("[proxymgr] 重定向目标地址失败！")
+            logger.error("重定向目标地址失败！")
             return False
