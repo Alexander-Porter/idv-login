@@ -29,11 +29,12 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt
 
-      - name: Calcaulate Client checksum
-        run: Get-FileHash "upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
-
       - name: Make dir
         run: New-Item -Force -Path upload -ItemType Directory
+
+      - name: Calcaulate Client checksum
+        run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+
           
       - name: Copy LICENSES
         run: Copy-Item -Path "LICENSES/*" -Destination "dist" -Recurse
