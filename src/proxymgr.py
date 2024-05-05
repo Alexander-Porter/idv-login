@@ -334,11 +334,14 @@ def globalProxy(path):
 
 @app.before_request
 def before_request_func():
-    logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
-
+    if request.method == "POST":
+        logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
+    else:
+        logger.debug(f"请求 {request.method} {request.path} {request.args}")
 @app.after_request
 def after_request_func(response):
-    logger.debug(f"发送 {response.status} {response.headers} {response.get_data(as_text=True)}")
+    if request.content_type == "application/json":
+        logger.debug(f"发送 {response.status} {response.headers} {response.get_json()}")
     return response
 
 class proxymgr:
