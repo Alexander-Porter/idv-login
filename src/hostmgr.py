@@ -20,7 +20,7 @@ from python_hosts import Hosts, HostsEntry, HostsException
 from logutil import setup_logger
 
 import os
-import traceback
+import sys
 
 FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
@@ -28,22 +28,35 @@ class hostmgr:
     def __init__(self) -> None:
         self.logger=setup_logger(__name__)
         if (os.path.isfile(FN_HOSTS) == False):
-            open(FN_HOSTS, 'w').close()
+            self.logger.warning(f"Hosts文件不存在，尝试创建中...")
+            try:
+                open(FN_HOSTS, 'w').close()
+            except:
+                self.logger.error(f"Hosts文件创建失败",stack_info=True)
+                sys.exit()
+        elif not os.access(FN_HOSTS, os.W_OK):
+            self.logger.warning(f"Hosts文件不可写，请检查{FN_HOSTS}是否被设置了只读权限！")
+            input("按任意键继续")
+        else:
+            try:
+                hostsOkay=m_host.exists(names=[dnsname])
+            except UnicodeDecodeError:
+                self.logger.warning(f"Hosts文件编码异常，请删除{FN_HOSTS}，或将其移动到其他目录下！")
+                input("按任意键继续")
+
     def add(self, dnsname, ip) :
         m_host = Hosts()
         m_host.add([HostsEntry(entry_type="ipv4", address=ip, names=[dnsname])])
         try:
             m_host.write()
         except:
-            self.logger.error("写hosts文件时出现错误，请检查是否有足够的权限")
-            self.logger.error(f"请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
-            self.logger.error("推荐下载火绒安全软件，使用其Hosts文件修改小工具。")
-            self.logger.error(traceback.format_exc())
+            print(f"请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
+            self.logger.error(f"写Hosts文件失败",stack_info=True)
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)
         m_host.write()
     
-    def isExist(self, dnsname)->bool :
+    def precheckHosts(self, dnsname)->bool :
         m_host = Hosts()
         return m_host.exists(names=[dnsname])
