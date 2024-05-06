@@ -3,3 +3,4 @@ src/python_hosts/__pycache__/
 build/
 dist/
 *.spec
+log.txt

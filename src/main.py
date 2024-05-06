@@ -135,7 +135,7 @@ if __name__ == '__main__':
         logger.info("正在启动代理服务器...")
 
         if (m_proxy.run() == False) :
-            logger.error("启动代理服务器失败!")
+            logger.error("启动代理服务器失败!",stack_info=True)
             sys.exit()
 
     except Exception as e:
