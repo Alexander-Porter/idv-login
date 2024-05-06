@@ -1,4 +1,4 @@
-name: Build Stable & Release
+name: Build Stable and Release
 
 on:
   push:
@@ -27,32 +27,22 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
-        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
+        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt
 
-      - name: Make dir
-        run: New-Item -Force -Path upload -ItemType Directory
-          
-      - name: Copy LICENSES
-        run: Copy-Item -Path "LICENSES/*" -Destination "dist" -Recurse
 
-      - name: Compress Archieve
-        run: Compress-Archive -Path dist/* -DestinationPath upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
-
-      - name: Calcaulate checksum
-        run: Get-FileHash "upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip" | select-object -ExpandProperty Hash > upload/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip.sha256
+      - name: Calcaulate Client checksum
+        run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64-${{ matrix.python-version }}
-          path: upload/
-
+          path: dist/
       - name: Release body
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ext/${{github.ref_name}}-CHANGELOG
-
   release:
     needs: [build]
     runs-on: ubuntu-latest
@@ -68,5 +58,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            **/*.zip
+            **/*.exe
             **/*.sha256
