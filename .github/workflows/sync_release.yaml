@@ -37,10 +37,10 @@ jobs:
       - name: Download release assets to a local Dir
         id: download_assets
         env:
-          release_data: ${{fromJSON(steps.latest_release.outputs.result)}}
+          release_data: ${{(steps.latest_release.outputs.result)}}
         run: |
           mkdir -p tmps
-          for asset in ${{ (env.release_data).assets }}; do
+          for asset in ${{ fromJSON(env.release_data).assets }}; do
             asset_url=$(echo $asset | jq -r '.browser_download_url')
             asset_name=$(echo $asset | jq -r '.name')
             curl -L -o "tmps/$($asset_name)" $asset_url
@@ -59,7 +59,7 @@ jobs:
       - name: Create release on Gitee
         id: create_release
         env:
-          release_data: ${{fromJSON(steps.latest_release.outputs.result)}}
+          release_data: ${{(steps.latest_release.outputs.result)}}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
           MARKDOWN_OUTPUT: ${{ steps.upload_assets.outputs.MARKDOWN }}
@@ -68,8 +68,8 @@ jobs:
             -H "Content-Type: application/json;charset=UTF-8" \
             -d '{
             "access_token": "${{ secrets.GITEE_TOKEN }}",
-            "tag_name": "${{  (env.release_data).tag_name }}",
-            "name": "${{  (env.release_data).name }}",
-            "body": "${{  (env.release_data).body }}\n 下载链接: ${{ env.MARKDOWN_OUTPUT }}",
-            "target_commitish":"${{ (env.release_data).target_commitish}}"
+            "tag_name": "${{  fromJSON(env.release_data).tag_name }}",
+            "name": "${{  fromJSON(env.release_data).name }}",
+            "body": "${{  fromJSON(env.release_data).body }}\n 下载链接: ${{ env.MARKDOWN_OUTPUT }}",
+            "target_commitish":"${{ fromJSON(env.release_data).target_commitish}}"
             }') >> $GITHUB_OUTPUT
