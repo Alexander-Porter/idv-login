@@ -40,13 +40,9 @@ jobs:
           release_data: ${{(steps.latest_release.outputs.result)}}
         run: |
           mkdir -p tmps
-          for asset in ${{ fromJSON(env.release_data).assets }}; do
-            asset_url=$(echo $asset | jq -r '.browser_download_url')
-            asset_name=$(echo $asset | jq -r '.name')
-            curl -L -o "tmps/$($asset_name)" $asset_url
-          done
+          
       
-      - name: Upload release assets to Gitee
+      - name: Upload release assets to OSS
         id: upload_assets
         env:
           UPLOAD_PRE_URL: ${{ secrets.UPLOAD_PRE_URL }}
@@ -54,15 +50,14 @@ jobs:
         run: |
           pip install requests_toolbelt
           pip install requests
-          MARKDOWN=$(python tools/release_upload.py tmp) >> $GITHUB_OUTPUT
+          result=$(python tools/release_upload.py tmp) >> $GITHUB_OUTPUT
 
       - name: Create release on Gitee
         id: create_release
         env:
-          release_data: ${{(steps.latest_release.outputs.result)}}
+          release_data: ${{(steps.upload_assets.outputs.result)}}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
-          MARKDOWN_OUTPUT: ${{ steps.upload_assets.outputs.MARKDOWN }}
         run: |
             GITEE_RES=$(curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
             -H "Content-Type: application/json;charset=UTF-8" \
