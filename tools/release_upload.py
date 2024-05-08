@@ -2,6 +2,7 @@ import sys
 import requests
 import os.path
 import json
+import traceback
 from requests_toolbelt.multipart import encoder
 #读取环境变量
 secret_upload_pre_url=os.getenv("UPLOAD_PRE_URL")
@@ -72,4 +73,6 @@ if __name__=='__main__':
         releaseData["body"]+=uploadAllFilesAndGetMarkDown(fileList)
         print(json.dumps(releaseData))
     except:
+        traceback.print_exc()
+        traceback.print_stack()
         sys.exit(1)
