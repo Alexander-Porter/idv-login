@@ -59,6 +59,7 @@ def downloadToPath(url, path):
     return path
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
+    os.mkdir(sys.argv[1])
     releaseData=getLatestRelease()
     for i in releaseData["assets"]:
         downloadToPath(i["browser_download_url"],os.path.join(sys.argv[1],i["name"]))
