@@ -47,6 +47,7 @@ jobs:
         env:
           UPLOAD_PRE_URL: ${{ secrets.UPLOAD_PRE_URL }}
           UPLOAD_URL: ${{ secrets.UPLOAD_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pip install requests_toolbelt
           pip install requests
