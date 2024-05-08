@@ -42,8 +42,8 @@ jobs:
           mkdir -p tmps
           
       
-      - name: Upload release assets to OSS
-        id: upload_assets
+      - name: Release (assets) to Gitee
+        id: release
         env:
           UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}
           UPLOAD_URL: ${{ secrets.SECRET_UPLOAD_URL}}
