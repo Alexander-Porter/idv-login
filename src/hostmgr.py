@@ -40,8 +40,8 @@ class hostmgr:
         else:
             try:
                 m_host = Hosts()
-                hostsOkay=m_host.exists(['localhost'])
-            except UnicodeDecodeError:
+                hostsOkay = m_host.exists(['localhost'])
+            except (UnicodeDecodeError, ValueError) as e:
                 self.logger.warning(f"Hosts文件编码异常，请手动删除{FN_HOSTS}，或将其移动到其他目录下！")
                 input("按任意键继续")
 

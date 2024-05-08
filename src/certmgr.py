@@ -130,7 +130,14 @@ class certmgr:
             )
         except Exception as e:
             self.logger.error(str(e))
-            self.logger.error("导入CA证书失败，您是否拥有足够的权限?")
+            self.logger.error("导入CA证书失败，您是否拥有足够的权限？报错信息：")
+            #读取certutil的输出到日志
+            subprocess.check_call(
+                ["certutil", "-addstore", "-f", "Root", fn],
+                stderr=subprocess.STDOUT,
+                stdout=subprocess.STDOUT,
+                shell=True,
+            )
             return False
         else:
             return True
