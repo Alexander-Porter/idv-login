@@ -45,13 +45,13 @@ jobs:
       - name: Upload release assets to OSS
         id: upload_assets
         env:
-          UPLOAD_PRE_URL: ${{ secrets.UPLOAD_PRE_URL }}
-          UPLOAD_URL: ${{ secrets.UPLOAD_URL }}
+          UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}
+          UPLOAD_URL: ${{ secrets.SECRET_UPLOAD_URL}}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pip install requests_toolbelt
           pip install requests
-          result=$(python tools/release_upload.py tmp) >> $GITHUB_OUTPUT
+          python tools/release_upload.py tmp
 
       - name: Create release on Gitee
         id: create_release
