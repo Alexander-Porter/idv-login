@@ -73,7 +73,7 @@ if __name__=='__main__':
         releaseData["body"]+=uploadAllFilesAndGetMarkDown(fileList)
         print(json.dumps(releaseData))
         #use echo to output the json data
-        os.system(f'echo result={json.dumps(releaseData)} >> $GITHUB_OUTPUT')
+        os.system(f'echo "result={json.dumps(releaseData)}" >> $GITHUB_OUTPUT')
     except:
         traceback.print_exc()
         traceback.print_stack()
