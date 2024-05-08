@@ -1,16 +1,17 @@
 import sys
 import requests
 import os.path
+import json
 from requests_toolbelt.multipart import encoder
 #读取环境变量
 secret_upload_pre_url=os.getenv("UPLOAD_PRE_URL")
 secret_upload_url=os.getenv("UPLOAD_URL")
-
+github_token=os.getenv("GITHUB_TOKEN")
 
 def uploadFile(filePath):
     ext=filePath.split(".")[-1]
     fileName= os.path.split(filePath)[1]
-    headers={"Host":"hsc.changyan.com","Connection":"keep-alive","sec-ch-ua":"\"Microsoft Edge\";v=\"105\", \" Not;A Brand\";v=\"99\", \"Chromium\";v=\"105\"","Accept":"application/json, text/plain, */*","armadaProductId":"hsc_push","sec-ch-ua-mobile":"?0","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.27","token":"[object Object]","sec-ch-ua-platform":"\"Windows\"","Sec-Fetch-Site":"same-origin","Sec-Fetch-Mode":"cors","Sec-Fetch-Dest":"empty","Accept-Encoding":"gzip, deflate, br","Accept-Language":"zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6"}
+    headers={"Connection":"keep-alive","sec-ch-ua":"\"Microsoft Edge\";v=\"105\", \" Not;A Brand\";v=\"99\", \"Chromium\";v=\"105\"","Accept":"application/json, text/plain, */*","armadaProductId":"hsc_push","sec-ch-ua-mobile":"?0","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.27","token":"[object Object]","sec-ch-ua-platform":"\"Windows\"","Sec-Fetch-Site":"same-origin","Sec-Fetch-Mode":"cors","Sec-Fetch-Dest":"empty","Accept-Encoding":"gzip, deflate, br","Accept-Language":"zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6"}
     pre_data=requests.get(secret_upload_pre_url+"?fileExt="+ext,headers=headers, verify=False).json()
     try:
         token=pre_data["uploadToken"]["token"]
@@ -47,14 +48,27 @@ def uploadAllFilesAndGetMarkDown(fileList):
     for i in data:
         res+=(f"![{i}]({data[i]})\n")
     return res
+def getLatestRelease():
+    headers={"Authorization":"token "+github_token}
+    r=requests.get("https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest",headers=headers)
+    return r.json()
+def downloadToPath(url, path):
+    r=requests.get(url)
+    with open(path, "wb") as f:
+        f.write(r.content)
+    return path
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
+    releaseData=getLatestRelease()
+    for i in releaseData["assets"]:
+        downloadToPath(i["browser_download_url"],os.path.join(sys.argv[1],i["name"]))
     targetDir=sys.argv[1]
     fileList=[]
     for root, dirs, files in os.walk(targetDir):
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        print(uploadAllFilesAndGetMarkDown(fileList))
+        releaseData["body"]+=uploadAllFilesAndGetMarkDown(fileList)
+        print(json.dumps(releaseData))
     except:
         sys.exit(1)
