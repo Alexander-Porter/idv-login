@@ -11,6 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
       - name: Get latest release
         id: latest_release
         uses: actions/github-script@v7
@@ -24,38 +32,44 @@ jobs:
             console.log(release.data);
             return release.data;
 
+
+
+      - name: Download release assets to a local Dir
+        id: download_assets
+        env:
+          release_data: ${{fromJSON(steps.latest_release.outputs.result)}}
+        run: |
+          mkdir -p tmps
+          for asset in ${{ (env.release_data).assets }}; do
+            asset_url=$(echo $asset | jq -r '.browser_download_url')
+            asset_name=$(echo $asset | jq -r '.name')
+            curl -L -o "tmps/$($asset_name)" $asset_url
+          done
+      
+      - name: Upload release assets to Gitee
+        id: upload_assets
+        env:
+          UPLOAD_PRE_URL: ${{ secrets.UPLOAD_PRE_URL }}
+          UPLOAD_URL: ${{ secrets.UPLOAD_URL }}
+        run: |
+          pip install requests_toolbelt
+          pip install requests
+          MARKDOWN=$(python tools/release_upload.py tmp) >> $GITHUB_OUTPUT
+
       - name: Create release on Gitee
         id: create_release
         env:
-          release_data: ${{steps.latest_release.outputs.result}}
+          release_data: ${{fromJSON(steps.latest_release.outputs.result)}}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+          MARKDOWN_OUTPUT: ${{ steps.upload_assets.outputs.MARKDOWN }}
         run: |
             GITEE_RES=$(curl -X POST "https://gitee.com/api/v5/repos/${{secrets.GITEE_ROPE}}/releases" \
             -H "Content-Type: application/json;charset=UTF-8" \
             -d '{
             "access_token": "${{ secrets.GITEE_TOKEN }}",
-            "tag_name": "${{  fromJSON(env.release_data).tag_name }}",
-            "name": "${{  fromJSON(env.release_data).name }}",
-            "body": "${{  fromJSON(env.release_data).body }}",
-            "target_commitish":"${{ fromJSON(env.release_data).target_commitish}}"
+            "tag_name": "${{  (env.release_data).tag_name }}",
+            "name": "${{  (env.release_data).name }}",
+            "body": "${{  (env.release_data).body }}\n 下载链接: ${{ env.MARKDOWN_OUTPUT }}",
+            "target_commitish":"${{ (env.release_data).target_commitish}}"
             }') >> $GITHUB_OUTPUT
-      
-      - name: Upload release assets to Gitee
-        id: upload_assets
-        env:
-          release_data: ${{steps.latest_release.outputs.result}}
-          gitee_data: ${{fromJson(steps.create_release.outputs.GITEE_TOKEN)}}
-          GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
-          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
-        run: |
-          for asset_item in ${{ fromJSON(env.release_data).assets }}; do
-            #下载assets到本地
-            $asset = $asset_item
-            echo $asset
-            curl -LJO -H "Accept: application/octet-stream" ${{ fromJson(env.asset).browser_download_url }}
-            curl -X POST \
-              -H "Authorization: token ${{env.GITEE_TOKEN}}" \
-              -F "file=@${{ fromJson(env.asset).name}}" \
-              "https://gitee.com/api/v5/repos/${{env.GITEE_ROPE}}/releases/${{env.gitee_data.id}}/attach_files"
-          done
