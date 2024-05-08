@@ -58,6 +58,17 @@ def downloadToPath(url, path):
     with open(path, "wb") as f:
         f.write(r.content)
     return path
+def releaseToGitee(releaseData):
+    url=f"https://gitee.com/api/v5/repos/{os.getenv("GITEE_ROPE")}/releases"
+    data={
+        "access_token": os.getenv("GITEE_TOKEN"),
+        "tag_name": releaseData["tag_name"],
+        "name": releaseData["name"],
+        "body": releaseData["body"],
+        "target_commitish": releaseData["target_commitish"]
+    }
+    return requests.post(url, data=data).text
+
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
     os.mkdir(sys.argv[1])
@@ -72,8 +83,7 @@ if __name__=='__main__':
     try:
         releaseData["body"]+=uploadAllFilesAndGetMarkDown(fileList)
         print(json.dumps(releaseData))
-        #use echo to output the json data
-        os.system(f'echo "result={json.dumps(releaseData)}" >> $GITHUB_OUTPUT')
+        releaseToGitee(releaseData)
     except:
         traceback.print_exc()
         traceback.print_stack()
