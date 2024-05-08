@@ -81,7 +81,7 @@ if __name__=='__main__':
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        releaseData["body"]+=('\n'+uploadAllFilesAndGetMarkDown(fileList))
+        releaseData["body"]+=('\n**注意**，点击链接后在"即将跳转到外部网站"处**手动复制网址**并**粘贴到地址栏访问**，否则会出现无法下载的错误！\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
         releaseToGitee(releaseData)
     except:
