@@ -40,7 +40,7 @@ m_proxy = None
 def handle_exit():
     print("再见!")
     if m_hostmgr != None:
-        #m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
+        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
         pass
     os.system("pause")
 
@@ -85,7 +85,7 @@ def initialize() :
     requests.packages.urllib3.disable_warnings()
 
 def welcome() :
-    print("[+] 欢迎使用第五人格登陆助手 version 5.2.0-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.2.2-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
