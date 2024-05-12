@@ -25,7 +25,6 @@ import requests
 from envmgr import genv
 from logutil import setup_logger
 
-
 class channel:
     def __init__(
         self,
@@ -51,7 +50,7 @@ class channel:
         self.last_login_time = last_login_time
         self.uuid = f"{login_info['login_channel']}-{login_info['code']}"
         self.channel_name = login_info["login_channel"]
-        if name is "":
+        if name == "":
             self.name = self.uuid
         else:
             self.name = name
@@ -68,9 +67,22 @@ class channel:
             name=data.get("name", ""),
         )
 
-    def login(self):
-        self.last_login_time = int(time.time())
-        return self.exchange_data
+    def get_uniSdk_data(self):
+        return  {
+            "user_id": self.user_info["id"],
+            "token": self.user_info["token"],
+            "login_channel": self.ext_info["src_app_channel2"],
+            "udid": self.ext_info["src_udid"],
+            "app_channel": self.ext_info["src_app_channel"],
+            "sdk_version": self.ext_info["src_jf_game_id"],
+            "jf_game_id": self.ext_info["src_jf_game_id"],
+            "pay_channel": self.ext_info["src_pay_channel"],
+            "extra_data": "",
+            "extra_unisdk_data":self.ext_info["extra_unisdk_data"],
+            "gv": "157",
+            "gvn": "1.5.80",
+            "cv": "a1.5.0",
+        }
 
     def get_non_sensitive_data(self):
         return {
@@ -91,7 +103,17 @@ class ChannelManager:
                     data = json.load(file)
                     self.logger.info("解析渠道服登录信息成功！")
                     for item in data:
-                        self.channels.append(channel.from_dict(item))
+                        if "login_info" in item.keys():
+                            channel_name=item["login_info"]["login_channel"]
+                            if channel_name == "xiaomi_app":
+                                from channelHandler.miChannelHandler import miChannel
+                                tmpChannel:miChannel=miChannel.from_dict(item)
+                                if tmpChannel.is_session_valid():
+                                    self.channels.append(tmpChannel)
+                                else:
+                                    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            else:
+                                self.channels.append(channel.from_dict(item))
                 except:
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
                         json.dump([], f)
@@ -103,6 +125,11 @@ class ChannelManager:
     def save_records(self):
         with open(genv.get("FP_CHANNEL_RECORD"), "w") as file:
             data = [channel.__dict__ for channel in self.channels]
+            for channel_data in data:
+                #删除所有json不能储存的内容
+                for key in list(channel_data.keys()):
+                    if isinstance(channel_data[key], bytes):
+                        del channel_data[key]
             json.dump(data, file)
         self.logger.info("渠道服登录信息已更新")
 
@@ -155,28 +182,15 @@ class ChannelManager:
         return None
 
     def simulate_confirm(self, channel:channel, scanner_uuid: str, game_id: str):
-        data = {
-            "uuid": scanner_uuid,
-            "user_id": channel.user_info["id"],
-            "token": channel.user_info["token"],
-            "login_channel": channel.ext_info["src_app_channel2"],
-            "udid": channel.ext_info["src_udid"],
-            "app_channel": channel.ext_info["src_app_channel"],
-            "sdk_version": channel.ext_info["src_jf_game_id"],
-            "jf_game_id": channel.ext_info["src_jf_game_id"],
-            "pay_channel": channel.ext_info["src_pay_channel"],
-            "extra_data": "",
-            "extra_unisdk_data":channel.ext_info["extra_unisdk_data"],
-            "game_id": game_id,
-            "gv": "157",
-            "gvn": "1.5.80",
-            "cv": "a1.5.0",
-        }
-        body="&".join([f"{k}={v}" for k, v in data.items()])
+        channel_data=channel.get_uniSdk_data()
+        channel_data["uuid"]=scanner_uuid
+        channel_data["game_id"]=game_id
+        body="&".join([f"{k}={v}" for k, v in channel_data.items()])
         self.logger.info(f"模拟确认请求: {body}")
         r=requests.post("https://service.mkey.163.com/mpay/api/qrcode/confirm_login", data=body, headers={"Content-Type": "application/x-www-form-urlencoded"},verify=False)
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
+            channel.last_login_time = int(time.time())
             return r.json()
         else:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
