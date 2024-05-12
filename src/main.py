@@ -40,7 +40,8 @@ m_proxy = None
 def handle_exit():
     print("再见!")
     if m_hostmgr != None:
-        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
+        #m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
+        pass
     os.system("pause")
 
 def initialize() :
@@ -76,7 +77,6 @@ def initialize() :
     #shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
-    print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
 
     #关于线程安全：谁？
     genv.set("CHANNELS_HELPER",ChannelManager())
@@ -139,5 +139,5 @@ if __name__ == '__main__':
             sys.exit()
 
     except Exception as e:
-        logger.exception(f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",stack_info=True)
+        logger.exception(f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",stack_info=True,exc_info=True)
         input("拦截退出事件.")
