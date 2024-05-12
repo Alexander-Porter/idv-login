@@ -186,7 +186,6 @@ class ChannelManager:
         channel_data["uuid"]=scanner_uuid
         channel_data["game_id"]=game_id
         body="&".join([f"{k}={v}" for k, v in channel_data.items()])
-        self.logger.info(f"模拟确认请求: {body}")
         r=requests.post("https://service.mkey.163.com/mpay/api/qrcode/confirm_login", data=body, headers={"Content-Type": "application/x-www-form-urlencoded"},verify=False)
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
