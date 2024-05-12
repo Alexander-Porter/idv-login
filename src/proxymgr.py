@@ -240,6 +240,12 @@ def handle_create_login():
     try:
         resp: Response = proxy(request)
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+        data={
+            "uuid":resp.get_json()["uuid"],
+            "game_id":request.args["game_id"]
+        }
+        genv.set("CACHED_QRCODE_DATA",data)
+        genv.set("pending_login_info",None)
         new_config = resp.get_json()
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index"
         return jsonify(new_config)
@@ -260,10 +266,10 @@ def _list_channels():
 @app.route("/_idv-login/switch", methods=["GET"])
 def _switch_channel():
     genv.set("CHANNEL_ACCOUNT_SELECTED",request.args["uuid"])
-    resp={
-        "current":genv.get("CHANNEL_ACCOUNT_SELECTED")
-    }
-    return jsonify(resp)
+    if genv.get("CACHED_QRCODE_DATA"):
+         data=genv.get("CACHED_QRCODE_DATA")
+         genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
+    return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
 
 @app.route("/_idv-login/del", methods=["GET"])
 def _del_channel():
@@ -287,19 +293,11 @@ def _handle_switch_page():
 @app.route("/mpay/api/qrcode/query", methods=["GET"])
 def handle_qrcode_query():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
-        login_info = genv.get("CHANNELS_HELPER").build_query_res(
-            genv.get("CHANNEL_ACCOUNT_SELECTED")
-        )
-        body = {
-            "login_info": login_info,
-            "qrcode": {"status": 2, "uuid": request.args["uuid"]},
-        }
-        logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        return jsonify(body)
+        return proxy(request)
     else:
         resp: Response = proxy(request)
         qrCodeStatus = resp.get_json()["qrcode"]["status"]
-        if qrCodeStatus == 2:
+        if qrCodeStatus == 2 and genv.get("CHANNEL_ACCOUNT_SELECTED") == "":
             genv.set("pending_login_info", resp.get_json()["login_info"])
         return resp
 
@@ -307,21 +305,22 @@ def handle_qrcode_query():
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        body = genv.get("CHANNELS_HELPER").login(genv.get("CHANNEL_ACCOUNT_SELECTED"))
-        return jsonify(body)
+        return  proxy(request)
     else:
         logger.info(f"捕获到渠道服登录Token.")
         resp: Response = proxy(request)
         if resp.status_code == 200:
-            genv.get("CHANNELS_HELPER").import_from_scan(
-                genv.get("pending_login_info"), resp.get_json()
-            )
+            if genv.get("pending_login_info"):
+                genv.get("CHANNELS_HELPER").import_from_scan(
+                    genv.get("pending_login_info"), resp.get_json()
+                )
         return resp
 
-
+@app.route("/mpay/api/qrcode/<path>", methods=["POST"])
 @app.route("/mpay/api/reverify/<path>")
 @app.route("/mpay/api/qrcode/<path>", methods=["GET"])
 def handle_qrcode(path):
+    logger.info(f"UNCHANGED {request.url}")
     return proxy(request)
 
 
