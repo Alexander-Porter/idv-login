@@ -34,22 +34,23 @@ class miChannel(channel):
         self.logger = setup_logger(__name__)
         self.logger.info(f"Create a new miChannel with name {self.name}")
 
-    def requestUserLogin(self):
+    def _request_user_login(self):
         #唤起网页登录。然后自行处理后续的登录流程
         self.logger.info(f"Requesting user login")
         pass
 
-    def isSessionValid(self):
-        #检查session是否有效，可以通过`https://mgbsdk.matrix.netease.com/h55/sdk/uni_sauth `
-        self.logger.info(f"Checking session valid")
-        pass
 
-    def getUniSdkData(self):
-        #获取UniSdk数据，用于扫码
-        self.logger.info(f"Getting UniSdk data")
-        pass
-
-    def  refreshSession(self):
+    def _refresh_session(self):
         #刷新session
         self.logger.info(f"Refreshing session")
         pass
+    def is_session_valid(self):
+        #检查session是否有效，可以通过`https://mgbsdk.matrix.netease.com/h55/sdk/uni_sauth `
+        self.logger.info(f"Checking session valid")
+        pass
+        return True
+
+    def get_uniSdk_data(self):
+        #获取UniSdk数据，用于扫码
+        self.logger.info(f"Getting UniSdk data")
+        return super().get_uniSdk_data()
