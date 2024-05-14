@@ -405,18 +405,19 @@ class proxymgr:
             target = "42.186.193.21"
 
         genv.set("URI_REMOTEIP", f"https://{target}")
-
-        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
-            self.check_port()
-            server = pywsgi.WSGIServer(
+        self.check_port()
+        server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
                 keyfile=genv.get("FP_WEBKEY"),
                 application=app,
             )
-            logger.info("代理服务器启动成功! 您现在可以打开游戏了")
+        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
+            logger.info("拦截成功! 您现在可以打开游戏了")
             server.serve_forever()
             return True
         else:
-            logger.error("重定向目标地址失败！",stack_info=True,exc_info=True)
+            logger.error("拦截目标域名失败！依旧打开服务器，请打开游戏确认拦截是否生效！")
+            server.serve_forever()
             return False
+        

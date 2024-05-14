@@ -133,9 +133,7 @@ if __name__ == '__main__':
 
         logger.info("正在启动代理服务器...")
 
-        if (m_proxy.run() == False) :
-            logger.error("启动代理服务器失败!",stack_info=True)
-            sys.exit()
+        m_proxy.run()
 
     except Exception as e:
         logger.exception(f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",stack_info=True,exc_info=True)
