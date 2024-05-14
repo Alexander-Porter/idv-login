@@ -418,5 +418,5 @@ class proxymgr:
             server.serve_forever()
             return True
         else:
-            logger.error("重定向目标地址失败！")
+            logger.error("重定向目标地址失败！",stack_info=True,exc_info=True)
             return False
