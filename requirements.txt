@@ -1,6 +1,9 @@
 cryptography
+Faker
 Flask
 gevent
 psutil
-pyinstaller
+pycryptodome
+pyperclip
 Requests
+requests_toolbelt

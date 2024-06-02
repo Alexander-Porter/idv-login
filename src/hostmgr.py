@@ -41,8 +41,10 @@ class hostmgr:
             try:
                 m_host = Hosts()
                 hostsOkay = m_host.exists(['localhost'])
-            except (UnicodeDecodeError, ValueError) as e:
-                self.logger.warning(f"Hosts文件编码异常，请手动删除{FN_HOSTS}，或将其移动到其他目录下！")
+            except:
+                self.logger.warning(f"Hosts文件编码异常，正在尝试删除{FN_HOSTS}。")
+                os.remove(FN_HOSTS)
+                open(FN_HOSTS, 'w').close()
                 input("按任意键继续")
 
     def add(self, dnsname, ip) :

@@ -15,42 +15,136 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
+import json
 import time
-from channelmgr import channel
+import base64
+import channelmgr
 from envmgr import genv
 from logutil import setup_logger
 
-class miChannel(channel):
-    def __init__(self,
-                 login_info: dict,
-                 user_info: dict= {},
-                 ext_info: dict= {},
-                 device_info: dict= {},
-                 create_time:int =int(time.time()),
-                 last_login_time:int=0,
-                 name:str="",
-                 ) -> None:
-        super().__init__(login_info, user_info, ext_info, device_info, create_time, last_login_time, name)
+
+from channelHandler.miLogin.miChannel import MiLogin
+
+class miChannel(channelmgr.channel):
+    def __init__(
+        self,
+        login_info: dict,
+        user_info: dict = {},
+        ext_info: dict = {},
+        device_info: dict = {},
+        create_time: int = int(time.time()),
+        last_login_time: int = 0,
+        name: str = "",
+        oAuthData: dict = {},
+    ) -> None:
+        super().__init__(
+            login_info,
+            user_info,
+            ext_info,
+            device_info,
+            create_time,
+            last_login_time,
+            name,
+        )
+        self.oAuthData = oAuthData
         self.logger = setup_logger(__name__)
-        self.logger.info(f"Create a new miChannel with name {self.name}")
+        self.logger.info(f"Create a new miChannel with name {self.name} and {oAuthData}")
+        self.miLogin = MiLogin("2882303761517637640", self.oAuthData)
+        self.uniBody = None
+        self.uniData = None
 
     def _request_user_login(self):
-        #唤起网页登录。然后自行处理后续的登录流程
-        self.logger.info(f"Requesting user login")
-        pass
+        self.miLogin.webLogin()
+        self.oAuthData = self.miLogin.oauthData
+        print(self.oAuthData)
+        return self.oAuthData!=None
 
+    def _get_session(self):
+        try:
+            data = self.miLogin.initAccountData()
+        except Exception as e:
+            self.logger.error(f"Failed to get session data {e}")
+            self.oAuthData = None
+            return None
+        self.last_login_time = int(time.time())
+        return data
 
-    def _refresh_session(self):
-        #刷新session
-        self.logger.info(f"Refreshing session")
-        pass
-    def is_session_valid(self):
-        #检查session是否有效，可以通过`https://mgbsdk.matrix.netease.com/h55/sdk/uni_sauth `
-        self.logger.info(f"Checking session valid")
-        pass
+    def is_token_valid(self):
+        if self.oAuthData is None:
+            self.logger.info(f"Token is invalid for {self.name}")
+            return False
         return True
 
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            login_info=data.get("login_info", {}),
+            user_info=data.get("user_info", {}),
+            ext_info=data.get("ext_info", {}),
+            device_info=data.get("device_info", {}),
+            create_time=data.get("create_time", int(time.time())),
+            last_login_time=data.get("last_login_time", 0),
+            name=data.get("name", ""),
+            oAuthData=data.get("oAuthData", None),
+        )
+
+    def _build_extra_unisdk_data(self)->str:
+        res={
+            "SAUTH_STR":"",
+            "SAUTH_JSON":"",
+            "extra_data":"",
+            "realname":"",
+            "get_access_token":"1",
+        }
+        extra=json.dumps({"adv_channel":"0","adid":"0"})
+        realname=json.dumps({"realname_type":0,"age":18})
+        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.oAuthData["uuid"],"realname":realname}
+        json_data.update(self.uniBody)
+
+        str_data=json_data.copy()
+        str_data.update({"username":self.uniSDKJSON["username"]})
+        str_data="&".join([f"{k}={v}" for k, v in str_data.items()])
+
+        res["SAUTH_STR"]=base64.b64encode(str_data.encode()).decode()
+        res["SAUTH_JSON"]=base64.b64encode(json.dumps(json_data).encode()).decode()
+        res["extra_data"]=extra
+        res["realname"]=realname
+        return json.dumps(res)
+
+
     def get_uniSdk_data(self):
-        #获取UniSdk数据，用于扫码
-        self.logger.info(f"Getting UniSdk data")
-        return super().get_uniSdk_data()
+        self.logger.info(f"Get unisdk data for {self.name}")
+        import channelUtils
+        
+        if not self.is_token_valid():
+            self._request_user_login()
+        channelData = self._get_session()
+        if channelData is None:
+            self.logger.error(f"Failed to get session data for {self.name}")
+            return False
+        self.uniBody = channelUtils.buildSAUTH(
+            "xiaomi_app",
+            "xiaomi_app",
+            str(channelData["appAccountId"]),
+            channelData["session"],
+        )
+        fd = genv.get("FAKE_DEVICE")
+        self.uniData = channelUtils.postSignedData(self.uniBody)
+        self.logger.info(f"Get unisdk data for {self.uniData}")
+        self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
+        res = {
+            "user_id": self.oAuthData["uuid"],
+            "token": base64.b64encode(channelData["session"].encode()).decode(),
+            "login_channel": "xiaomi_app",
+            "udid": fd["udid"],
+            "app_channel": "xiaomi_app",
+            "sdk_version": "3.0.5.002",
+            "jf_game_id": "h55",  # maybe works for all games
+            "pay_channel": "xiaomi_app",
+            "extra_data": "",
+            "extra_unisdk_data": self._build_extra_unisdk_data(),
+            "gv": "157",
+            "gvn": "1.5.80",
+            "cv": "a1.5.0",
+        }
+        return res

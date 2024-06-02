@@ -57,6 +57,8 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 * 下次需要登录该区服时，点击扫码登录二维码下方的游戏图标，进入一个浏览器界面
 * 在该界面内管理账号登录信息
 
+* 特别地，小米账号登录需要使用手动导入的方式，需要在渠道服管理界面按照提示操作。
+
 ### 如果程序意外退出导致开游戏后无法登录
 * 在文件资源管理器里输入`%windir%\System32\drivers\etc`并回车，删除`hosts`文件，即可解除工具对网易登录的劫持。
 
@@ -79,7 +81,7 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 |------|------|
 | 应用宝(微信) | Token过期很快，难度较大 |
 | 华为账号 | Token过期很快，难度较大 |
-| 小米账号 | Token过期很快，难度中等 |
+| vivo账号 | Token过期很快，难度?? |
 
 一个渠道服登录实现的类模板在[这里](src/channelHandler/miChannelHandler.py)。
 

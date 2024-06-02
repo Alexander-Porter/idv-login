@@ -29,6 +29,7 @@ import json
 import os
 import sys
 import psutil
+import const
 import subprocess
 
 app = Flask(__name__)
@@ -252,6 +253,9 @@ def handle_create_login():
     except:
         return proxy(request)
 
+@app.route("/_idv-login/mannualChannels",methods=["GET"])
+def _manual_list():
+    return jsonify(const.manual_login_channels)
 
 @app.route("/_idv-login/list", methods=["GET"])
 def _list_channels():
@@ -285,9 +289,15 @@ def _rename_channel():
     }
     return jsonify(resp)
 
+@app.route("/_idv-login/import", methods=["GET"])
+def _import_channel():
+    resp={
+        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"])
+    }
+    return jsonify(resp)
+
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
-    import const
     return Response(const.html)
 
 @app.route("/mpay/api/qrcode/query", methods=["GET"])
@@ -345,7 +355,10 @@ def after_request_func(response):
 
 class proxymgr:
     def __init__(self) -> None:
-        pass
+        genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+        genv.set("CACHED_QRCODE_DATA",{})
+        genv.set("pending_login_info",None)
+        
 
     def check_port(self):
         with os.popen('netstat -ano | findstr ":443"') as r:
@@ -355,11 +368,16 @@ class proxymgr:
             if len(info) > 4:
                 if info[1].find(":443") != -1:
                     t_pid = info[4]
+                    try:
+                        readable_exe_name=psutil.Process(int(t_pid)).exe()
+                    except:
+                        readable_exe_name="未知程序"
+                        logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
                     logger.warning(
                         "警告 :",
-                        psutil.Process(int(t_pid)).exe(),
+                        readable_exe_name,
                         f"(pid={t_pid})",
-                        "已经占用了443端口，是否强行终止该程序？ (y/n)",
+                        "已经占用了443端口，是否强行终止该程序？ 请输入选项后回车。(y/n)",
                     )
                     user_op = input()
                     if user_op == "y":
@@ -417,7 +435,7 @@ class proxymgr:
             server.serve_forever()
             return True
         else:
-            logger.error("拦截目标域名失败！依旧打开服务器，请打开游戏确认拦截是否生效！")
+            logger.error("检测拦截目标域名失败！依旧打开服务器，请打开游戏确认拦截是否生效！")
             server.serve_forever()
             return False
         

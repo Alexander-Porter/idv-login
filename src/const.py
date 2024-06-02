@@ -1,4 +1,12 @@
-html=r'''<!DOCTYPE html>
+manual_login_channels = [
+    {
+        "name": "小米账号",
+        "channel": "xiaomi_app",
+    }
+]
+
+
+html = r"""<!DOCTYPE html>
 <html lang="zh-cn">
 <head>
     <meta charset="UTF-8">
@@ -8,7 +16,11 @@ html=r'''<!DOCTYPE html>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-5 mb-3">渠道服账号</h1>
+        <h1>渠道服账号</h1>
+        <div>
+            <select id="channelSelect"></select>
+            <button onclick="mannual()">手动登录</button>
+        </div>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -26,6 +38,24 @@ html=r'''<!DOCTYPE html>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function mannual() {
+        //获取channelSelect的值
+        var selectedChannel = document.getElementById('channelSelect').value;
+        if (selectedChannel == 'xiaomi_app') {
+            alert("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
+        }
+        //向服务器发送请求
+        fetch(`/_idv-login/import?channel=${selectedChannel}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('执行成功');
+                location.reload();
+              } else {
+                alert('执行失败');
+              }
+            });
+        }
         function renameChannel(uuid) {
             var newName = prompt("请输入新的账号名称");
             if (newName) {
@@ -89,7 +119,28 @@ html=r'''<!DOCTYPE html>
                         `;
                     });
                 });
+
+            fetch('/_idv-login/mannualChannels')
+                .then(response => response.json())
+                .then(data => {
+                    var channelSelect = document.getElementById('channelSelect');
+                    data.forEach(channel => {
+                        var option = document.createElement('option');
+                        option.value = channel.channel;
+                        option.text = channel.name;
+                        channelSelect.appendChild(option);
+                    });
+                });
+        }
+
+        function executeFunction() {
+            var selectedChannel = document.getElementById('channelSelect').value;
+            fetch(`/_idv-login/import?channel=${selectedChannel}`)
+                .then(response => response.json())
+                .then(data => {
+                    // 处理返回的数据
+                });
         }
     </script>
 </body>
-</html>'''
+</html>"""
