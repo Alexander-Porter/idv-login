@@ -1,7 +1,10 @@
 ### IdentityV Login Helper v5.2.3-beta CHANGELOG
 
+***注意，这是一个Beta版本***
+
 ## Improvement 🚀
 [·] 小米渠道服支持
+[·] 增加了一个Config支持
 
 ## In Progress 🚧
 [·] 华为渠道服支持。

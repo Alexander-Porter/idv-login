@@ -61,6 +61,7 @@ def initialize():
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
+    genv.set("FP_CONFIG", os.path.join(genv.get("FP_WORKDIR"), "config.json"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
     genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
@@ -113,6 +114,14 @@ def initialize():
         with open(genv.get("FP_FAKE_DEVICE"), "r") as f:
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
+
+    if not os.path.exists(genv.get("FP_CONFIG")):
+        with open(genv.get("FP_CONFIG"), "w") as f:
+            json.dump({}, f)
+            genv.set("CONFIG", {})
+    else:
+        with open(genv.get("FP_CONFIG"), "r") as f:
+            genv.set("CONFIG", json.load(f))
 
 
 def welcome():
