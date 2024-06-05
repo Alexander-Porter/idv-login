@@ -53,6 +53,7 @@ class channel:
         self.last_login_time = last_login_time
         self.uuid = f"{login_info['login_channel']}-{login_info['code']}"
         self.channel_name = login_info["login_channel"]
+        self.crossGames = True
         if name == "":
             self.name = self.uuid
         else:
@@ -146,9 +147,9 @@ class ChannelManager:
             json.dump(data, file)
         self.logger.info("渠道服登录信息已更新")
 
-    def list_channels(self):
+    def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data() for channel in self.channels],
+            [channel.get_non_sensitive_data()  for channel in self.channels if channel.crossGame or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )
@@ -166,7 +167,7 @@ class ChannelManager:
         self.channels.append(tmp_channel)
         self.save_records()
 
-    def manual_import(self, channle_name: str):
+    def manual_import(self, channle_name: str,game_id: str):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
@@ -176,7 +177,7 @@ class ChannelManager:
         if channle_name == "xiaomi_app":
             from channelHandler.miChannelHandler import miChannel
 
-            tmp_channel: miChannel = miChannel(tmpData)
+            tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
         try:
             tmp_channel._request_user_login()
             if tmp_channel.is_token_valid():

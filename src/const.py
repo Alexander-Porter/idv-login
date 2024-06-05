@@ -100,9 +100,21 @@ html = r"""<!DOCTYPE html>
                     });
         }
 
+        function getQueryVariable(variable)
+             {
+       var query = window.location.search.substring(1);
+       var vars = query.split("&");
+       for (var i=0;i<vars.length;i++) {
+               var pair = vars[i].split("=");
+               if(pair[0] == variable){return pair[1];}
+       }
+       return (false);
+            }
         // 在页面加载时获取账号列表
         window.onload = function() {
-            fetch('/_idv-login/list')
+        //获得query参数game_id
+        var game_id = getQueryVariable("game_id");
+            fetch('/_idv-login/list?game_id='+game_id)
                 .then(response => response.json())
                 .then(data => {
                     var tableBody = document.getElementById('channelTableBody');

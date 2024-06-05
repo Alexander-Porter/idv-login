@@ -36,6 +36,7 @@ class miChannel(channelmgr.channel):
         last_login_time: int = 0,
         name: str = "",
         oAuthData: dict = {},
+        game_id: str = "",
     ) -> None:
         super().__init__(
             login_info,
@@ -49,7 +50,11 @@ class miChannel(channelmgr.channel):
         self.oAuthData = oAuthData
         self.logger = setup_logger(__name__)
         self.logger.info(f"Create a new miChannel with name {self.name} and {oAuthData}")
+        self.crossGames = False
+        #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
+        #this is a temporary solution for IDV
         self.miLogin = MiLogin("2882303761517637640", self.oAuthData)
+        self.game_id = game_id
         self.uniBody = None
         self.uniData = None
 
@@ -86,6 +91,7 @@ class miChannel(channelmgr.channel):
             last_login_time=data.get("last_login_time", 0),
             name=data.get("name", ""),
             oAuthData=data.get("oAuthData", None),
+            game_id=data.get("game_id", ""),
         )
 
     def _build_extra_unisdk_data(self)->str:
@@ -139,7 +145,7 @@ class miChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": "xiaomi_app",
             "sdk_version": "3.0.5.002",
-            "jf_game_id": "h55",  # maybe works for all games
+            "jf_game_id": self.game_id,  # maybe works for all games
             "pay_channel": "xiaomi_app",
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),

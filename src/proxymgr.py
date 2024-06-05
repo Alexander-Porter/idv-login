@@ -248,7 +248,7 @@ def handle_create_login():
         genv.set("CACHED_QRCODE_DATA",data)
         genv.set("pending_login_info",None)
         new_config = resp.get_json()
-        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index"
+        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
     except:
         return proxy(request)
@@ -440,4 +440,3 @@ class proxymgr:
             logger.error("检测拦截目标域名失败！依旧打开服务器，请打开游戏确认拦截是否生效！")
             server.serve_forever()
             return False
-        
