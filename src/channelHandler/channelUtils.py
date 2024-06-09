@@ -28,11 +28,11 @@ def calcSign(url,method,data):
     key=LOG_KEY
     return hmac.new(key.encode(), src.encode(), hashlib.sha256).hexdigest()
 
-def buildSAUTH(login_channel, app_channel,uid,session):
+def buildSAUTH(login_channel, app_channel,uid,session,game_id):
     fakeData = genv.get("FAKE_DEVICE")
     ip=_get_my_ip()
     data = {
-        "gameid": "h55",#maybe works for all games
+        "gameid": game_id,#maybe works for all games
         "login_channel": login_channel,
         "app_channel": app_channel,
         "platform": "ad",
@@ -54,8 +54,8 @@ def buildSAUTH(login_channel, app_channel,uid,session):
     return data
 
 
-def postSignedData(data):
-    url="https://mgbsdk.matrix.netease.com/h55/sdk/uni_sauth"
+def postSignedData(data,game_id):
+    url=f"https://mgbsdk.matrix.netease.com/{game_id}/sdk/uni_sauth"
     method="POST"
     headers={"X-Client-Sign":calcSign(url,method,json.dumps(data)),
              "Content-Type":"application/json",

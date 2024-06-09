@@ -167,7 +167,7 @@ class ChannelManager:
         self.channels.append(tmp_channel)
         self.save_records()
 
-    def manual_import(self, channle_name: str,game_id: str):
+    def manual_import(self, channle_name: str, game_id: str):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
@@ -179,7 +179,7 @@ class ChannelManager:
 
             tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
         try:
-            tmp_channel._request_user_login()
+            tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():
                 self.channels.append(tmp_channel)
                 self.save_records()

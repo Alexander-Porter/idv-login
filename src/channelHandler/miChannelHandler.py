@@ -19,11 +19,14 @@ import json
 import time
 import base64
 import channelmgr
+
 from envmgr import genv
 from logutil import setup_logger
-
-
 from channelHandler.miLogin.miChannel import MiLogin
+
+MI_APP_ID_MAP={
+    "h55":"2882303761517637640"
+}
 
 class miChannel(channelmgr.channel):
     def __init__(
@@ -53,15 +56,17 @@ class miChannel(channelmgr.channel):
         self.crossGames = False
         #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         #this is a temporary solution for IDV
-        self.miLogin = MiLogin("2882303761517637640", self.oAuthData)
+        if(game_id not in MI_APP_ID_MAP):
+            raise Exception(f"游戏代号 {game_id} 尚未支持。")
+        self.miLogin = MiLogin(MI_APP_ID_MAP[game_id], self.oAuthData)
         self.game_id = game_id
         self.uniBody = None
         self.uniData = None
 
-    def _request_user_login(self):
+    def request_user_login(self):
         self.miLogin.webLogin()
         self.oAuthData = self.miLogin.oauthData
-        print(self.oAuthData)
+        self.logger.debug(self.oAuthData)
         return self.oAuthData!=None
 
     def _get_session(self):
@@ -120,10 +125,10 @@ class miChannel(channelmgr.channel):
 
     def get_uniSdk_data(self):
         self.logger.info(f"Get unisdk data for {self.name}")
-        import channelUtils
+        import channelHandler.channelUtils as channelUtils
         
         if not self.is_token_valid():
-            self._request_user_login()
+            self.request_user_login()
         channelData = self._get_session()
         if channelData is None:
             self.logger.error(f"Failed to get session data for {self.name}")
