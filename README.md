@@ -82,6 +82,7 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 | 应用宝(微信) | Token过期很快，难度较大 |
 | 华为账号 | Token过期很快，难度较大 |
 | vivo账号 | Token过期很快，难度?? |
+| 九游 | Token过期很快，难度?? |
 
 一个渠道服登录实现的类模板在[这里](src/channelHandler/miChannelHandler.py)。
 
