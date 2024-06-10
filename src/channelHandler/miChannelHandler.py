@@ -23,7 +23,9 @@ import channelmgr
 from envmgr import genv
 from logutil import setup_logger
 from channelHandler.miLogin.miChannel import MiLogin
+from channelHandler.channelUtils import getShortGameId
 
+#不同游戏的APP_ID不同，需要更新
 MI_APP_ID_MAP={
     "h55":"2882303761517637640"
 }
@@ -56,9 +58,12 @@ class miChannel(channelmgr.channel):
         self.crossGames = False
         #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         #this is a temporary solution for IDV
+        self.game_id = game_id
+        game_id = getShortGameId(game_id)
         if(game_id not in MI_APP_ID_MAP):
             raise Exception(f"游戏代号 {game_id} 尚未支持。")
         self.miLogin = MiLogin(MI_APP_ID_MAP[game_id], self.oAuthData)
+        self.realGameId = game_id
         self.game_id = game_id
         self.uniBody = None
         self.uniData = None
@@ -138,9 +143,10 @@ class miChannel(channelmgr.channel):
             "xiaomi_app",
             str(channelData["appAccountId"]),
             channelData["session"],
+            self.realGameId,
         )
         fd = genv.get("FAKE_DEVICE")
-        self.uniData = channelUtils.postSignedData(self.uniBody)
+        self.uniData = channelUtils.postSignedData(self.uniBody,self.realGameId)
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
         res = {

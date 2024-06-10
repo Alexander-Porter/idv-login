@@ -149,7 +149,7 @@ class ChannelManager:
 
     def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data()  for channel in self.channels if channel.crossGame or (channel.game_id == game_id)],
+            [channel.get_non_sensitive_data()  for channel in self.channels if game_id is "" or channel.crossGames or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )

@@ -260,7 +260,7 @@ def _manual_list():
 @app.route("/_idv-login/list", methods=["GET"])
 def _list_channels():
     try:
-        body=genv.get("CHANNELS_HELPER").list_channels()
+        body=genv.get("CHANNELS_HELPER").list_channels(request.args["game_id"])
     except Exception as e:
         body = {
             "error": str(e)
@@ -292,7 +292,7 @@ def _rename_channel():
 @app.route("/_idv-login/import", methods=["GET"])
 def _import_channel():
     resp={
-        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"])
+        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"])
     }
     return jsonify(resp)
 

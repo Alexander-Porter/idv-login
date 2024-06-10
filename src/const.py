@@ -38,24 +38,6 @@ html = r"""<!DOCTYPE html>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function mannual() {
-        //获取channelSelect的值
-        var selectedChannel = document.getElementById('channelSelect').value;
-        if (selectedChannel == 'xiaomi_app') {
-            alert("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
-        }
-        //向服务器发送请求
-        fetch(`/_idv-login/import?channel=${selectedChannel}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                alert('执行成功');
-                location.reload();
-              } else {
-                alert('执行失败');
-              }
-            });
-        }
         function renameChannel(uuid) {
             var newName = prompt("请输入新的账号名称");
             if (newName) {
@@ -113,7 +95,7 @@ html = r"""<!DOCTYPE html>
         // 在页面加载时获取账号列表
         window.onload = function() {
         //获得query参数game_id
-        var game_id = getQueryVariable("game_id");
+            game_id = getQueryVariable("game_id");
             fetch('/_idv-login/list?game_id='+game_id)
                 .then(response => response.json())
                 .then(data => {
@@ -144,14 +126,23 @@ html = r"""<!DOCTYPE html>
                     });
                 });
         }
-
-        function executeFunction() {
-            var selectedChannel = document.getElementById('channelSelect').value;
-            fetch(`/_idv-login/import?channel=${selectedChannel}`)
-                .then(response => response.json())
-                .then(data => {
-                    // 处理返回的数据
-                });
+        function mannual() {
+        //获取channelSelect的值
+        var selectedChannel = document.getElementById('channelSelect').value;
+        if (selectedChannel == 'xiaomi_app') {
+            alert("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
+        }
+        //向服务器发送请求
+        fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('执行成功');
+                location.reload();
+              } else {
+                alert('执行失败');
+              }
+            });
         }
     </script>
 </body>
