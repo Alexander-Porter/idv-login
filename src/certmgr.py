@@ -61,9 +61,9 @@ class certmgr:
             .issuer_name(issuer)
             .public_key(privatekey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))
             .not_valid_after(
-                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
+                datetime.datetime.now() + datetime.timedelta(days=360)
             )
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=None),
@@ -102,9 +102,9 @@ class certmgr:
             .issuer_name(ca_cert.subject)
             .public_key(csr.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))#avoid using UTC
             .not_valid_after(
-                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
+                datetime.datetime.now() + datetime.timedelta(days=360)#for chrome 
             )
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
@@ -123,7 +123,7 @@ class certmgr:
             )
         except Exception as e:
             self.logger.error(
-                "导入CA证书失败。请关闭杀毒软件后重试。报错信息：",
+                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息：",
                 stack_info=True,
                 exc_info=True,
             )
