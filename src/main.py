@@ -83,6 +83,8 @@ def initialize():
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
 
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
