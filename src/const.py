@@ -90,7 +90,7 @@ html = r"""<!DOCTYPE html>
                var pair = vars[i].split("=");
                if(pair[0] == variable){return pair[1];}
        }
-       return (false);
+       return ("");
             }
         // 在页面加载时获取账号列表
         window.onload = function() {
