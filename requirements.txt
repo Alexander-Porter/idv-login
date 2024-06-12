@@ -8,3 +8,4 @@ pyperclip
 Requests
 requests_toolbelt
 pyinstaller
+pywin32
