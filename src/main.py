@@ -26,7 +26,8 @@ import os
 import sys
 import ctypes
 import atexit
-import signal
+import win32api
+import win32con
 import requests
 import requests.packages
 
@@ -43,11 +44,16 @@ m_proxy = None
 
 
 def handle_exit():
+    logger.info("程序关闭，正在清理 hosts ！")
+    m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")
-    if m_hostmgr != None:
-        # pass
-        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
-    os.system("pause")
+
+
+def ctrl_handler(ctrl_type):
+    if ctrl_type == 2:  # 对应CTRL_CLOSE_EVENT
+        handle_exit()
+        return False
+    return True
 
 
 def initialize():
@@ -70,8 +76,6 @@ def initialize():
 
     # handle exit
     atexit.register(handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
-    signal.signal(signal.SIGINT, handle_exit)
 
     # initialize object
     global m_certmgr, m_hostmgr, m_proxy
@@ -138,6 +142,12 @@ def welcome():
 
 
 if __name__ == "__main__":
+    # 设置控制台事件处理器
+    kernel32 = ctypes.WinDLL("kernel32")
+    HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
+    handle_ctrl = HandlerRoutine(ctrl_handler)
+    kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+
     genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
