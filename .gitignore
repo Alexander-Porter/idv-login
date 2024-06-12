@@ -3,3 +3,4 @@ dist/
 *.spec
 log.txt
 *.pyc
+/.vs
