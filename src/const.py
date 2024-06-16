@@ -19,7 +19,7 @@ html = r"""<!DOCTYPE html>
         <h1>渠道服账号</h1>
         <div>
             <select id="channelSelect"></select>
-            <button onclick="mannual()">手动登录</button>
+            <button onclick="manual()">手动登录</button>
         </div>
         <table class="table table-striped">
             <thead>
@@ -114,7 +114,7 @@ html = r"""<!DOCTYPE html>
                     });
                 });
 
-            fetch('/_idv-login/mannualChannels')
+            fetch('/_idv-login/manualChannels')
                 .then(response => response.json())
                 .then(data => {
                     var channelSelect = document.getElementById('channelSelect');
@@ -126,7 +126,7 @@ html = r"""<!DOCTYPE html>
                     });
                 });
         }
-        function mannual() {
+        function manual() {
         //获取channelSelect的值
         var selectedChannel = document.getElementById('channelSelect').value;
         if (selectedChannel == 'xiaomi_app') {

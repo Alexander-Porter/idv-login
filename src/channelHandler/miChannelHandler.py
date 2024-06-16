@@ -59,12 +59,11 @@ class miChannel(channelmgr.channel):
         #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         #this is a temporary solution for IDV
         self.game_id = game_id
-        game_id = getShortGameId(game_id)
-        if(game_id not in MI_APP_ID_MAP):
+        real_game_id = getShortGameId(game_id)
+        if(real_game_id not in MI_APP_ID_MAP):
             raise Exception(f"游戏代号 {game_id} 尚未支持。")
-        self.miLogin = MiLogin(MI_APP_ID_MAP[game_id], self.oAuthData)
-        self.realGameId = game_id
-        self.game_id = game_id
+        self.miLogin = MiLogin(MI_APP_ID_MAP[real_game_id], self.oAuthData)
+        self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
 

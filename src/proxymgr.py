@@ -253,7 +253,7 @@ def handle_create_login():
     except:
         return proxy(request)
 
-@app.route("/_idv-login/mannualChannels",methods=["GET"])
+@app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
     return jsonify(const.manual_login_channels)
 
@@ -373,12 +373,7 @@ class proxymgr:
                     except:
                         readable_exe_name="未知程序"
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                    logger.warning(
-                        "警告 :",
-                        readable_exe_name,
-                        f"(pid={t_pid})",
-                        "已经占用了443端口，是否强行终止该程序？ 请输入选项后回车。(y/n)",
-                    )
+                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 请输入选项后回车。(y/n)")
                     user_op = input()
                     if user_op == "y":
                         subprocess.check_call(
