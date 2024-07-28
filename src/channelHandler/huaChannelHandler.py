@@ -60,20 +60,21 @@ class huaweiChannel(channelmgr.channel):
         real_game_id = getShortGameId(game_id)
         #if(real_game_id not in MI_APP_ID_MAP):
         #    raise Exception(f"游戏代号 {game_id} 尚未支持。")
-        self.miLogin = HuaweiLogin(MI_APP_ID_MAP[real_game_id], self.transferKey)
+        self.huaweiLogin = HuaweiLogin(MI_APP_ID_MAP[real_game_id], self.transferKey)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
 
     def request_user_login(self):
-        self.miLogin.webLogin()
-        self.transferKey = self.miLogin.oauthData
+        self.huaweiLogin.newQrCodeLogin()
+        self.transferKey = self.huaweiLogin.transferKey
+        self.transferKeyId=self.huaweiLogin.transferKeyId
         self.logger.debug(self.transferKey)
         return self.transferKey!=None
 
     def _get_session(self):
         try:
-            data = self.miLogin.initAccountData()
+            data = self.huaweiLogin.initAccountData()
         except Exception as e:
             self.logger.error(f"Failed to get session data {e}")
             self.transferKey = None
