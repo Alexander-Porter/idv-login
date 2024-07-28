@@ -373,32 +373,23 @@ class proxymgr:
                     except:
                         readable_exe_name="未知程序"
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 请输入选项后回车。(y/n)")
-                    user_op = input()
-                    if user_op == "y":
-                        subprocess.check_call(
-                            ["taskkill", "/f", "/im", t_pid],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            shell=True,
-                        )
-                    elif user_op == "n":
-                        logger.info("程序结束 (原因 : 用户手动取消).")
-                        sys.exit()
-                    else:
-                        logger.warning(
-                            "程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项)."
-                        )
-                        sys.exit()
+                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
+                    input()
+                    subprocess.check_call(
+                        ["taskkill", "/f", "/im", t_pid],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        shell=True,
+                    )
+
                     break
 
     def run(self):
         from dnsmgr import SecureDNS,SimulatedDNS
 
         resolver,fallbackResolver = SecureDNS(),SimulatedDNS()
-        try:
-            target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-        except:
+        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        if target == None:
             target = fallbackResolver.gethostbyname(genv.get("DOMAIN_TARGET"))
         
         # result check
@@ -408,12 +399,12 @@ class proxymgr:
                 or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
-                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
                 )
                 target = "42.186.193.21"
         except:
             logger.warning(
-                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
 

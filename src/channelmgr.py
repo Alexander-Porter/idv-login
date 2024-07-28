@@ -102,6 +102,7 @@ class ChannelManager:
         self.logger = setup_logger(__name__)
         self.channels = []
         from channelHandler.miChannelHandler import miChannel
+        from channelHandler.huaChannelHandler import huaweiChannel
 
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
@@ -114,6 +115,12 @@ class ChannelManager:
                             if channel_name == "xiaomi_app":
 
                                 tmpChannel: miChannel = miChannel.from_dict(item)
+                                # if tmpChannel.is_token_valid():
+                                self.channels.append(tmpChannel)
+                                # else:
+                                #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name == "huawei":
+                                tmpChannel: huaweiChannel = huaweiChannel.from_dict(item)
                                 # if tmpChannel.is_token_valid():
                                 self.channels.append(tmpChannel)
                                 # else:
@@ -178,6 +185,10 @@ class ChannelManager:
             from channelHandler.miChannelHandler import miChannel
 
             tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
+        if channle_name == "huawei":
+            from channelHandler.huaChannelHandler import huaweiChannel
+
+            tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
         try:
             tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():

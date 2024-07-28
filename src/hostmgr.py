@@ -53,8 +53,7 @@ class hostmgr:
         try:
             m_host.write()
         except:
-            print(f"请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
-            self.logger.error(f"写Hosts文件失败",stack_info=True)
+            self.logger.error(f"写Hosts文件失败",exc_info=True)
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)

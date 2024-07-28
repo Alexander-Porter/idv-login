@@ -2,6 +2,10 @@ manual_login_channels = [
     {
         "name": "小米账号",
         "channel": "xiaomi_app",
+    },
+    {
+        "name":"华为账号",
+        "channel":"huawei"
     }
 ]
 
