@@ -53,7 +53,7 @@ class huaweiChannel(channelmgr.channel):
         self.refreshToken = refreshToken
         self.logger = setup_logger(__name__)
         self.logger.info(f"Create a new huaChannel with name {self.name} and {refreshToken}")
-        self.crossGames = False
+        self.crossGames = True
         #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         #this is a temporary solution for IDV
         self.game_id = game_id

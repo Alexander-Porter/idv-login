@@ -21,7 +21,7 @@ def getNeteaseGameInfo(apkPath):
     #reading AndroidManifest.xml
     import xml.etree.ElementTree as ET
 
-    with open('AndroidManifest.xml', 'r') as f:
+    with open('res/AndroidManifest.xml', 'r') as f:
         data = f.read()
         root = ET.fromstring(data)
         package_name = root.attrib['package']
