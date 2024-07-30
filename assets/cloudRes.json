@@ -1,5 +1,5 @@
 {"lastModified":1,
-  "version":"5.2.5"
+  "version":"5.2.5",
   "data":[
     {"package_name": "com.netease.dwrg", "app_channel": "xiaomi_app", "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw", "game_id": "h55", "xiaomi_app": "mi_2882303761517637640"},
     {"package_name": "com.netease.dwrg", "app_channel": "huawei", "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw", "game_id": "h55", "huawei": {
