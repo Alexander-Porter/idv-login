@@ -38,7 +38,7 @@ class huaweiChannel(channelmgr.channel):
         create_time: int = int(time.time()),
         last_login_time: int = 0,
         name: str = "",
-        transferKey: dict = {},
+        refreshToken: str="",
         game_id: str = "",
     ) -> None:
         super().__init__(
@@ -50,9 +50,9 @@ class huaweiChannel(channelmgr.channel):
             last_login_time,
             name,
         )
-        self.transferKey = transferKey
+        self.refreshToken = refreshToken
         self.logger = setup_logger(__name__)
-        self.logger.info(f"Create a new huaChannel with name {self.name} and {transferKey}")
+        self.logger.info(f"Create a new huaChannel with name {self.name} and {refreshToken}")
         self.crossGames = False
         #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         #this is a temporary solution for IDV
@@ -60,30 +60,29 @@ class huaweiChannel(channelmgr.channel):
         real_game_id = getShortGameId(game_id)
         #if(real_game_id not in MI_APP_ID_MAP):
         #    raise Exception(f"游戏代号 {game_id} 尚未支持。")
-        self.huaweiLogin = HuaweiLogin(MI_APP_ID_MAP[real_game_id], self.transferKey)
+        self.huaweiLogin = HuaweiLogin(MI_APP_ID_MAP[real_game_id], self.refreshToken)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
 
     def request_user_login(self):
-        self.huaweiLogin.newQrCodeLogin()
-        self.transferKey = self.huaweiLogin.transferKey
-        self.transferKeyId=self.huaweiLogin.transferKeyId
-        self.logger.debug(self.transferKey)
-        return self.transferKey!=None
+        self.huaweiLogin.newOAuthLogin()
+        self.refreshToken = self.huaweiLogin.refreshToken
+        self.logger.debug(self.refreshToken)
+        return self.refreshToken!=None
 
     def _get_session(self):
         try:
             data = self.huaweiLogin.initAccountData()
         except Exception as e:
             self.logger.error(f"Failed to get session data {e}")
-            self.transferKey = None
+            self.refreshToken = None
             return None
         self.last_login_time = int(time.time())
         return data
 
     def is_token_valid(self):
-        if self.transferKey is None:
+        if self.refreshToken is None:
             self.logger.info(f"Token is invalid for {self.name}")
             return False
         return True
@@ -112,7 +111,7 @@ class huaweiChannel(channelmgr.channel):
         }
         extra=json.dumps({"adv_channel":"0","adid":"0"})
         realname=json.dumps({"realname_type":0,"age":18})
-        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.transferKey["uuid"],"realname":realname}
+        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.refreshToken["uuid"],"realname":realname}
         json_data.update(self.uniBody)
 
         str_data=json_data.copy()
@@ -148,7 +147,7 @@ class huaweiChannel(channelmgr.channel):
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
         res = {
-            "user_id": self.transferKey["uuid"],
+            "user_id": self.refreshToken["uuid"],
             "token": base64.b64encode(channelData["session"].encode()).decode(),
             "login_channel": "huawei",
             "udid": fd["udid"],

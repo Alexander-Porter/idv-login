@@ -15,26 +15,40 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
+import pywintypes
+import sys
+PIPE_NAME = r'\\.\pipe\idv-login'
+import win32file
+if len(sys.argv) > 2:
+    try:
+        handle = win32file.CreateFile(
+            PIPE_NAME,
+            win32file.GENERIC_WRITE,
+            0, None,
+            win32file.OPEN_EXISTING,
+            0, None
+        )
+        win32file.WriteFile(handle, sys.argv[2].encode())
+        handle.close()
+    except pywintypes.error as e:
+        print(f"Failed to write to named pipe: {e}")
+        sys.exit(1)
+    sys.exit(0)
 
-import json
-import random
-import string
 from gevent import monkey
-
 monkey.patch_all()
+
 import os
 import sys
 import ctypes
 import atexit
-import win32api
-import win32con
 import requests
 import requests.packages
+import json
+import random
+import string
 
-from certmgr import certmgr
-from hostmgr import hostmgr
-from proxymgr import proxymgr
-from channelmgr import ChannelManager
+
 from envmgr import genv
 from logutil import setup_logger
 
@@ -42,8 +56,25 @@ m_certmgr = None
 m_hostmgr = None
 m_proxy = None
 
+import winreg as reg
+
+def register_url_scheme(scheme_name, executable_path):
+    try:
+        # 打开 HKEY_CLASSES_ROOT 注册表项
+        key = reg.CreateKey(reg.HKEY_CLASSES_ROOT, scheme_name)
+        reg.SetValue(key, '', reg.REG_SZ, f'URL:{scheme_name} Protocol')
+        reg.SetValueEx(key, 'URL Protocol', 0, reg.REG_SZ, '')
+
+        # 创建 shell\open\command 子项
+        command_key = reg.CreateKey(key, r'shell\open\command')
+        reg.SetValue(command_key, '', reg.REG_SZ, f'"{executable_path}" "%1"')
+
+        print(f'{scheme_name} URL scheme registered successfully.')
+    except Exception as e:
+        print(f'Failed to register {scheme_name} URL scheme: {e}')
 
 def handle_exit():
+    win32file.CloseHandle(genv.get("PIPE"))
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")
@@ -63,6 +94,14 @@ def initialize():
             None, "runas", sys.executable, " ".join(sys.argv), None, 1
         )
         sys.exit()
+    #for huawei, register hms://
+    
+    executable_path = sys.executable
+    #如果是从解释器启动，不做任何事
+    if not executable_path.endswith("python.exe"):
+        register_url_scheme('hms', executable_path)
+
+
 
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
@@ -78,6 +117,10 @@ def initialize():
     atexit.register(handle_exit)
 
     # initialize object
+    from certmgr import certmgr
+    from hostmgr import hostmgr
+    from proxymgr import proxymgr
+    from channelmgr import ChannelManager
     global m_certmgr, m_hostmgr, m_proxy
     m_certmgr = certmgr()
     m_hostmgr = hostmgr()
@@ -141,8 +184,12 @@ def welcome():
     print(" - (at your option) any later version.")
 
 
+
+
+
+
 if __name__ == "__main__":
-    # 设置控制台事件处理器
+
     kernel32 = ctypes.WinDLL("kernel32")
     HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
     handle_ctrl = HandlerRoutine(ctrl_handler)

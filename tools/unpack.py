@@ -9,7 +9,7 @@ def getNeteaseGameInfo(apkPath):
     #jadx apkPath --single-class com.netease.dwrg.Channel   --output-format json
     #use jadx to get package name
     os.makedirs('res', exist_ok=True)
-    #subprocess.check_call([jadx_path, apkPath, '--no-src', '-dr', 'res'])
+    subprocess.check_call([jadx_path, apkPath, '--no-src', '-dr', 'res'])
     #reading res/assets/channel_auth_data, which is a base64 encoded json file
     with open('res/assets/channel_auth_data', 'r') as f:
         data = f.read()

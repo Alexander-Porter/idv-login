@@ -5,85 +5,12 @@ import string
 import time
 from Crypto.Cipher import AES
 import binascii
-from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY,IV_LENGTH,KEY_LENGTH
-GCM_TYPE = "4"
-IV_LENGTH = 24
-SPLIT_CHAR = ":"
-
-def encrypt(plain_text, key,iv):
-    if not plain_text or not key:
-        return plain_text
-    #genenrate a random iv
-    
-    iv_str=binascii.hexlify(iv).decode('ascii')
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_GCM, nonce=iv)
-    cipher.update(b"")
-    ciphertext, tag = cipher.encrypt_and_digest(plain_text.encode('utf-8'))
-
-    encrypted_text = binascii.hexlify(ciphertext).decode('utf-8')
-    
-    
-    return f"{GCM_TYPE}:{iv_str}:{encrypted_text}"
-
-def decrypt(encrypted_text, key):
-    if not encrypted_text or not key:
-        return encrypted_text
-    
-    parts = encrypted_text.split(SPLIT_CHAR)
-    if len(parts) != 3:
-        return encrypted_text
-    
-    iv = binascii.unhexlify(parts[1])
-    ciphertext = binascii.unhexlify(parts[2])
-    
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_GCM, nonce=iv)
-    cipher.update(b"")
-    plain_text = cipher.decrypt(ciphertext)
-    
-    return plain_text.decode('utf-8')
-
-import requests
-import xml.etree.ElementTree as ET
-
-def getPublicKey():
-    url = "https://hwid.platform.hicloud.com/AccountServer/IUserInfoMng/getResource"
-    params = DEVICE.copy()
-    params["ctrID"]=(str(int(time.time()))+"".join(random.choices(string.ascii_letters + string.digits, k=32)))[0:32]
-    headers = {
-        "Connection": "Keep-Alive",
-        "Host": "hwid.platform.hicloud.com",
-        "User-Agent": "com.huawei.hms.commonkit/6.14.0.300 (Linux; Android 12; SM-S9080) RestClient/7.0.3.300",
-        "Content-Type": "text/html; charset=UTF-8",
-        "Accept-Encoding": "gzip"
-    }
-    data = f"""<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
-<GetResourceReq>
-    <version>{DEVICE["Version"]}</version>
-    <resourceID>upLogin503</resourceID>
-    <languageCode>zh-CN</languageCode>
-    <reqClientType>0</reqClientType>
-</GetResourceReq>"""
-
-    response = requests.post(url, params=params, headers=headers, data=data)
-    response.raise_for_status()
-
-    root = ET.fromstring(response.text)
-    public_key = root.find(".//ResourceContent").text
-    public_key_json = json.loads(public_key)
-    
-    return public_key_json["public-key"]
-
-def buildHwidCommonParams():
-    params=DEVICE.copy()
-    params["ctrID"]=(str(int(time.time()))+"".join(random.choices(string.ascii_letters + string.digits, k=32)))[0:32]
-    return params
 import requests
 import base64
 import hashlib
 import uuid
 
 def generate_code_challenge(code_verifier):
-    # 使用SHA256对code_verifier进行编码
     sha256 = hashlib.sha256()
     sha256.update(code_verifier.encode('ascii'))
     code_challenge = base64.urlsafe_b64encode(sha256.digest()).decode('ascii').rstrip('=')

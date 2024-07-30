@@ -11,14 +11,21 @@ from faker import Faker
 import random
 import webbrowser
 import pyperclip as cb
-
+from envmgr import genv
 #from logutil import setup_logger
 
 #from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY
-from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY,IV_LENGTH,KEY_LENGTH
-from channelHandler.huaLogin.utils import encrypt,decrypt,getPublicKey,buildHwidCommonParams
+from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope
+from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token
 
 DEVICE_RECORD = 'huawei_device.json'
+import win32pipe
+import win32file
+import pywintypes
+
+PIPE_NAME = r'\\.\pipe\idv-login'
+
+
 
 class HuaweiLogin:
 
@@ -27,7 +34,7 @@ class HuaweiLogin:
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         #self.logger = setup_logger(__name__)
         self.appId = appId
-        self.oauthData = oauthData
+        self.refreshToken = ""
         if os.path.exists(DEVICE_RECORD):
             with open(DEVICE_RECORD, "r") as f:
                 self.device = json.load(f)
@@ -42,105 +49,40 @@ class HuaweiLogin:
         device["deviceBrand"] = random.choice(manufacturers)
         return device
     
-
-
-    def newQrCodeLogin(self):
-
-        
-        url = "https://id.cloud.huawei.com/DimensionalCode/getqrInfo"
-        headers = {
-            "Authorization": "1722168834179",
-            "Connection": "Keep-Alive",
-            "Host": "id.cloud.huawei.com",
-            "User-Agent": "com.huawei.hms.commonkit/6.14.0.300 (Linux; Android 12; SM-S9080) RestClient/7.0.3.300",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Accept-Encoding": "gzip"
-        }
-        params=buildHwidCommonParams()
-        data=QRCODE_BODY.copy()
-        
-        response = requests.post(url, headers=headers, params=params, data=data,verify=False)
-        respCookies = response.cookies
-        print(response.text)
-        self.qrCodeListener(response.json().get("qrToken"),respCookies,callback=self.callback)
-    def callback(self,result):
-        print("Login successful:", result)
-    def qrCodeListener(self,token,cookies,callback):
-        url = "https://id1.cloud.huawei.com/DimensionalCode/async"
-        headers = {
-            "Authorization": str(int(time.time())),
-            "Connection": "Keep-Alive",
-            "Host": "id1.cloud.huawei.com",
-            "User-Agent": "com.huawei.hms.commonkit/6.14.0.300 (Linux; Android 12; SM-S9080) RestClient/7.0.3.300",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Accept-Encoding": "gzip"
-        }
-
-        data = {
-            "qrToken": token
-        }
-        dictCookies = requests.utils.dict_from_cookiejar(cookies)
-        while True:
-            response = requests.post(url, headers=headers, data=data,cookies=dictCookies,verify=False)
-            print(response.text)
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("resultCode") == "0":
-                    callback(result)
+    def newOAuthLogin(self):
+        client_id =hms_client_id
+        redirect_uri = hms_redirect_uri
+        scope = hms_scope
+        auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
+        webbrowser.open(auth_url)
+        try:
+            pipe=genv.get("PIPE")
+            print("Waiting for client to connect...")
+            win32pipe.ConnectNamedPipe(pipe, None)
+            print("Client connected.")
+            while True:
+                result, message = win32file.ReadFile(pipe, 64 * 1024)
+                if message:
+                    code = message.decode()
+                    print(f"Received: {code}")
                     break
-                elif result.get("resultCode") == "103000200":
-                    print("Please login.")
-                else:
-                    print("Login failed.")
-                    print(result)
-            time.sleep(5)
+        except pywintypes.error as e:
+            print(f"Failed to create or read from named pipe: {e}")
 
-    def generateTransferKeyPair(self):
-        self.transferKey=binascii.hexlify(os.urandom(int(KEY_LENGTH/2))).decode('ascii')
-        self.transferKeyId=f"D-{binascii.hexlify(os.urandom(16)).decode('ascii')}"
+        #解析url-schema获取code
+        try:
+            code = code.split("code=")[1]
+        except Exception as e:
+            print("获取code失败")
+            return False
+        #进行urldecode
+        import urllib.parse
+        code=urllib.parse.unquote(code)
+        code=code.replace(" ","+")
 
-    def initTransferKey(self):
-        self.generateTransferKeyPair()
-        self.iv=os.urandom(int(IV_LENGTH/2))
-        self.key=getPublicKey()
-        #use public key (hex-encoded) to encrypt transfer key
-        import rsa
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives import hashes
-        pubBytes=binascii.unhexlify(self.key)
-        pubkey =serialization.load_der_public_key(pubBytes, backend=default_backend())
-        encrypted = pubkey.encrypt(
-        binascii.unhexlify(self.transferKey),
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-        self.encryptedTransferKey = binascii.hexlify(encrypted).decode('ascii').upper()
-    
-    def sendTransferKey(self):
-        url = "https://hwid-drcn.platform.hicloud.com/IdmClientApi/v2/setTransferKey"
-        params = buildHwidCommonParams()
-        headers = {
-            "Connection": "Keep-Alive",
-            "Host": "hwid-drcn.platform.hicloud.com",
-            "User-Agent": "com.huawei.hms.commonkit/6.14.0.300 (Linux; Android 12; SM-S9080) RestClient/7.0.3.300",
-            "Content-Type": "application/json; charset=UTF-8",
-            "Accept-Encoding": "gzip"
-        }
-        data = {
-            "version": DEVICE["Version"],
-            "transferKey": self.encryptedTransferKey,
-            "languageCode": "zh-CN",
-            "clientType": "1",
-            "transferKeyID": self.transferKeyId,
-            "sceneID": 1
-        }
-        response = requests.post(url, params=params, headers=headers, json=data)
-        return response
+
+        token_response = exchange_code_for_token(client_id, code, code_verifier, redirect_uri)
+        self.refreshToken = token_response.get("refresh_token")
 
 
 

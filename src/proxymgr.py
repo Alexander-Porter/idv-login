@@ -20,9 +20,9 @@
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 from envmgr import genv
-from channelmgr import ChannelManager
 from logutil import setup_logger
 
+import win32pipe
 import socket
 import requests
 import json
@@ -31,10 +31,25 @@ import sys
 import psutil
 import const
 import subprocess
+import pywintypes
+PIPE_NAME = r'\\.\pipe\idv-login'
 
 app = Flask(__name__)
 logger=setup_logger(__name__)
-
+def create_pipe(pipe_name):
+    try:
+        pipe = win32pipe.CreateNamedPipe(
+            pipe_name,
+            win32pipe.PIPE_ACCESS_DUPLEX,
+            win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
+            1, 65536, 65536,
+            0,
+            None
+        )
+        return pipe
+    except pywintypes.error as e:
+        print(f"Failed to create named pipe: {e}")
+        sys.exit(1)
 loginMethod = [
     {
         "name": "手机账号",
@@ -420,6 +435,11 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warn("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+            try:
+                pipe = create_pipe(PIPE_NAME)
+                genv.set("PIPE", pipe)
+            except:
+                logger.warn("管道创建失败，华为账号可能会导入失败！")
             server.serve_forever()
             return True
         else:

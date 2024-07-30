@@ -6,14 +6,6 @@ DEVICE = {
     "osBrand": "ANDROID",
     "deviceBrand": ""
 }
-IV_LENGTH = 24
-KEY_LENGTH = 32
-QRCODE_BODY={
-            "version": "69131",
-            "appID": "com.huawei.hwid",
-            "loginChannel": "7000700",
-            "reqClientType": "701",
-            "confirmFlag": 1,
-            "lang": "zh-CN",
-            "supportCancelNotice": 1
-        }
+hms_client_id = "10132067"
+hms_redirect_uri = "hms://redirect_url"
+hms_scope = "https://www.huawei.com/auth/account/mobile.number https://www.huawei.com/auth/account/age.range openid https://www.huawei.com/auth/account/base.profile https://www.huawei.com/auth/drive.appdata https://www.huawei.com/auth/realname/realnameinfo https://www.huawei.com/auth/account/country"
