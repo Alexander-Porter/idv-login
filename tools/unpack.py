@@ -32,13 +32,13 @@ def getNeteaseGameInfo(apkPath):
         if app_channel=='xiaomi_app':
             meta_data = application.find("./meta-data[@android:name='miGameAppId']", namespaces)
             miGameAppId = meta_data.attrib['{http://schemas.android.com/apk/res/android}value']
-            print(miGameAppId)
+
         #use regular expression to get package name com.netease.???.xxxx -> com.netease.???
         package_name=re.search(r'(com\.netease.+?)\.\w+',package_name).group(1)
     subprocess.check_call([jadx_path, apkPath, '--single-class', f'{package_name}.Channel', '--output-format', 'json','--single-class-output', 'res/Channel.json'])
     log_key_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_LOG_KEY, "(.*?)"\);')
     game_id_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_GAMEID, "(.*?)"\);')
-    print(package_name, app_channel)
+
     # 遍历每行代码
     with open('res/Channel.json', 'r') as f:
         json_data = json.load(f)
@@ -53,6 +53,20 @@ def getNeteaseGameInfo(apkPath):
                     match = game_id_pattern.search(j['code'])
                     if match:
                         game_id = match.group(1)
-    print(log_key, game_id)
 
+    if app_channel=='xiaomi_app':
+        meta_data = application.find("./meta-data[@android:name='miGameAppId']", namespaces)
+        miGameAppId = meta_data.attrib['{http://schemas.android.com/apk/res/android}value']
+        channelData=miGameAppId
+    if app_channel=='huawei':
+        with open('res/assets/agconnect-services.json', 'r') as f:
+            hw_data=json.loads(f.read())
+            channelData=hw_data['client']
+    RES={}
+    RES["package_name"]=package_name
+    RES["app_channel"]=app_channel
+    RES["log_key"]=log_key
+    RES["game_id"]=game_id
+    RES[app_channel]=channelData
+    print(RES)
 getNeteaseGameInfo("app.apk")
