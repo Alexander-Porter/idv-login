@@ -48,8 +48,8 @@ class CloudRes:
         else:
             logger.warning("Using local cache due to invalid cloud data.")
 
-if __name__ == "__main__":
-    url = "https://example.com/path/to/json"
-    cache_dir = os.getcwd()
-    channel = CloudRes(url, cache_dir)
-    channel.update_cache_if_needed()
+    def get_channelData(self, channelName,shortGameId):
+        data=self.local_data.get('data', [])
+        for item in data:
+            if item.get('app_channel') == channelName and item.get('game_id') == shortGameId:
+                return item

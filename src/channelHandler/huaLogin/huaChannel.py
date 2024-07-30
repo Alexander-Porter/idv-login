@@ -55,19 +55,20 @@ class HuaweiLogin:
         scope = hms_scope
         auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
         webbrowser.open(auth_url)
+        pipe=genv.get("PIPE")
+        win32pipe.ConnectNamedPipe(pipe, None)
+        print("Client connected.")
+
         try:
-            pipe=genv.get("PIPE")
-            print("Waiting for client to connect...")
-            win32pipe.ConnectNamedPipe(pipe, None)
-            print("Client connected.")
-            while True:
-                result, message = win32file.ReadFile(pipe, 64 * 1024)
-                if message:
-                    code = message.decode()
-                    print(f"Received: {code}")
-                    break
+            result, message = win32file.ReadFile(pipe, 65534)
+            if message:
+                code = message.decode()
+                print(f"Received: {code}")
         except pywintypes.error as e:
-            print(f"Failed to create or read from named pipe: {e}")
+            print(f"Failed to read/write from/to named pipe: {e}")
+
+        print("Disconnecting pipe...")
+        win32pipe.DisconnectNamedPipe(pipe)
 
         #解析url-schema获取code
         try:

@@ -19,7 +19,7 @@ import pywintypes
 import sys
 PIPE_NAME = r'\\.\pipe\idv-login'
 import win32file
-if len(sys.argv) > 2:
+if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
     try:
         handle = win32file.CreateFile(
             PIPE_NAME,
@@ -28,12 +28,11 @@ if len(sys.argv) > 2:
             win32file.OPEN_EXISTING,
             0, None
         )
-        win32file.WriteFile(handle, sys.argv[2].encode())
-        handle.close()
+        win32file.WriteFile(handle, sys.argv[-1].encode())
     except pywintypes.error as e:
         print(f"Failed to write to named pipe: {e}")
-        sys.exit(1)
-    sys.exit(0)
+    finally:
+        sys.exit(0)
 
 from gevent import monkey
 monkey.patch_all()
@@ -55,6 +54,7 @@ from logutil import setup_logger
 m_certmgr = None
 m_hostmgr = None
 m_proxy = None
+m_cloudres=None
 
 import winreg as reg
 
@@ -112,6 +112,7 @@ def initialize():
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+    CloudPath = "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json"
 
     # handle exit
     atexit.register(handle_exit)
@@ -121,10 +122,14 @@ def initialize():
     from hostmgr import hostmgr
     from proxymgr import proxymgr
     from channelmgr import ChannelManager
-    global m_certmgr, m_hostmgr, m_proxy
+    from cloudRes import CloudRes
+    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
     m_certmgr = certmgr()
     m_hostmgr = hostmgr()
     m_proxy = proxymgr()
+    
+    m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
+    m_cloudres.update_cache_if_needed()
 
     # initialize workpath
     if not os.path.exists(genv.get("FP_WORKDIR")):
@@ -139,6 +144,7 @@ def initialize():
 
     # 关于线程安全：谁？
     genv.set("CHANNELS_HELPER", ChannelManager())
+    genv.set("CLOUD_RES",m_cloudres)
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -240,6 +246,8 @@ if __name__ == "__main__":
 
         logger.info("正在启动代理服务器...")
 
+
+        m_cloudres.update_cache_if_needed()
         m_proxy.run()
 
     except Exception as e:
