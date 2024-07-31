@@ -29,10 +29,12 @@ if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
             0, None
         )
         win32file.WriteFile(handle, sys.argv[-1].encode())
+        handle.close()
     except pywintypes.error as e:
         print(f"Failed to write to named pipe: {e}")
-    finally:
-        sys.exit(0)
+        input()
+        sys.exit(1)
+    sys.exit(0)
 
 from gevent import monkey
 monkey.patch_all()
@@ -71,7 +73,7 @@ def register_url_scheme(scheme_name, executable_path):
 
         print(f'{scheme_name} URL scheme registered successfully.')
     except Exception as e:
-        print(f'Failed to register {scheme_name} URL scheme: {e}')
+        print(f'注册{scheme_name}协议失败: {e}\n请关闭杀毒软件后重启本程序。否则部分渠道登录会受影响。')
 
 def handle_exit():
     win32file.CloseHandle(genv.get("PIPE"))
@@ -94,10 +96,17 @@ def initialize():
             None, "runas", sys.executable, " ".join(sys.argv), None, 1
         )
         sys.exit()
-    #for huawei, register hms://
+
+        # initialize workpath
+    if not os.path.exists(genv.get("FP_WORKDIR")):
+        os.mkdir(genv.get("FP_WORKDIR"))
+    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
+
     
     executable_path = sys.executable
+
     #如果是从解释器启动，不做任何事
+    #for huawei, register hms://
     if not executable_path.endswith("python.exe"):
         register_url_scheme('hms', executable_path)
 
@@ -106,7 +115,6 @@ def initialize():
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
-    genv.set("FP_CONFIG", os.path.join(genv.get("FP_WORKDIR"), "config.json"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
     genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
@@ -116,35 +124,26 @@ def initialize():
 
     # handle exit
     atexit.register(handle_exit)
-
-    # initialize object
-    from certmgr import certmgr
-    from hostmgr import hostmgr
-    from proxymgr import proxymgr
-    from channelmgr import ChannelManager
-    from cloudRes import CloudRes
-    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
-    m_certmgr = certmgr()
-    m_hostmgr = hostmgr()
-    m_proxy = proxymgr()
     
+    # initialize object
+    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
+
+
+
+    from cloudRes import CloudRes
     m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
     m_cloudres.update_cache_if_needed()
-
-    # initialize workpath
-    if not os.path.exists(genv.get("FP_WORKDIR")):
-        os.mkdir(genv.get("FP_WORKDIR"))
+    genv.set("CLOUD_RES",m_cloudres)
 
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
-    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
+    
 
-    # 关于线程安全：谁？
-    genv.set("CHANNELS_HELPER", ChannelManager())
-    genv.set("CLOUD_RES",m_cloudres)
+
+    
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -170,17 +169,18 @@ def initialize():
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
 
-    if not os.path.exists(genv.get("FP_CONFIG")):
-        with open(genv.get("FP_CONFIG"), "w") as f:
-            json.dump({}, f)
-            genv.set("CONFIG", {})
-    else:
-        with open(genv.get("FP_CONFIG"), "r") as f:
-            genv.set("CONFIG", json.load(f))
-
+    from certmgr import certmgr
+    from hostmgr import hostmgr
+    from proxymgr import proxymgr
+    from channelmgr import ChannelManager
+    m_certmgr = certmgr()
+    m_hostmgr = hostmgr()
+    m_proxy = proxymgr()
+    # 关于线程安全：谁？
+    genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.2.2-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.2.5-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
@@ -208,9 +208,8 @@ if __name__ == "__main__":
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     logger = setup_logger(__name__)
     try:
-        welcome()
         initialize()
-
+        welcome()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):
@@ -247,7 +246,6 @@ if __name__ == "__main__":
         logger.info("正在启动代理服务器...")
 
 
-        m_cloudres.update_cache_if_needed()
         m_proxy.run()
 
     except Exception as e:

@@ -108,7 +108,6 @@ class ChannelManager:
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
                 try:
                     data = json.load(file)
-                    self.logger.info("解析渠道服登录信息成功！")
                     for item in data:
                         if "login_info" in item.keys():
                             channel_name = item["login_info"]["login_channel"]
@@ -128,6 +127,7 @@ class ChannelManager:
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
+                    self.logger.error(f"读取渠道服登录信息失败。已经清空渠道服信息。",exc_info=True,stack_info=True)
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
                         json.dump([], f)
         else:
@@ -147,7 +147,6 @@ class ChannelManager:
                         json.dumps(mini_data)
 
                     except:
-                        self.logger.error(f"删除无法储存的数据: {channel_data}-{key}")
                         to_be_deleted.append(key)
                 for key in to_be_deleted:
                     del channel_data[key]
@@ -156,7 +155,7 @@ class ChannelManager:
 
     def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data()  for channel in self.channels if game_id is "" or channel.crossGames or (channel.game_id == game_id)],
+            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )
@@ -233,6 +232,12 @@ class ChannelManager:
                 return data
         return None
 
+    def query_channel(self, uuid: str):
+        for channel in self.channels:
+            if channel.uuid == uuid:
+                return channel
+        return None
+
     def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
         channel_data = channel.get_uniSdk_data()
         if not channel_data:
@@ -269,6 +274,8 @@ class ChannelManager:
                     "cv": "a1.5.0",
                 }
                 try:
+                    if scanner_uuid=="Kinich":
+                        return channel.get_uniSdk_data()
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
                         params=data,

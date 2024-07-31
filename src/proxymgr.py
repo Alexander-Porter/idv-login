@@ -286,6 +286,9 @@ def handle_create_login():
         }
         genv.set("CACHED_QRCODE_DATA",data)
         genv.set("pending_login_info",None)
+        #auto login start
+        if genv.get(f"auto-{request.args['game_id']}","")!="":
+            genv.get("CHANNELS_HELPER").simulate_scan(genv.get(f"auto-{request.args['game_id']}"),data["uuid"],data["game_id"])
         new_config = resp.get_json()
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
@@ -312,6 +315,9 @@ def _switch_channel():
     if genv.get("CACHED_QRCODE_DATA"):
          data=genv.get("CACHED_QRCODE_DATA")
          genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
+    #debug only
+    else:
+        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-h55")
     return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
 
 @app.route("/_idv-login/del", methods=["GET"])
@@ -334,6 +340,46 @@ def _import_channel():
         "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"])
     }
     return jsonify(resp)
+
+@app.route("/_idv-login/setDefault", methods=["GET"])
+def _set_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}",request.args["uuid"],True)
+        resp={
+            "success":True,
+        }
+    except:
+        logger.error("设置默认账号失败",exc_info=True,stack_info=True)
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+@app.route("/_idv-login/clearDefault", methods=["GET"])
+def _clear_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        resp={
+            "success":True,
+        }
+    except:
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+
+@app.route("/_idv-login/defaultChannel", methods=["GET"])
+def get_default():
+    uuid=genv.get(f"auto-{request.args['game_id']}","")
+    if uuid=="":
+        return jsonify({"uuid":""})
+    elif genv.get("CHANNELS_HELPER").query_channel(uuid)==None:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        return jsonify({"uuid":""})
+    else:
+        return jsonify({"uuid":uuid})
+
 
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():

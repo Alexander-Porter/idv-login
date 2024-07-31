@@ -53,3 +53,4 @@ class CloudRes:
         for item in data:
             if item.get('app_channel') == channelName and item.get('game_id') == shortGameId:
                 return item
+        return None

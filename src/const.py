@@ -24,6 +24,8 @@ html = r"""<!DOCTYPE html>
         <div>
             <select id="channelSelect"></select>
             <button onclick="manual()">手动登录</button>
+            <p>当前自动登录账号：<strong id="default">Empty</strong></p>
+            <button onclick="clearDefault()">清除自动登录</button>
         </div>
         <table class="table table-striped">
             <thead>
@@ -73,6 +75,7 @@ html = r"""<!DOCTYPE html>
                     });
             }
         }
+
         function switchChannel(uuid) {
             fetch(`/_idv-login/switch?uuid=${uuid}`)
                     .then(response => response.json())
@@ -81,7 +84,34 @@ html = r"""<!DOCTYPE html>
                             alert('模拟登录成功');
                             location.reload();
                         } else {
-                            alert('写登录失败失败');
+                            alert('写登录失败');
+                        }
+                    });
+        }
+        function defaultChannel(uuid) {
+            game_id = getQueryVariable("game_id");
+            fetch(`/_idv-login/setDefault?uuid=${uuid}&game_id=${game_id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('设置默认成功');
+                            location.reload();
+                        } else {
+                            alert('写登录失败');
+                        }
+                    });
+        }
+
+        function clearDefault() {
+            game_id = getQueryVariable("game_id");
+            fetch(`/_idv-login/clearDefault?game_id=${game_id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('清除默认成功');
+                            location.reload();
+                        } else {
+                            alert('清除失败');
                         }
                     });
         }
@@ -114,6 +144,7 @@ html = r"""<!DOCTYPE html>
                             <button onclick="switchChannel('${channel.uuid}')">登录</button>
                             <button onclick="renameChannel('${channel.uuid}')">改名</button>
                             <button onclick="deleteChannel('${channel.uuid}')">删除</button>
+                            <button onclick="defaultChannel('${channel.uuid}')">设为自动登录</button>
                         `;
                     });
                 });
@@ -129,6 +160,15 @@ html = r"""<!DOCTYPE html>
                         channelSelect.appendChild(option);
                     });
                 });
+
+            fetch('/_idv-login/defaultChannel?game_id='+game_id)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.uuid!=""){
+                    document.getElementById('default').innerText = data.uuid;
+                    }
+                });
+
         }
         function manual() {
         //获取channelSelect的值
