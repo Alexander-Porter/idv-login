@@ -15,35 +15,68 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
+import pywintypes
+import sys
+PIPE_NAME = r'\\.\pipe\idv-login'
+import win32file
+if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
+    try:
+        handle = win32file.CreateFile(
+            PIPE_NAME,
+            win32file.GENERIC_WRITE,
+            0, None,
+            win32file.OPEN_EXISTING,
+            0, None
+        )
+        win32file.WriteFile(handle, sys.argv[-1].encode())
+        handle.close()
+    except pywintypes.error as e:
+        print(f"Failed to write to named pipe: {e}")
+        input()
+        sys.exit(1)
+    sys.exit(0)
 
-import json
-import random
-import string
 from gevent import monkey
-
 monkey.patch_all()
+
 import os
 import sys
 import ctypes
 import atexit
-import win32api
-import win32con
 import requests
 import requests.packages
+import json
+import random
+import string
 
-from certmgr import certmgr
-from hostmgr import hostmgr
-from proxymgr import proxymgr
-from channelmgr import ChannelManager
+
 from envmgr import genv
 from logutil import setup_logger
 
 m_certmgr = None
 m_hostmgr = None
 m_proxy = None
+m_cloudres=None
 
+import winreg as reg
+
+def register_url_scheme(scheme_name, executable_path):
+    try:
+        # 打开 HKEY_CLASSES_ROOT 注册表项
+        key = reg.CreateKey(reg.HKEY_CLASSES_ROOT, scheme_name)
+        reg.SetValue(key, '', reg.REG_SZ, f'URL:{scheme_name} Protocol')
+        reg.SetValueEx(key, 'URL Protocol', 0, reg.REG_SZ, '')
+
+        # 创建 shell\open\command 子项
+        command_key = reg.CreateKey(key, r'shell\open\command')
+        reg.SetValue(command_key, '', reg.REG_SZ, f'"{executable_path}" "%1"')
+
+        print(f'{scheme_name} URL scheme registered successfully.')
+    except Exception as e:
+        print(f'注册{scheme_name}协议失败: {e}\n请关闭杀毒软件后重启本程序。否则部分渠道登录会受影响。')
 
 def handle_exit():
+    win32file.CloseHandle(genv.get("PIPE"))
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")
@@ -64,38 +97,53 @@ def initialize():
         )
         sys.exit()
 
+        # initialize workpath
+    if not os.path.exists(genv.get("FP_WORKDIR")):
+        os.mkdir(genv.get("FP_WORKDIR"))
+    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
+
+    
+    executable_path = sys.executable
+
+    #如果是从解释器启动，不做任何事
+    #for huawei, register hms://
+    if not executable_path.endswith("python.exe"):
+        register_url_scheme('hms', executable_path)
+
+
+
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
-    genv.set("FP_CONFIG", os.path.join(genv.get("FP_WORKDIR"), "config.json"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
     genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+    CloudPath = "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json"
 
     # handle exit
     atexit.register(handle_exit)
-
+    
     # initialize object
-    global m_certmgr, m_hostmgr, m_proxy
-    m_certmgr = certmgr()
-    m_hostmgr = hostmgr()
-    m_proxy = proxymgr()
+    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
 
-    # initialize workpath
-    if not os.path.exists(genv.get("FP_WORKDIR")):
-        os.mkdir(genv.get("FP_WORKDIR"))
+
+
+    from cloudRes import CloudRes
+    m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
+    m_cloudres.update_cache_if_needed()
+    genv.set("CLOUD_RES",m_cloudres)
 
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
-    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
+    
 
-    # 关于线程安全：谁？
-    genv.set("CHANNELS_HELPER", ChannelManager())
+
+    
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -121,17 +169,18 @@ def initialize():
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
 
-    if not os.path.exists(genv.get("FP_CONFIG")):
-        with open(genv.get("FP_CONFIG"), "w") as f:
-            json.dump({}, f)
-            genv.set("CONFIG", {})
-    else:
-        with open(genv.get("FP_CONFIG"), "r") as f:
-            genv.set("CONFIG", json.load(f))
-
+    from certmgr import certmgr
+    from hostmgr import hostmgr
+    from proxymgr import proxymgr
+    from channelmgr import ChannelManager
+    m_certmgr = certmgr()
+    m_hostmgr = hostmgr()
+    m_proxy = proxymgr()
+    # 关于线程安全：谁？
+    genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.2.2-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.2.5-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
@@ -141,8 +190,12 @@ def welcome():
     print(" - (at your option) any later version.")
 
 
+
+
+
+
 if __name__ == "__main__":
-    # 设置控制台事件处理器
+
     kernel32 = ctypes.WinDLL("kernel32")
     HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
     handle_ctrl = HandlerRoutine(ctrl_handler)
@@ -155,9 +208,8 @@ if __name__ == "__main__":
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     logger = setup_logger(__name__)
     try:
-        welcome()
         initialize()
-
+        welcome()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):
@@ -192,6 +244,7 @@ if __name__ == "__main__":
             m_hostmgr.add("localhost", "127.0.0.1")
 
         logger.info("正在启动代理服务器...")
+
 
         m_proxy.run()
 

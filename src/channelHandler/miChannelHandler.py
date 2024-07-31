@@ -25,10 +25,6 @@ from logutil import setup_logger
 from channelHandler.miLogin.miChannel import MiLogin
 from channelHandler.channelUtils import getShortGameId
 
-#不同游戏的APP_ID不同，需要更新
-MI_APP_ID_MAP={
-    "h55":"2882303761517637640"
-}
 
 class miChannel(channelmgr.channel):
     def __init__(
@@ -56,13 +52,16 @@ class miChannel(channelmgr.channel):
         self.logger = setup_logger(__name__)
         self.logger.info(f"Create a new miChannel with name {self.name} and {oAuthData}")
         self.crossGames = False
-        #To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
-        #this is a temporary solution for IDV
+        #Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
-        if(real_game_id not in MI_APP_ID_MAP):
-            raise Exception(f"游戏代号 {game_id} 尚未支持。")
-        self.miLogin = MiLogin(MI_APP_ID_MAP[real_game_id], self.oAuthData)
+        cloudRes = genv.get("CLOUD_RES")
+        res = cloudRes.get_channelData(self.channel_name, real_game_id)
+        if res == None:
+            self.logger.error(f"Failed to get channel config for {self.name}")
+            Exception("该渠道暂不支持，请参照教程联系开发者发起添加请求。")
+            return
+        self.miLogin = MiLogin(res.get(self.channel_name).replace("mi_",""), self.oAuthData)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
@@ -79,9 +78,9 @@ class miChannel(channelmgr.channel):
         except Exception as e:
             self.logger.error(f"Failed to get session data {e}")
             self.oAuthData = None
-            return None
+            return None,None
         self.last_login_time = int(time.time())
-        return data
+        return data["appAccountId"], data["session"]
 
     def is_token_valid(self):
         if self.oAuthData is None:
@@ -103,6 +102,9 @@ class miChannel(channelmgr.channel):
             game_id=data.get("game_id", ""),
         )
 
+    def get_sdk_udid(self):
+        return self.oAuthData["uuid"]
+
     def _build_extra_unisdk_data(self)->str:
         res={
             "SAUTH_STR":"",
@@ -113,7 +115,7 @@ class miChannel(channelmgr.channel):
         }
         extra=json.dumps({"adv_channel":"0","adid":"0"})
         realname=json.dumps({"realname_type":0,"age":18})
-        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.oAuthData["uuid"],"realname":realname}
+        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.get_sdk_udid(),"realname":realname}
         json_data.update(self.uniBody)
 
         str_data=json_data.copy()
@@ -133,30 +135,28 @@ class miChannel(channelmgr.channel):
         
         if not self.is_token_valid():
             self.request_user_login()
-        channelData = self._get_session()
-        if channelData is None:
-            self.logger.error(f"Failed to get session data for {self.name}")
-            return False
+        appAccountId,session = self._get_session()
         self.uniBody = channelUtils.buildSAUTH(
-            "xiaomi_app",
-            "xiaomi_app",
-            str(channelData["appAccountId"]),
-            channelData["session"],
+            self.channel_name,
+            self.channel_name,
+            str(appAccountId),
+            session,
             self.realGameId,
+            "3.3.0.7"
         )
         fd = genv.get("FAKE_DEVICE")
         self.uniData = channelUtils.postSignedData(self.uniBody,self.realGameId)
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
         res = {
-            "user_id": self.oAuthData["uuid"],
-            "token": base64.b64encode(channelData["session"].encode()).decode(),
-            "login_channel": "xiaomi_app",
+            "user_id": self.get_sdk_udid(),
+            "token": base64.b64encode(session.encode()).decode(),
+            "login_channel": self.channel_name,
             "udid": fd["udid"],
-            "app_channel": "xiaomi_app",
+            "app_channel": self.channel_name,
             "sdk_version": "3.0.5.002",
             "jf_game_id": self.game_id,  # maybe works for all games
-            "pay_channel": "xiaomi_app",
+            "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),
             "gv": "157",
