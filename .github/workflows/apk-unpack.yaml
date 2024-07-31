@@ -28,7 +28,7 @@ jobs:
 
             - name: Download APK
               run: |
-                curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3" --limit-rate 8m -o app.apk ${{ github.event.inputs.url }}
+                curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"  -o app.apk ${{ github.event.inputs.url }}
 
             - name: Download JADX
               run: |
