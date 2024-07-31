@@ -32,7 +32,9 @@ def getNeteaseGameInfo(apkPath):
         package_name=re.search(r'(com\.netease.+?)\.\w+',package_name).group(1)
     subprocess.check_call([jadx_path, apkPath, '--single-class', f'{package_name}.Channel', '--output-format', 'json','--single-class-output', 'res/Channel.json'])
     log_key_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_LOG_KEY, "(.*?)"\);')
+    log_key_pattern2=re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_LOG_KEY\", "(.*?)"\);')
     game_id_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_GAMEID, "(.*?)"\);')
+    game_id_pattern2= re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_GAMEID\", "(.*?)"\);')
 
     # 遍历每行代码
     with open('res/Channel.json', 'r') as f:
@@ -44,8 +46,16 @@ def getNeteaseGameInfo(apkPath):
                     match = log_key_pattern.search(j['code'])
                     if match:
                         log_key = match.group(1)
+                if not log_key:
+                    match = log_key_pattern2.search(j['code'])
+                    if match:
+                        log_key = match.group(1)
                 if not game_id:
                     match = game_id_pattern.search(j['code'])
+                    if match:
+                        game_id = match.group(1)
+                if not game_id:
+                    match = game_id_pattern2.search(j['code'])
                     if match:
                         game_id = match.group(1)
 
