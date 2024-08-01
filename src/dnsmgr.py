@@ -57,7 +57,6 @@ class SimulatedDNS(object):
         try:
             ip = socket.gethostbyname(hostname)
             self.hostname_to_ip[hostname] = ip
-            self.logger.info("[SimulatedDNS] 已将 %s 解析至 %s", hostname, ip)
             return ip
         except socket.gaierror:
             return None
