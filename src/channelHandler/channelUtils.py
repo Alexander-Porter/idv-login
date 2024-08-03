@@ -72,7 +72,7 @@ def postSignedData(data,game_id,need_custom_encode=False):
     headers={"X-Client-Sign":calcSign(url,method,data,key),
              "Content-Type":"application/json",
              "User-Agent":"Dalvik/2.1.0 (Linux; U; Android 12; M2102K1AC Build/V417IR)",}
-    r=requests.post(url,data=data,headers=headers,verify=False)
+    r=requests.post(url,data=data,headers=headers)
     return r.json()
 
 def getShortGameId(game_id):
