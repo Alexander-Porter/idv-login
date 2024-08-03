@@ -17,6 +17,7 @@
  """
 
 import random
+import httpx
 import requests
 import dns.resolver
 import dns.nameserver
@@ -51,4 +52,22 @@ class SimulatedDNS(object):
             ip = socket.gethostbyname(hostname)
             return ip
         except socket.gaierror:
+            return None
+
+class DoHResolver(object):
+
+    def __init__(self):
+        self.logger = setup_logger(__name__)
+        self.doh_url = "https://doh.pub/dns-query"
+    
+    def gethostbyname(self, hostname):
+        answers=[]
+        with httpx.Client(proxy=None,proxies=None) as client:
+            q = dns.message.make_query(hostname, dns.rdatatype.A)
+            r = dns.query.https(q, self.doh_url, session=client)
+            for answer in r.answer:
+                answers.append(str(list(answer.items.keys())[0]))
+        if answers:
+            return answers[-1]
+        else:
             return None

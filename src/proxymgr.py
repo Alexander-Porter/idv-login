@@ -431,9 +431,9 @@ class proxymgr:
                     break
 
     def run(self):
-        from dnsmgr import SimulatedDNS
+        from dnsmgr import DoHResolver
 
-        resolver = SimulatedDNS()
+        resolver = DoHResolver()
         target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
         logger.info(target)
         
