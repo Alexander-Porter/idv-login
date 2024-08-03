@@ -3,10 +3,8 @@ manual_login_channels = [
         "name": "小米账号",
         "channel": "xiaomi_app",
     },
-    {
-        "name":"华为账号",
-        "channel":"huawei"
-    }
+    {"name": "华为账号", "channel": "huawei"},
+    {"name": "vivo账号", "channel": "nearme_vivo"},
 ]
 
 
@@ -16,6 +14,7 @@ html = r"""<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>渠道服账号</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
@@ -51,10 +50,10 @@ html = r"""<!DOCTYPE html>
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('账号已成功改名');
+                            swal('账号已成功改名');
                             location.reload();
                         } else {
-                            alert('改名失败');
+                            swal('改名失败');
                         }
                     });
             }
@@ -67,10 +66,10 @@ html = r"""<!DOCTYPE html>
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('账号已成功删除');
+                            swal('账号已成功删除');
                             location.reload();
                         } else {
-                            alert('删除失败');
+                            swal('删除失败');
                         }
                     });
             }
@@ -81,10 +80,10 @@ html = r"""<!DOCTYPE html>
                     .then(response => response.json())
                     .then(data => {
                         if (data.current==uuid) {
-                            alert('模拟登录成功');
+                            swal('模拟登录成功');
                             location.reload();
                         } else {
-                            alert('写登录失败');
+                            swal('写登录失败');
                         }
                     });
         }
@@ -94,10 +93,10 @@ html = r"""<!DOCTYPE html>
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('设置默认成功');
+                            swal('设置默认成功');
                             location.reload();
                         } else {
-                            alert('写登录失败');
+                            swal('写登录失败');
                         }
                     });
         }
@@ -108,10 +107,10 @@ html = r"""<!DOCTYPE html>
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('清除默认成功');
+                            swal('清除默认成功');
                             location.reload();
                         } else {
-                            alert('清除失败');
+                            swal('清除失败');
                         }
                     });
         }
@@ -174,19 +173,51 @@ html = r"""<!DOCTYPE html>
         //获取channelSelect的值
         var selectedChannel = document.getElementById('channelSelect').value;
         if (selectedChannel == 'xiaomi_app') {
-            alert("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
-        }
-        //向服务器发送请求
+            swal("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
+                    //向服务器发送请求
         fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
             .then(response => response.json())
             .then(data => {
               if (data.success) {
-                alert('执行成功');
+                swal('执行成功');
                 location.reload();
               } else {
-                alert('执行失败');
+                swal('执行失败');
               }
             });
+        }
+        if (selectedChannel == 'huawei') {
+         fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                swal('执行成功');
+                location.reload();
+              } else {
+                swal('执行失败');
+              }
+            });
+        }
+        if (selectedChannel == 'nearme_vivo') {
+            swal("VIVO登录方法，请仔细阅读","1.在打开的界面里登录Vivo账号。\n2.提示[网络异常，登录失败！]后，回到本界面点击确定\n 3.确定后，在新开的界面中按住Ctrl+A Ctrl+C全选复制页面上的凭证").then((value) => {
+                window.open("https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin");
+                swal("我已登录并看到[网络异常，登录失败！]提示，去复制凭证").then((value) => {
+                    window.open("https://joint.vivo.com.cn/h5/union/get?gamePackage=");
+                            //向服务器发送请求
+        fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                swal('执行成功');
+                location.reload();
+              } else {
+                swal('执行失败');
+              }
+            });
+                });
+            });
+        }
+
         }
     </script>
 </body>
