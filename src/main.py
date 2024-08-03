@@ -44,6 +44,7 @@ import string
 from envmgr import genv
 from logutil import setup_logger
 
+
 m_certmgr = None
 m_hostmgr = None
 m_proxy = None
@@ -170,7 +171,7 @@ def initialize():
     genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.2.5-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.3.0-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
@@ -179,8 +180,13 @@ def welcome():
     print(" - the Free Software Foundation, either version 3 of the License, or")
     print(" - (at your option) any later version.")
 
-
-
+def cloudBuildInfo():
+    try:
+        from buildinfo import BUILD_INFO
+        message=BUILD_INFO
+    except:
+        print("没有找到校验信息，请不要使用本工具，以免被盗号。")
+    print(f"构建信息：{message}")
 
 
 
@@ -200,6 +206,7 @@ if __name__ == "__main__":
     try:
         initialize()
         welcome()
+        cloudBuildInfo()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):
