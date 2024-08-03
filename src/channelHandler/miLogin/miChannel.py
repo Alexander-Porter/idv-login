@@ -12,6 +12,7 @@ import webbrowser
 import pyperclip as cb
 
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
+from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 
 
@@ -111,25 +112,19 @@ class MiLogin:
         else:
             self.logger.error(res)
             raise Exception("Get ST failed")
+    def parse_url_query(self,url):
+        from urllib.parse import urlparse, parse_qs
+        parsed_url = urlparse(url)
+        query_dict = parse_qs(parsed_url.query)
+        return query_dict
+    
+    def codeVerify(self,current_url):
+        return "code" in self.parse_url_query(current_url).keys()
 
     def clipListener(self, callback):
-        while True:
-            if cb.paste() != "":
-                current_url = cb.paste()
-            from urllib.parse import urlparse, parse_qs
-
-            def parse_url_query(url):
-                parsed_url = urlparse(url)
-                query_dict = parse_qs(parsed_url.query)
-                return query_dict
-
-            if "code" in parse_url_query(current_url).keys():
-                code = parse_url_query(current_url)["code"][0]
-                callback(code)
-                break
-            else:
-                print("Not logged in yet, waiting for redirect...")
-            time.sleep(1)
+        goodData=G_clipListener(self.codeVerify, 60*10)
+        code = self.parse_url_query(goodData)["code"][0]
+        callback(code)
 
     def webLogin(self):
         # app = QApplication(sys.argv)

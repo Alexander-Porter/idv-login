@@ -17,21 +17,12 @@
  """
 import pywintypes
 import sys
-PIPE_NAME = r'\\.\pipe\idv-login'
-import win32file
+import pyperclip as cb
 if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
     try:
-        handle = win32file.CreateFile(
-            PIPE_NAME,
-            win32file.GENERIC_WRITE,
-            0, None,
-            win32file.OPEN_EXISTING,
-            0, None
-        )
-        win32file.WriteFile(handle, sys.argv[-1].encode())
-        handle.close()
+        cb.copy(sys.argv[-1])
     except pywintypes.error as e:
-        print(f"Failed to write to named pipe: {e}")
+        print(f"Failed to write to clipboard: {e}")
         input()
         sys.exit(1)
     sys.exit(0)
@@ -76,7 +67,6 @@ def register_url_scheme(scheme_name, executable_path):
         print(f'注册{scheme_name}协议失败: {e}\n请关闭杀毒软件后重启本程序。否则部分渠道登录会受影响。')
 
 def handle_exit():
-    win32file.CloseHandle(genv.get("PIPE"))
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")

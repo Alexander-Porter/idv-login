@@ -17,13 +17,10 @@ from faker import Faker
 #from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY
 from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,COMMON_PARAMS
 from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
+from channelHandler.channelUtils import G_clipListener
 
 DEVICE_RECORD = 'huawei_device.json'
-import win32pipe
-import win32file
-import pywintypes
 
-PIPE_NAME = r'\\.\pipe\idv-login'
 
 
 
@@ -63,32 +60,22 @@ class HuaweiLogin:
         device["phoneType"] = fake.lexify(text="SM-????", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
         return device
     
+    def verify(self,code):
+        return code.startswith("hms://")
+    
     def newOAuthLogin(self):
         client_id = str(self.channelConfig["app_id"])
         redirect_uri = hms_redirect_uri
         scope = hms_scope
         auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
         webbrowser.open(auth_url)
-        pipe=genv.get("PIPE")
-        win32pipe.ConnectNamedPipe(pipe, None)
-        print("Client connected.")
-
-        try:
-            result, message = win32file.ReadFile(pipe, 65534)
-            if message:
-                code = message.decode()
-                print(f"Received: {code}")
-        except pywintypes.error as e:
-            print(f"Failed to read/write from/to named pipe: {e}")
-
-        print("Disconnecting pipe...")
-        win32pipe.DisconnectNamedPipe(pipe)
+        code=G_clipListener(self.verify,60*10)
 
         #解析url-schema获取code
         try:
             code = code.split("code=")[1]
         except Exception as e:
-            print("获取code失败")
+            print("获取code失败，错误的Code"+code)
             return False
         #进行urldecode
         import urllib.parse

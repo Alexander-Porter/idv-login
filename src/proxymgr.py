@@ -22,58 +22,19 @@ from gevent import pywsgi
 from envmgr import genv
 from logutil import setup_logger
 
-import win32pipe
-import win32file
-import win32security
 import socket
 import requests
 import json
 import os
-import sys
 import psutil
 import const
 import subprocess
-import pywintypes
-PIPE_NAME = r'\\.\pipe\idv-login'
+
 
 app = Flask(__name__)
 logger=setup_logger(__name__)
 
-PIPE_BUFFER_SIZE = 65534
 
-def create_pipe():
-    try:
-        # 创建一个安全描述符
-        sd = win32security.SECURITY_DESCRIPTOR()
-        sd.Initialize()
-
-        # 创建一个DACL并允许所有用户写入
-        dacl = win32security.ACL()
-        everyone, _ , _= win32security.LookupAccountName("", "Everyone")
-        dacl.AddAccessAllowedAce(win32security.ACL_REVISION, win32file.GENERIC_WRITE | win32file.GENERIC_READ, everyone)
-
-        sd.SetSecurityDescriptorDacl(1, dacl, 0)
-
-        # 创建安全属性
-        sa = pywintypes.SECURITY_ATTRIBUTES()
-        sa.SECURITY_DESCRIPTOR = sd
-
-        # 创建命名管道
-        handle = win32pipe.CreateNamedPipe(
-            PIPE_NAME,
-            win32pipe.PIPE_ACCESS_DUPLEX,
-            win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
-            3,  # Max instances
-            PIPE_BUFFER_SIZE,
-            PIPE_BUFFER_SIZE,
-            0,
-            sa  # 传递安全属性
-        )
-        print(f"Named pipe created successfully.{handle}")
-        return handle
-    except pywintypes.error as e:
-        print(f"Failed to create named pipe: {e}")
-        return None
 loginMethod = [
     {
         "name": "手机账号",
@@ -470,12 +431,11 @@ class proxymgr:
                     break
 
     def run(self):
-        from dnsmgr import SecureDNS,SimulatedDNS
+        from dnsmgr import SimulatedDNS
 
-        resolver,fallbackResolver = SecureDNS(),SimulatedDNS()
+        resolver = SimulatedDNS()
         target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-        if target == None:
-            target = fallbackResolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        logger.info(target)
         
         # result check
         try:
@@ -505,9 +465,6 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warn("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
-
-            pipe = create_pipe()
-            genv.set("PIPE", pipe)
 
             server.serve_forever()
             return True
