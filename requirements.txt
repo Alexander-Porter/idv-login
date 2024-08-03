@@ -9,3 +9,4 @@ Requests
 requests_toolbelt
 pyinstaller
 pywin32
+dnspython
