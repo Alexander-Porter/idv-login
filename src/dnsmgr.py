@@ -16,12 +16,9 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-import random
-import httpx
-import requests
-import dns.resolver
-import dns.nameserver
-from envmgr import genv
+import dns.message
+import dns.query
+import dns.rdatatype
 import socket
 from logutil import setup_logger
 
@@ -54,19 +51,17 @@ class SimulatedDNS(object):
         except socket.gaierror:
             return None
 
-class DoHResolver(object):
+class DNSResolver(object):
 
     def __init__(self):
         self.logger = setup_logger(__name__)
-        self.doh_url = "https://doh.pub/dns-query"
     
     def gethostbyname(self, hostname):
         answers=[]
-        with httpx.Client(proxy=None,proxies=None) as client:
-            q = dns.message.make_query(hostname, dns.rdatatype.A)
-            r = dns.query.https(q, self.doh_url, session=client)
-            for answer in r.answer:
-                answers.append(str(list(answer.items.keys())[0]))
+        q = dns.message.make_query(hostname, dns.rdatatype.A)
+        r = dns.query.udp(q,"114.114.114.114")
+        for answer in r.answer:
+            answers.append(str(list(answer.items.keys())[0]))
         if answers:
             return answers[-1]
         else:

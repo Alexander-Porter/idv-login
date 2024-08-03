@@ -130,7 +130,7 @@ class huaweiChannel(channelmgr.channel):
         extra_data = {
             "anonymous": "",
             "get_access_token": "1",
-            "extra_data": "1",
+            "extra_data": str(self.session.playerLevel),
             "timestamp": self.session.ts,
             "realname": json.dumps({"realname_type": 0, "duration": 0}),
         }
@@ -169,7 +169,7 @@ class huaweiChannel(channelmgr.channel):
             {
                 "anonymous": "",
                 "get_access_token": "1",
-                "extra_data": "1",
+                "extra_data": str(self.session.playerLevel),
                 "timestamp": self.session.ts,
                 "realname": json.dumps({"realname_type": 0, "duration": 0}),
             },
