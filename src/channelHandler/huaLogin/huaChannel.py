@@ -89,9 +89,6 @@ class HuaweiLogin:
         self.expiredTime=self.lastLoginTime+token_response.get("expires_in")
         self.accessToken=token_response.get("access_token")
 
-    def refreshToken(self):
-        if self.refreshToken == None:
-            return False
         
     def initAccountData(self) -> object:
         if self.refreshToken == None:

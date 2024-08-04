@@ -22,7 +22,7 @@ if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
     try:
         cb.copy(sys.argv[-1])
     except pywintypes.error as e:
-        print(f"Failed to write to clipboard: {e}")
+        print(f"Failed to write {sys.argv[-1]} to clipboard: {e}")
         input()
         sys.exit(1)
     sys.exit(0)

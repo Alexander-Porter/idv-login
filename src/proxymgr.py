@@ -421,12 +421,16 @@ class proxymgr:
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
                     logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
                     input()
-                    subprocess.check_call(
-                        ["taskkill", "/f", "/im", t_pid],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        shell=True,
-                    )
+                    if t_pid=='4':
+                        subprocess.check_call(
+                            ['net','stop','http','/y'],
+                            shell=True
+                            )
+                    else:
+                        subprocess.check_call(
+                            ["taskkill", "/f", "/im", t_pid],
+                            shell=True
+                        )
 
                     break
 

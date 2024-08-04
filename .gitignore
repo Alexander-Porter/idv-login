@@ -6,3 +6,4 @@ log.txt
 /.vs
 main.dist/
 main.build/
+src/buildinfo.py
