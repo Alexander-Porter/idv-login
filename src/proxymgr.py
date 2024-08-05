@@ -459,7 +459,6 @@ class proxymgr:
 
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
-        from OpenSSL import SSL
         server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
