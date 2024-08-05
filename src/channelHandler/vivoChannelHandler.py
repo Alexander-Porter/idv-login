@@ -63,9 +63,6 @@ class vivoChannel(channelmgr.channel):
         )
         self.refreshToken = refreshToken
         self.logger = setup_logger(__name__)
-        self.logger.info(
-            f"Create a new vivoChannel with name {self.name} and {refreshToken}"
-        )
         self.crossGames = True
         # To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         # this is a temporary solution for IDV
@@ -76,6 +73,7 @@ class vivoChannel(channelmgr.channel):
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
+            Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
             return
         self.huaweiLogin = HuaweiLogin(res.get(self.channel_name), self.refreshToken)
         self.realGameId = real_game_id

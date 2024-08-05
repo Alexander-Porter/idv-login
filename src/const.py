@@ -4,7 +4,7 @@ manual_login_channels = [
         "channel": "xiaomi_app",
     },
     {"name": "华为账号", "channel": "huawei"},
-    {"name": "vivo账号", "channel": "nearme_vivo"},
+    #{"name": "vivo账号", "channel": "nearme_vivo"},
 ]
 
 

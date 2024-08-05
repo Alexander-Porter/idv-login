@@ -459,11 +459,12 @@ class proxymgr:
 
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
+        from OpenSSL import SSL
         server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
                 keyfile=genv.get("FP_WEBKEY"),
-                application=app,
+                application=app
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             logger.info("拦截成功! 您现在可以打开游戏了")

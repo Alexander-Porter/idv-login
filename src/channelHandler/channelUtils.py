@@ -79,12 +79,14 @@ def getShortGameId(game_id):
     return game_id.split("-")[-1]
 
 def G_clipListener(verify,maxAttempt)->str:
+    cb.copy("")
     attempt=0
     while attempt<maxAttempt:
         attempt+=1
         nowData=cb.paste()
         if verify(nowData):
-            return cb.paste()
+            cb.copy("")
+            return nowData
         else:
             time.sleep(1)
     return None

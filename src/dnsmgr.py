@@ -19,37 +19,13 @@
 import dns.message
 import dns.query
 import dns.rdatatype
-import socket
 from logutil import setup_logger
 
-# Resource Record Types
-A = 1
-AAAA = 28
-
-# DNS status codes
-NOERROR = 0
-
-UNRESERVED_CHARS = (
-    "abcdefghijklmnopqrstuvwxyz" "ABCDEFGHIJKLMNOPQRSTUVWXYZ" "0123456789-._~"
-)
 
 
 class InvalidHostName(Exception):
     pass
 
-
-class SimulatedDNS(object):
-
-    def __init__(self):
-        self.logger = setup_logger(__name__)
-
-    def gethostbyname(self, hostname):
-        """mimic functionality of socket.gethostbyname"""
-        try:
-            ip = socket.gethostbyname(hostname)
-            return ip
-        except socket.gaierror:
-            return None
 
 class DNSResolver(object):
 

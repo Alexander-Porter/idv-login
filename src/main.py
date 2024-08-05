@@ -171,7 +171,7 @@ def initialize():
     genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.3.0-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.3.0-stable")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
@@ -186,9 +186,7 @@ def cloudBuildInfo():
         message=BUILD_INFO
     except:
         print("没有找到校验信息，请不要使用本工具，以免被盗号。")
-    print(f"构建信息：{message}")
-
-
+    print(f"构建信息：{message}。如需校验此版本是否被篡改，请前往官方项目地址。")
 
 if __name__ == "__main__":
 

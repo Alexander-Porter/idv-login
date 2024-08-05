@@ -70,7 +70,6 @@ class HuaweiLogin:
         auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
         webbrowser.open(auth_url)
         code=G_clipListener(self.verify,60*10)
-
         #解析url-schema获取code
         try:
             code = code.split("code=")[1]
@@ -81,8 +80,6 @@ class HuaweiLogin:
         import urllib.parse
         code=urllib.parse.unquote(code)
         code=code.replace(" ","+")
-
-
         token_response = exchange_code_for_token(client_id, code, code_verifier, redirect_uri)
         self.refreshToken = token_response.get("refresh_token")
         self.lastLoginTime=int(time.time())
@@ -116,5 +113,4 @@ class HuaweiLogin:
         body["accessToken"]=self.accessToken
 
         response = requests.post(url, headers=headers, data=body,verify=False)
-        print(response.text)
         return response.json()

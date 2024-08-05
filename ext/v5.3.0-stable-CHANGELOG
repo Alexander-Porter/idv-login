@@ -1,0 +1,21 @@
+### IdentityV Login Helper v5.3.0-stable CHANGELOG
+
+
+## Improvement 🚀
+[·] 对渠道服列表使用云配置，动态增加以下两个渠道支持的游戏：华为、小米
+[·] 实现了华为账号登录
+[·] 尝试修复pid=4相关错误
+
+## In Progress 🚧
+[·] VIVO渠道服支持。
+
+## Known Bugs 💀
+[·] Vivo渠道、九游、应用宝微信渠道容易过期
+[·] 账号风控页面白屏的情况，需要手动打开TLS 1.2解决。
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请**标明出处**并遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.8版
+    * Windows 10/11 用户请下载Py3.12版

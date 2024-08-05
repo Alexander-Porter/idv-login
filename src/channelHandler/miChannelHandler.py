@@ -50,7 +50,6 @@ class miChannel(channelmgr.channel):
         )
         self.oAuthData = oAuthData
         self.logger = setup_logger(__name__)
-        self.logger.info(f"Create a new miChannel with name {self.name} and {oAuthData}")
         self.crossGames = False
         #Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         self.game_id = game_id
@@ -59,7 +58,7 @@ class miChannel(channelmgr.channel):
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
-            Exception("该渠道暂不支持，请参照教程联系开发者发起添加请求。")
+            Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
             return
         self.miLogin = MiLogin(res.get(self.channel_name).replace("mi_",""), self.oAuthData)
         self.realGameId = real_game_id
