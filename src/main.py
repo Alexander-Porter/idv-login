@@ -184,9 +184,9 @@ def cloudBuildInfo():
     try:
         from buildinfo import BUILD_INFO
         message=BUILD_INFO
+        print(f"构建信息：{message}。如需校验此版本是否被篡改，请前往官方项目地址。")
     except:
-        print("没有找到校验信息，请不要使用本工具，以免被盗号。")
-    print(f"构建信息：{message}。如需校验此版本是否被篡改，请前往官方项目地址。")
+        print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
 if __name__ == "__main__":
 
