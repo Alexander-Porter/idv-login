@@ -19,6 +19,7 @@
 
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
+import gevent
 from envmgr import genv
 from logutil import setup_logger
 
@@ -248,8 +249,13 @@ def handle_create_login():
         genv.set("CACHED_QRCODE_DATA",data)
         genv.set("pending_login_info",None)
         #auto login start
-        if genv.get(f"auto-{request.args['game_id']}","")!="":
-            genv.get("CHANNELS_HELPER").simulate_scan(genv.get(f"auto-{request.args['game_id']}"),data["uuid"],data["game_id"])
+        if genv.get(f"auto-{request.args['game_id']}", "") != "":
+                gevent.spawn(
+                    genv.get("CHANNELS_HELPER").simulate_scan,
+                    genv.get(f"auto-{request.args['game_id']}"),
+                    data["uuid"],
+                    data["game_id"]
+                )
         new_config = resp.get_json()
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
