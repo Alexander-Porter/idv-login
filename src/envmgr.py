@@ -1,5 +1,6 @@
 # coding=UTF-8
 import json
+import os
 
 
 class genv:
@@ -13,8 +14,11 @@ class genv:
         if isinstance(value, (str, int, float, bool, list, dict)) and isinstance(key, str):
             if cached:
                 try:
-                    with open(_cachePath, 'r') as f:
-                        data=json.load(f)
+                    if os.path.exists(_cachePath):
+                        with open(_cachePath, 'r') as f:
+                            data=json.load(f)
+                    else:
+                        data={}
                     data[key]=value
                     with open(_cachePath, 'w') as f:
                         json.dump(data, f)
