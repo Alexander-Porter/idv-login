@@ -47,7 +47,7 @@ def uploadAllFilesAndGetMarkDown(fileList):
     #write markdown
     res=""
     for i in data:
-        res+=(f"附件：{i} 下载地址：({data[i]})\n")
+        res+=(f"[下载{i}]({data[i]})\n")
     return res
 def getLatestRelease():
     headers={"Authorization":"token "+github_token}

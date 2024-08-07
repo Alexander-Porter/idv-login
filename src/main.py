@@ -93,13 +93,12 @@ def initialize():
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
 
-    
-    executable_path = sys.executable
+
 
     #如果是从解释器启动，不做任何事
     #for huawei, register hms://
-    if not executable_path.endswith("python.exe"):
-        register_url_scheme('hms', executable_path)
+    if not sys.executable.endswith("python.exe"):
+        register_url_scheme('hms', sys.executable)
 
 
 
@@ -171,7 +170,7 @@ def initialize():
     genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.3.1-stable")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.3.2-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
