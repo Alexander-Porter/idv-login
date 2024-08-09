@@ -58,7 +58,24 @@ def downloadToPath(url, path):
     with open(path, "wb") as f:
         f.write(r.content)
     return path
-def releaseToGitee(releaseData):
+
+def upload_asset(file_path, release_id):
+    #https://gitee.com/api/v5/repos/{owner}/{repo}/releases/{release_id}/attach_files
+    url=f"https://gitee.com/api/v5/repos/{os.getenv('GITEE_ROPE')}/releases/{release_id}/attach_files"
+    mulitpart_encoder = encoder.MultipartEncoder(
+        fields={
+            'access_token': os.getenv('GITEE_TOKEN'),
+            'file': (os.path.split(file_path)[1], open(file_path, 'rb'), 'application/octet-stream')
+        }
+    )
+    headers = {
+        "content-type": mulitpart_encoder.content_type
+    }
+    r = requests.post(url, data=mulitpart_encoder, headers=headers)
+    return r.json()
+
+
+def releaseToGitee(releaseData,fileList=[]):
     url=f"https://gitee.com/api/v5/repos/{os.getenv("GITEE_ROPE")}/releases"
     data={
         "access_token": os.getenv("GITEE_TOKEN"),
@@ -67,7 +84,11 @@ def releaseToGitee(releaseData):
         "body": releaseData["body"],
         "target_commitish": releaseData["target_commitish"]
     }
-    return requests.post(url, data=data).text
+    giteeData=requests.post(url, data=data).json()
+    giteeReleaseId=str(giteeData["id"])
+    for i in fileList:
+        upload_asset(i, giteeReleaseId)
+    
 
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
@@ -81,9 +102,9 @@ if __name__=='__main__':
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        releaseData["body"]+=('\n**注意**，点击链接后在"即将跳转到外部网站"处**手动复制网址**并**粘贴到地址栏访问**，否则会出现无法下载的错误！\n'+uploadAllFilesAndGetMarkDown(fileList))
+        #releaseData["body"]+=('\n**注意**，点击链接后在"即将跳转到外部网站"处**手动复制网址**并**粘贴到地址栏访问**，否则会出现无法下载的错误！\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
-        releaseToGitee(releaseData)
+        releaseToGitee(releaseData,fileList)
     except:
         traceback.print_exc()
         traceback.print_stack()
