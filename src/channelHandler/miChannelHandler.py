@@ -154,7 +154,7 @@ class miChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "3.0.5.002",
-            "jf_game_id": self.game_id,  # maybe works for all games
+            "jf_game_id": getShortGameId(self.game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),

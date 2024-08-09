@@ -86,6 +86,26 @@ class HuaweiLogin:
         self.expiredTime=self.lastLoginTime+token_response.get("expires_in")
         self.accessToken=token_response.get("access_token")
 
+    def newHMSOAuth(self):
+        client_id = hms_client_id
+        redirect_uri = hms_redirect_uri
+        scope = hms_scope
+        auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
+        webbrowser.open(auth_url)
+        code=G_clipListener(self.verify,60*10)
+        #解析url-schema获取code
+        try:
+            code = code.split("code=")[1]
+        except Exception as e:
+            print("获取code失败，错误的Code"+code)
+            return False
+        #进行urldecode
+        import urllib.parse
+        code=urllib.parse.unquote(code)
+        code=code.replace(" ","+")
+        token_response = exchange_code_for_token(client_id, code, code_verifier, redirect_uri)
+        self.hmsAccessToken=token_response.get("access_token")
+
         
     def initAccountData(self) -> object:
         if self.refreshToken == None:

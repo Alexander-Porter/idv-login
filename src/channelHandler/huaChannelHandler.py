@@ -120,6 +120,15 @@ class huaweiChannel(channelmgr.channel):
             game_id=data.get("game_id", ""),
         )
 
+    def _get_extra_data(self):
+        if getShortGameId(self.game_id)=='g37':
+            ext={}
+            ext["playerLevel"]=str(self.session.playerLevel)
+            sdk={}
+            sdk
+        else:
+            return str(self.session.playerLevel)
+
     def _build_extra_unisdk_data(self) -> str:
         fd = genv.get("FAKE_DEVICE")
         res = {
@@ -129,7 +138,7 @@ class huaweiChannel(channelmgr.channel):
         extra_data = {
             "anonymous": "",
             "get_access_token": "1",
-            "extra_data": str(self.session.playerLevel),
+            "extra_data": self._get_extra_data(),
             "timestamp": self.session.ts,
             "realname": json.dumps({"realname_type": 0, "duration": 0}),
         }
@@ -187,7 +196,7 @@ class huaweiChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "6.1.0.301",
-            "jf_game_id": self.game_id,
+            "jf_game_id": getShortGameId(self.game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),
