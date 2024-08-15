@@ -1,6 +1,18 @@
 {
 	"lastModified": 2,
 	"version": "5.2.5",
+	"detail": "A Md Text",
+	"download_url": [
+		{
+			"platform": "Windows 7",
+			"url": ""
+		},
+		{
+			"platform": "Windows 10/11",
+			"url": ""
+		}
+	],
+	"guide_url":"",
 	"data": [
 		{
 			"package_name": "com.netease.dwrg",
