@@ -88,6 +88,9 @@ def initialize():
         )
         sys.exit()
 
+    #全局变量声明
+    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
+
         # initialize workpath
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
@@ -114,26 +117,15 @@ def initialize():
 
     # handle exit
     atexit.register(handle_exit)
-    
-    # initialize object
-    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
-
-
 
     from cloudRes import CloudRes
     m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
     m_cloudres.update_cache_if_needed()
     genv.set("CLOUD_RES",m_cloudres)
 
-    kernel32 = ctypes.windll.kernel32
-    kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
+
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
-
-    
-
-
-    
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -188,11 +180,11 @@ def cloudBuildInfo():
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
 if __name__ == "__main__":
-
     kernel32 = ctypes.WinDLL("kernel32")
     HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
     handle_ctrl = HandlerRoutine(ctrl_handler)
     kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
 
     genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     if not os.path.exists(genv.get("FP_WORKDIR")):

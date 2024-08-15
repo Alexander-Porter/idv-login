@@ -479,6 +479,5 @@ class proxymgr:
             server.serve_forever()
             return True
         else:
-            logger.error("检测拦截目标域名失败！依旧打开服务器，请打开游戏确认拦截是否生效！")
-            server.serve_forever()
+            logger.error("检测拦截目标域名失败！请将程序加入杀毒软件白名单后重试。")
             return False
