@@ -26,7 +26,7 @@ from channelHandler.miLogin.miChannel import MiLogin
 from channelHandler.channelUtils import getShortGameId
 
 
-class miChannel(channelmgr.channel):
+class miChannel(channelmgr.Channel):
     def __init__(
         self,
         login_info: dict,

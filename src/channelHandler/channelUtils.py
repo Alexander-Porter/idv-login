@@ -18,7 +18,7 @@ LOG_KEY="SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw"
 def _get_my_ip():
         #get my IP
     try:
-        return requests.get("https://api.ipify.org").text
+        return requests.get("https://who.nie.netease.com/").json.get("ip")
     except Exception as e:
         return "127.0.0.1"
 
@@ -72,7 +72,11 @@ def postSignedData(data,game_id,need_custom_encode=False):
     headers={"X-Client-Sign":calcSign(url,method,data,key),
              "Content-Type":"application/json",
              "User-Agent":"Dalvik/2.1.0 (Linux; U; Android 12; M2102K1AC Build/V417IR)",}
-    r=requests.post(url,data=data,headers=headers)
+    proxies={
+        'http':'127.0.0.1:8888',
+        'https':'127.0.0.1:8888'
+        }
+    r=requests.post(url,data=data,headers=headers,verify=False)#debug
     return r.json()
 
 def getShortGameId(game_id):

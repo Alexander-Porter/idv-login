@@ -4,6 +4,7 @@ import os
 import random
 import string
 import time
+import uuid
 
 import requests
 import sys
@@ -105,7 +106,7 @@ class HuaweiLogin:
         code=code.replace(" ","+")
         token_response = exchange_code_for_token(client_id, code, code_verifier, redirect_uri)
         self.hmsAccessToken=token_response.get("access_token")
-
+        return not self.hmsAccessToken==None
         
     def initAccountData(self) -> object:
         if self.refreshToken == None:
@@ -129,8 +130,45 @@ class HuaweiLogin:
         body = COMMON_PARAMS.copy()
         body.update(self.device)
         body["method"] = "client.hms.gs.getGameAuthSign"
+        body["appId"]=str(self.channelConfig["app_id"])
+        body["gamePackage"]=(self.channelConfig["package_name"])
+        body["cpId"]=str(self.channelConfig["cp_id"])
         body["extraBody"] = f'json={{"appId":"{str(self.channelConfig["app_id"])}"}}'
         body["accessToken"]=self.accessToken
+
+        response = requests.post(url, headers=headers, data=body,verify=False)
+        return response.json()
+
+    def startPlay(self):
+        if self.refreshToken == None:
+            return None
+        #access_token=get_access_token(self.channelConfig["app_id"],self.channelConfig["client_secret"],self.refreshToken)
+        #we dont know client secret lol.
+        #get now time
+        now=int(time.time())
+        if now>=self.expiredTime:
+            self.newOAuthLogin()
+        if self.accessToken==None:
+            return None
+        #build urlencoded k-v body
+        url = "https://jgw-drcn.jos.dbankcloud.cn/gameservice/api/gbClientApi"
+
+        headers = {
+            "User-Agent": f"com.huawei.hms.game/6.14.0.300 (Linux; Android 12; {self.device.get('phoneType')}) RestClient/7.0.6.300",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        body = COMMON_PARAMS.copy()
+        body.update(self.device)
+        body["appId"]=str(self.channelConfig["app_id"])
+        body["accessToken"]=self.accessToken
+        body["gamePackage"]=(self.channelConfig["package_name"])
+        body["cpId"]=str(self.channelConfig["cp_id"])
+
+        body["method"] = "client.hms.gs.play.start"
+
+        body["frequency"]='0'
+        body["requestId"]=str(uuid.uuid4())
 
         response = requests.post(url, headers=headers, data=body,verify=False)
         return response.json()

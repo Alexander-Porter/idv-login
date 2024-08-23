@@ -40,4 +40,9 @@ jobs:
 
 
             - name: Unpack APK
-              run: python tools/unpack.py
+              env:
+                DECODEFUNC: ${{ secrets.DECODE }}
+              run: |
+                
+                python tools/unpack.py
+

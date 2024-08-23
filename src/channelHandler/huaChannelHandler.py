@@ -38,7 +38,7 @@ class huaweiLoginResponse:
         self.ts = rawJson.get("ts")
 
 
-class huaweiChannel(channelmgr.channel):
+class huaweiChannel(channelmgr.Channel):
 
     def __init__(
         self,
@@ -121,11 +121,23 @@ class huaweiChannel(channelmgr.channel):
         )
 
     def _get_extra_data(self):
+        self.logger.info(f"{getShortGameId(self.game_id)}")
         if getShortGameId(self.game_id)=='g37':
-            ext={}
-            ext["playerLevel"]=str(self.session.playerLevel)
-            sdk={}
-            sdk
+            self.logger.info(f"游戏{getShortGameId(self.game_id)}-需要HMS AccessToken, 二次登录中")
+            self.logger.info(self.huaweiLogin.startPlay())
+            #if self.huaweiLogin.newHMSOAuth():
+            if True:
+                ext={}
+                ext["playerLevel"]=str(self.session.playerLevel)
+                sdk={}
+                sdk["transtition_version"]=1
+                sdk["openId"]=self.session.openId
+                sdk["accessToken"]=self.huaweiLogin.accessToken
+                ext["sdk_info"]=sdk
+                return json.dumps(ext)
+            else:
+                self.logger.error(f"游戏{getShortGameId(self.game_id)}-HMS登录失败")
+                return ""
         else:
             return str(self.session.playerLevel)
 
@@ -136,7 +148,7 @@ class huaweiChannel(channelmgr.channel):
             "SAUTH_JSON": "",
         }
         extra_data = {
-            "anonymous": "",
+           # "anonymous": "",
             "get_access_token": "1",
             "extra_data": self._get_extra_data(),
             "timestamp": self.session.ts,
@@ -173,13 +185,13 @@ class huaweiChannel(channelmgr.channel):
             self.session.playerId,
             self.session.gameAuthSign,
             self.realGameId,
-            "6.1.0.301",
+            "6.8.0.300",
             {
-                "anonymous": "",
+             #   "anonymous": "",
                 "get_access_token": "1",
-                "extra_data": str(self.session.playerLevel),
+                "extra_data": self._get_extra_data(),
                 "timestamp": self.session.ts,
-                "realname": json.dumps({"realname_type": 0, "duration": 0}),
+                "realname": json.dumps({"realname_type": 0}),
             },
         )
         fd = genv.get("FAKE_DEVICE")
@@ -195,13 +207,13 @@ class huaweiChannel(channelmgr.channel):
             "login_channel": self.channel_name,
             "udid": fd["udid"],
             "app_channel": self.channel_name,
-            "sdk_version": "6.1.0.301",
+            "sdk_version": "6.8.0.300",
             "jf_game_id": getShortGameId(self.game_id),
             "pay_channel": self.channel_name,
-            "extra_data": "",
+            "extra_data": "abc",
             "extra_unisdk_data": self._build_extra_unisdk_data(),
-            "gv": "157",
-            "gvn": "1.5.80",
+            "gv": "240131",
+            "gvn": "1.8.4",
             "cv": "a1.5.0",
         }
         return res

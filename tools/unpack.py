@@ -13,13 +13,15 @@ def getNeteaseGameInfo(apkPath):
     os.makedirs('res', exist_ok=True)
     subprocess.check_call([jadx_path, apkPath, '--no-src', '-dr', 'res'])
     #reading res/assets/channel_auth_data, which is a base64 encoded json file
-    with open('res/assets/channel_auth_data', 'r') as f:
+    with open('res/assets/ntunisdk_common_data', 'r') as f:
         data = f.read()
         #decode base64
         data = base64.b64decode(data).decode()
         #load json
         data = json.loads(data)
         app_channel = data.get('APP_CHANNEL')
+        game_id = data.get('COMMON_JF_GAMEID')
+        
     #reading AndroidManifest.xml
     import xml.etree.ElementTree as ET
 
@@ -30,34 +32,7 @@ def getNeteaseGameInfo(apkPath):
         application = root.find('application')
         #use regular expression to get package name com.netease.???.xxxx -> com.netease.???
         package_name=re.search(r'(com\.netease.+?)\.\w+',package_name).group(1)
-    subprocess.check_call([jadx_path, apkPath, '--single-class', f'{package_name}.Channel', '--output-format', 'json','--single-class-output', 'res/Channel.json'])
-    log_key_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_LOG_KEY, "(.*?)"\);')
-    log_key_pattern2=re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_LOG_KEY\", "(.*?)"\);')
-    game_id_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_GAMEID, "(.*?)"\);')
-    game_id_pattern2= re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_GAMEID\", "(.*?)"\);')
 
-    # 遍历每行代码
-    with open('res/Channel.json', 'r') as f:
-        json_data = json.load(f)
-        for i in json_data['methods']:
-            # 遍历每行代码
-            for j in i['lines']:
-                if not log_key:
-                    match = log_key_pattern.search(j['code'])
-                    if match:
-                        log_key = match.group(1)
-                if not log_key:
-                    match = log_key_pattern2.search(j['code'])
-                    if match:
-                        log_key = match.group(1)
-                if not game_id:
-                    match = game_id_pattern.search(j['code'])
-                    if match:
-                        game_id = match.group(1)
-                if not game_id:
-                    match = game_id_pattern2.search(j['code'])
-                    if match:
-                        game_id = match.group(1)
 
     if app_channel=='xiaomi_app':
         namespaces = {'android': 'http://schemas.android.com/apk/res/android'}

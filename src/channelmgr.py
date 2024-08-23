@@ -28,7 +28,7 @@ from const import manual_login_channels
 from logutil import setup_logger
 
 
-class channel:
+class Channel:
     def __init__(
         self,
         login_info: dict,
@@ -125,7 +125,7 @@ class ChannelManager:
                                 # else:
                                 #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
                             else:
-                                self.channels.append(channel.from_dict(item))
+                                self.channels.append(Channel.from_dict(item))
                 except:
                     self.logger.error(f"读取渠道服登录信息失败。已经清空渠道服信息。",exc_info=True,stack_info=True)
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
@@ -161,7 +161,7 @@ class ChannelManager:
         )
 
     def import_from_scan(self, login_info: dict, exchange_info: dict):
-        tmp_channel: channel = channel(
+        tmp_channel: Channel = Channel(
             login_info,
             exchange_info["user"],
             exchange_info["ext_info"] if "ext_info" in exchange_info.keys() else {},
@@ -238,7 +238,7 @@ class ChannelManager:
                 return channel
         return None
 
-    def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
+    def simulate_confirm(self, channel: Channel, scanner_uuid: str, game_id: str):
         channel_data = channel.get_uniSdk_data()
         if not channel_data:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
@@ -261,6 +261,7 @@ class ChannelManager:
             return False
 
     def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
+        channel:Channel=None
         for channel in self.channels:
             if channel.uuid == uuid:
                 data = {
@@ -274,6 +275,8 @@ class ChannelManager:
                     "cv": "a1.5.0",
                 }
                 try:
+                    if channel.crossGames:
+                        channel.game_id=game_id
                     if scanner_uuid=="Kinich":
                         return channel.get_uniSdk_data()
                     r = requests.get(

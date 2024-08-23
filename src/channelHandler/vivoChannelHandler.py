@@ -38,7 +38,7 @@ class huaweiLoginResponse:
         self.ts = rawJson.get("ts")
 
 
-class vivoChannel(channelmgr.channel):
+class vivoChannel(channelmgr.Channel):
 
     def __init__(
         self,
