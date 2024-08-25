@@ -4,7 +4,7 @@ import os
 import random
 import string
 import time
-
+import gevent
 import requests
 import sys
 from faker import Faker
@@ -18,11 +18,40 @@ from faker import Faker
 from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,COMMON_PARAMS
 from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
 from channelHandler.channelUtils import G_clipListener
+from channelHandler.WebLoginUtils import WebBroswer
+from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 
 DEVICE_RECORD = 'huawei_device.json'
 
 
+class HuaweiBroswer(WebBroswer):
+    class HuaweiRequestInterceptor(QWebEngineUrlSchemeHandler):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.parent = parent
 
+        def requestStarted(self, info: QWebEngineUrlRequestJob):
+            url = info.requestUrl().toString()
+            print(f"Intercepted request: {url}")
+            if url.startswith("hms://"):
+                self.parent.notify(info.requestUrl())  # Notify the parent class
+
+    def __init__(self):
+        super().__init__()
+        self.intercept_request = self.HuaweiRequestInterceptor(self)
+        self.profile.installUrlSchemeHandler(b"hms", self.intercept_request)
+
+    def verify(self, url):
+        return url.startswith("hms://")
+
+    def parseReslt(self, url):
+        self.result = url
+        return True
+
+    def notify(self, url):
+        if self.verify(url.toString()):
+            if self.parseReslt(url.toString()):
+                self.cleanup()
 
 class HuaweiLogin:
 
@@ -33,6 +62,7 @@ class HuaweiLogin:
         self.channelConfig = channelConfig
         self.refreshToken = refreshToken
         self.accessToken=None
+        self.code_verifier=None
         self.lastLoginTime = 0
         self.expiredTime = 0
         if os.path.exists(DEVICE_RECORD):
@@ -67,12 +97,19 @@ class HuaweiLogin:
         client_id = str(self.channelConfig["app_id"])
         redirect_uri = hms_redirect_uri
         scope = hms_scope
-        auth_url, code_verifier = get_authorization_code(client_id, redirect_uri, scope)
-        webbrowser.open(auth_url)
-        code=G_clipListener(self.verify,60*10)
-        #解析url-schema获取code
+        auth_url, self.code_verifier = get_authorization_code(client_id, redirect_uri, scope)
+        huaWebLogin=HuaweiBroswer()
+        huaWebLogin.listen_url_change()
+        huaWebLogin.set_url(auth_url)
+        res=(huaWebLogin.run())
+        self.standardCallback(res)
+
+    def standardCallback(self, url, cookies={}):
+        client_id = str(self.channelConfig["app_id"])
+        redirect_uri = hms_redirect_uri
+        scope = hms_scope
         try:
-            code = code.split("code=")[1]
+            code = url.split("code=")[1]
         except Exception as e:
             print("获取code失败，错误的Code"+code)
             return False
@@ -80,13 +117,13 @@ class HuaweiLogin:
         import urllib.parse
         code=urllib.parse.unquote(code)
         code=code.replace(" ","+")
-        token_response = exchange_code_for_token(client_id, code, code_verifier, redirect_uri)
+        token_response = exchange_code_for_token(client_id, code, self.code_verifier, redirect_uri)
         self.refreshToken = token_response.get("refresh_token")
         self.lastLoginTime=int(time.time())
         self.expiredTime=self.lastLoginTime+token_response.get("expires_in")
         self.accessToken=token_response.get("access_token")
 
-        
+
     def initAccountData(self) -> object:
         if self.refreshToken == None:
             return None

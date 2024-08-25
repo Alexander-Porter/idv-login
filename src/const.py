@@ -41,7 +41,7 @@ html = r"""<!DOCTYPE html>
         </table>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.bundle.js"></script>
     <script>
         function renameChannel(uuid) {
             var newName = prompt("请输入新的账号名称");
