@@ -98,3 +98,14 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 - 由于本软件为开源软件，非官方的二次开发版本有不可控的特性，如果您使用任何非官方版本导致任何后果的，由使用者独自承担全部责任！
 - 如有将该软件用于非法目的或造成不良影响后果的，由使用者独自承担全部责任！
 - 如果该软件侵犯了网易公司的相关权益，请相关人员及时与我们取得联系，我们将第一时做出处理。
+
+### 6. 赞赏渠道
+感谢你的使用！如果这个工具帮到了你，请考虑下赞赏开发者。你的赞赏是我更新工具的动力~
+
+![mm_reward_qrcode_1724484746776.png](https://cdn.nlark.com/yuque/0/2024/png/47802215/1724484775106-ccdb4382-776f-4084-8504-8d2fa50272a9.png#averageHue=%235a5340&clientId=u701fd801-c106-4&from=paste&height=421&id=u5825f50f&originHeight=1190&originWidth=1190&originalType=binary&ratio=1.75&rotation=0&showTitle=false&size=213500&status=done&style=none&taskId=u50885951-155d-4ba0-8e53-dfc47d8a1ba&title=&width=421)
+
+BTC:
+> zpub6oDW9BSHBuMqrx5qyzTM4igVZ6ycza1HroAsrSFnnRE91tNQrKAE5m2hwbM24Z8MYWY73kQB3nCH1N9LFwbDRUPa35bpzkZsb7EktaYWMqW
+
+BTC 闪电网络:
+> 02b21f493c8aa5be24c5764638e960858727d18c616257a5154b10f47b06840411
