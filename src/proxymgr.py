@@ -425,6 +425,7 @@ class proxymgr:
                     except:
                         readable_exe_name="未知程序"
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
+                        return True
                     logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
                     input()
                     if t_pid=='4':

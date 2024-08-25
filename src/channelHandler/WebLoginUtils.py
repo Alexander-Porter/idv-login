@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile
 from PyQt5.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget
 from PyQt5.QtCore import QUrl, QTimer
+from envmgr import genv
 
 class WebBroswer(QWidget):
     class WebEngineView(QWebEngineView):
@@ -14,12 +15,23 @@ class WebBroswer(QWidget):
         def on_url_changed(self, url):
             self.setUrl(url)
 
-    def __init__(self):
-        self.app = QApplication([])
+    def __init__(self,keepCookie=True):
+        if QApplication.instance():
+            self.app = QApplication.instance()
+        else:
+            raise Exception("QApplication 不存在！")
         super().__init__()
         self.view = self.WebEngineView()
-        self.profile: QWebEngineProfile = QWebEngineProfile.defaultProfile()
-        self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
+        try:
+            self.profile =  genv.get("PROFILE")
+            print("QWebEngineProfile created successfully")
+        except Exception as e:
+            print(f"Failed to create QWebEngineProfile: {e}")
+            raise
+        if keepCookie:
+            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
+        else:
+            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
         self.profile.cookieStore().cookieAdded.connect(self.cookie_added)
         self.page = self.view.page()
         self.cookies = {}
@@ -72,5 +84,6 @@ class WebBroswer(QWidget):
 
     def cleanup(self):
         #self.view.setPage(None)
+        self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
         QTimer.singleShot(0, self.close)
 
