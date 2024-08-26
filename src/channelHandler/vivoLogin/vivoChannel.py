@@ -20,8 +20,8 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 
 
 class VivoBroswer(WebBroswer):
-    def __init__(self):
-        super().__init__("nearme_vivo",True)
+    def __init__(self,name=""):
+        super().__init__(f"nearme_vivo{name}",True)
         self.logger = setup_logger(__name__)
 
     def verify(self, url: str) -> bool:
@@ -50,13 +50,14 @@ class VivoBroswer(WebBroswer):
     
 
 class VivoLogin:
-    def __init__(self):
+    def __init__(self, name=""):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         self.logger = setup_logger(__name__)
+        self.name = name
 
     def webLogin(self):
         login_url = f"https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin"
-        miBroswer=VivoBroswer()
+        miBroswer=VivoBroswer(self.name)
         miBroswer.set_url(login_url)
         resp=(miBroswer.run())
         if resp.get("code")==0:

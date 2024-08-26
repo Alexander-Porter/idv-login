@@ -75,7 +75,7 @@ class vivoChannel(channelmgr.channel):
         real_game_id = getShortGameId(game_id)
         self.chosenAccount = chosenAccount
 
-        self.vivoLogin = VivoLogin()
+        self.vivoLogin = VivoLogin(self.uuid)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
