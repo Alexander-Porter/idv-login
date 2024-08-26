@@ -52,20 +52,6 @@ m_cloudres=None
 
 import winreg as reg
 
-def register_url_scheme(scheme_name, executable_path):
-    try:
-        # 打开 HKEY_CLASSES_ROOT 注册表项
-        key = reg.CreateKey(reg.HKEY_CLASSES_ROOT, scheme_name)
-        reg.SetValue(key, '', reg.REG_SZ, f'URL:{scheme_name} Protocol')
-        reg.SetValueEx(key, 'URL Protocol', 0, reg.REG_SZ, '')
-
-        # 创建 shell\open\command 子项
-        command_key = reg.CreateKey(key, r'shell\open\command')
-        reg.SetValue(command_key, '', reg.REG_SZ, f'"{executable_path}" "%1"')
-
-        print(f'{scheme_name} URL scheme registered successfully.')
-    except Exception as e:
-        print(f'注册{scheme_name}协议失败: {e}\n请关闭杀毒软件后重启本程序。否则部分渠道登录会受影响。')
 
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
@@ -74,6 +60,9 @@ def handle_exit():
 
 def handle_update():
     ignoredVersions=genv.get("ignoredVersions",[])
+    if "dev" in genv.get("VERSION"):
+        print("【在线更新】当前版本为开发版本，更新功能已关闭。")
+        return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return

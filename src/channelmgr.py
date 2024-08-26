@@ -103,6 +103,7 @@ class ChannelManager:
         self.channels = []
         from channelHandler.miChannelHandler import miChannel
         from channelHandler.huaChannelHandler import huaweiChannel
+        from channelHandler.vivoChannelHandler import vivoChannel
 
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
@@ -124,6 +125,9 @@ class ChannelManager:
                                 self.channels.append(tmpChannel)
                                 # else:
                                 #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name =="nearme_vivo":
+                                tmpChannel: vivoChannel = vivoChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
@@ -188,6 +192,10 @@ class ChannelManager:
             from channelHandler.huaChannelHandler import huaweiChannel
 
             tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
+        if channle_name == "nearme_vivo":
+            from channelHandler.vivoChannelHandler import vivoChannel
+
+            tmp_channel: vivoChannel = vivoChannel(tmpData,game_id=game_id)
         try:
             tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():

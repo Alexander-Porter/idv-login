@@ -4,12 +4,13 @@ manual_login_channels = [
         "channel": "xiaomi_app",
     },
     {"name": "华为账号", "channel": "huawei"},
-    #{"name": "vivo账号", "channel": "nearme_vivo"},
+    {"name": "vivo账号", "channel": "nearme_vivo"},
 ]
 
 
 html = r"""<!DOCTYPE html>
 <html lang="zh-cn">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +18,7 @@ html = r"""<!DOCTYPE html>
     <script src="https://cdn.staticfile.net/sweetalert/2.1.2/sweetalert.min.js"></script>
     <link href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body>
     <div class="container">
         <h1>渠道服账号</h1>
@@ -77,59 +79,58 @@ html = r"""<!DOCTYPE html>
 
         function switchChannel(uuid) {
             fetch(`/_idv-login/switch?uuid=${uuid}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.current==uuid) {
-                            swal('模拟登录成功');
-                            location.reload();
-                        } else {
-                            swal('写登录失败');
-                        }
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.current == uuid) {
+                        swal('模拟登录成功');
+                        location.reload();
+                    } else {
+                        swal('写登录失败');
+                    }
+                });
         }
         function defaultChannel(uuid) {
             game_id = getQueryVariable("game_id");
             fetch(`/_idv-login/setDefault?uuid=${uuid}&game_id=${game_id}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            swal('设置默认成功');
-                            location.reload();
-                        } else {
-                            swal('写登录失败');
-                        }
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        swal('设置默认成功');
+                        location.reload();
+                    } else {
+                        swal('写登录失败');
+                    }
+                });
         }
 
         function clearDefault() {
             game_id = getQueryVariable("game_id");
             fetch(`/_idv-login/clearDefault?game_id=${game_id}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            swal('清除默认成功');
-                            location.reload();
-                        } else {
-                            swal('清除失败');
-                        }
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        swal('清除默认成功');
+                        location.reload();
+                    } else {
+                        swal('清除失败');
+                    }
+                });
         }
 
-        function getQueryVariable(variable)
-             {
-       var query = window.location.search.substring(1);
-       var vars = query.split("&");
-       for (var i=0;i<vars.length;i++) {
-               var pair = vars[i].split("=");
-               if(pair[0] == variable){return pair[1];}
-       }
-       return ("");
+        function getQueryVariable(variable) {
+            var query = window.location.search.substring(1);
+            var vars = query.split("&");
+            for (var i = 0; i < vars.length; i++) {
+                var pair = vars[i].split("=");
+                if (pair[0] == variable) { return pair[1]; }
             }
+            return ("");
+        }
         // 在页面加载时获取账号列表
-        window.onload = function() {
-        //获得query参数game_id
+        window.onload = function () {
+            //获得query参数game_id
             game_id = getQueryVariable("game_id");
-            fetch('/_idv-login/list?game_id='+game_id)
+            fetch('/_idv-login/list?game_id=' + game_id)
                 .then(response => response.json())
                 .then(data => {
                     var tableBody = document.getElementById('channelTableBody');
@@ -160,65 +161,32 @@ html = r"""<!DOCTYPE html>
                     });
                 });
 
-            fetch('/_idv-login/defaultChannel?game_id='+game_id)
+            fetch('/_idv-login/defaultChannel?game_id=' + game_id)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.uuid!=""){
-                    document.getElementById('default').innerText = data.uuid;
+                    if (data.uuid != "") {
+                        document.getElementById('default').innerText = data.uuid;
                     }
                 });
 
         }
         function manual() {
-        //获取channelSelect的值
-        var selectedChannel = document.getElementById('channelSelect').value;
-        if (selectedChannel == 'xiaomi_app') {
-            swal("请登录成功后，提示[找不到页面]后，复制浏览器地址栏里的网址(https://game.xiaomi.com/oauthcallback/mioauth?code=xxxxx)，程序会自动读取登录凭证！\n如果需要切换账号，在新打开的网页里点击右上角头像-》退出登录后再执行函数！");
-                    //向服务器发送请求
-        fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                swal('执行成功');
-                location.reload();
-              } else {
-                swal('执行失败');
-              }
-            });
-        }
-        if (selectedChannel == 'huawei') {
-         fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                swal('执行成功');
-                location.reload();
-              } else {
-                swal('执行失败');
-              }
-            });
-        }
-        if (selectedChannel == 'nearme_vivo') {
-            swal("VIVO登录方法，请仔细阅读","1.在打开的界面里登录Vivo账号。\n2.提示[网络异常，登录失败！]后，回到本界面点击确定\n 3.确定后，在新开的界面中按住Ctrl+A Ctrl+C全选复制页面上的凭证").then((value) => {
-                window.open("https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin");
-                swal("我已登录并看到[网络异常，登录失败！]提示，去复制凭证").then((value) => {
-                    window.open("https://joint.vivo.com.cn/h5/union/get?gamePackage=");
-                            //向服务器发送请求
-        fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                swal('执行成功');
-                location.reload();
-              } else {
-                swal('执行失败');
-              }
-            });
-                });
-            });
-        }
+            //获取channelSelect的值
+            var selectedChannel = document.getElementById('channelSelect').value;
+            
+            fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    swal('执行成功');
+                                    location.reload();
+                                } else {
+                                    swal('执行失败，请检查工具日志');
+                                }
+                            });
 
         }
     </script>
 </body>
+
 </html>"""
