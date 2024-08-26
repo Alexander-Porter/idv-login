@@ -18,10 +18,7 @@ class WebBroswer(QWidget):
             self.setUrl(url)
 
     def __init__(self,name="WebLoginDefault",keepCookie=True):
-        self.app=QApplication([])
-        from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
-        QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
-
+        self.app = QApplication.instance()
         super().__init__()
         self.view = self.WebEngineView()
         try:

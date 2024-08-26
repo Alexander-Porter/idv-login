@@ -4,6 +4,7 @@ import os.path
 import json
 import traceback
 from requests_toolbelt.multipart import encoder
+
 #读取环境变量
 secret_upload_pre_url=os.getenv("UPLOAD_PRE_URL")
 secret_upload_url=os.getenv("UPLOAD_URL")
@@ -40,6 +41,7 @@ def uploadFile(filePath):
         sys.exit(1)
         res="" 
     return res
+
 def uploadAllFilesAndGetMarkDown(fileList):
     data={}
     for i in fileList:
@@ -53,6 +55,7 @@ def getLatestRelease():
     headers={"Authorization":"token "+github_token}
     r=requests.get("https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest",headers=headers)
     return r.json()
+
 def downloadToPath(url, path):
     r=requests.get(url)
     with open(path, "wb") as f:
@@ -89,6 +92,34 @@ def releaseToGitee(releaseData,fileList=[]):
     for i in fileList:
         upload_asset(i, giteeReleaseId)
     
+def updateCloudRes():
+    #get now cloud res
+    url="https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json"
+    headers={"Authorization":"token "+github_token}
+    r=requests.get(url,headers=headers)
+    fileInfo=r.json()
+    sha=fileInfo["sha"]
+    import base64
+    import json
+    content=base64.b64decode(fileInfo["content"]).decode()
+    data=json.loads(content)
+    #update cloud res
+    releaseData=getLatestRelease()
+    data["version"]=releaseData["tag_name"]
+    import time
+    data["lastModified"]=int(time.time())
+    data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
+    data["detail"]=releaseData["body"]
+    commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
+    dataStr=json.dumps(data)
+    dataStr=base64.b64encode(dataStr.encode()).decode()
+    data={
+        "message":commitMessage,
+        "content":dataStr,
+        "sha":sha
+    }
+    r=requests.put(url,headers=headers,json=data)
+    print(r.json())
 
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()

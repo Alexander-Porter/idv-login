@@ -42,11 +42,11 @@ class CloudRes:
                 self.local_data = cloud_data
                 with open(self.cache_file, 'w', encoding='utf-8') as f:
                     json.dump(cloud_data, f, ensure_ascii=False, indent=4)
-                logger.info("Cache updated with new data from cloud.")
+                logger.info("云端配置有更新，应用成功")
             else:
-                logger.info("Local cache is up-to-date.")
+                logger.info("本地配置已是最新")
         else:
-            logger.warning("Using local cache due to invalid cloud data.")
+            logger.warning("获取云端配置失败，将继续使用本地配置")
 
     def get_channelData(self, channelName,shortGameId):
         data=self.local_data.get('data', [])
@@ -61,3 +61,15 @@ class CloudRes:
             if item.get('game_id') == shortGameId:
                 return item
         return None
+    
+    def get_version(self):
+        return self.local_data.get('version', genv.get('VERSION'))
+    
+    def get_downloadUrl(self):
+        return self.local_data.get('downloadUrl', '')
+    
+    def get_guideUrl(self):
+        return self.local_data.get('guideUrl', '')
+    
+    def get_detail(self):
+        return self.local_data.get('detail', '')

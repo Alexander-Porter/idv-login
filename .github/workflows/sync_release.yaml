@@ -42,7 +42,7 @@ jobs:
           mkdir -p tmps
           
       
-      - name: Release (assets) to Gitee
+      - name: Release to Gitee and update cloudRes
         id: release
         env:
           UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}

@@ -26,9 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Generate BuildInfo
+      - name: Insert build info
         run: |
-            'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"' > src/buildinfo.py
+          echo -e 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"\n' > src/buildinfo.py
+          echo -e 'VERSION="v${{github.ref_name}}"\n' >> src/buildinfo.py
 
       - name: Build with PyInstaller
         run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt

@@ -72,6 +72,28 @@ def handle_exit():
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")
 
+def handle_update():
+    ignoredVersions=genv.get("ignoredVersions",[])
+    if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
+        print("【在线更新】当前版本已是最新版本。")
+        return
+    else:
+        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，按回车跳转至新版本下载页面。按P+Enter暂时更新，按N+Enter永久跳过此版本。")
+        details=genv.get("CLOUD_RES").get_detail()
+        print(f"{details}")
+        choice=input()
+        if choice.lower()=="p":
+            return
+        elif choice.lower()=="n":
+            ignoredVersions.append(genv.get("CLOUD_VERSION"))
+            genv.set("ignoredVersions",ignoredVersions,True)
+            return
+        else:
+            url=genv.get("CLOUD_RES").get_downloadUrl()
+            import webbrowser
+            webbrowser.open(url)
+            input("【更新方法】按照页面上的指引下载新的.exe文件即可。")
+            sys.exit(0)
 
 def ctrl_handler(ctrl_type):
     if ctrl_type == 2:  # 对应CTRL_CLOSE_EVENT
@@ -97,14 +119,6 @@ def initialize():
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
 
 
-
-    #如果是从解释器启动，不做任何事
-    #for huawei, register hms://
-    if not sys.executable.endswith("python.exe"):
-        register_url_scheme('hms', sys.executable)
-
-
-
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
@@ -122,6 +136,7 @@ def initialize():
     m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
     m_cloudres.update_cache_if_needed()
     genv.set("CLOUD_RES",m_cloudres)
+    genv.set("CLOUD_VERSION",m_cloudres.get_version())
 
 
     # (Can't) copy web assets! Have trouble using pyinstaller = =
@@ -150,7 +165,6 @@ def initialize():
         with open(genv.get("FP_FAKE_DEVICE"), "r") as f:
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
-
     from certmgr import certmgr
     from hostmgr import hostmgr
     from proxymgr import proxymgr
@@ -161,8 +175,21 @@ def initialize():
     # 关于线程安全：谁？
     genv.set("CHANNELS_HELPER", ChannelManager())
 
+    logger.info("初始化内置浏览器")
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
+    genv.set("APP",QApplication([]))
+    QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
+
+    #该版本首次使用会弹出教程
+    if genv.get(f"{genv.get('VERSION')}_first_use",True):
+        import webbrowser
+        url=genv.get("CLOUD_RES").get_guideUrl()
+        webbrowser.open(url)
+        genv.set(f"{genv.get('VERSION')}_first_use",False,True)
+
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.3.2-beta")
+    print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
@@ -173,8 +200,9 @@ def welcome():
 
 def cloudBuildInfo():
     try:
-        from buildinfo import BUILD_INFO
+        from buildinfo import BUILD_INFO,VERSION
         message=BUILD_INFO
+        genv.set("VERSION",VERSION)
         print(f"构建信息：{message}。如需校验此版本是否被篡改，请前往官方项目地址。")
     except:
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
@@ -193,9 +221,10 @@ if __name__ == "__main__":
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     logger = setup_logger(__name__)
     try:
+        cloudBuildInfo()
         initialize()
         welcome()
-        cloudBuildInfo()
+        handle_update()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):
@@ -235,7 +264,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.exception(
-            f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",
+            f"发生未处理的异常:{e}.反馈时请发送日志\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt",
             stack_info=True,
             exc_info=True,
         )
