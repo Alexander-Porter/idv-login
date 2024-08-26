@@ -71,7 +71,7 @@ class channel:
             name=data.get("name", ""),
         )
 
-    def get_uniSdk_data(self):
+    def get_uniSdk_data(self, game_id: str = ""):
         return {
             "user_id": self.user_info["id"],
             "token": self.user_info["token"],
@@ -247,7 +247,7 @@ class ChannelManager:
         return None
 
     def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
-        channel_data = channel.get_uniSdk_data()
+        channel_data = channel.get_uniSdk_data(game_id)
         if not channel_data:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             return False

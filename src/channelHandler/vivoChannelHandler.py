@@ -158,7 +158,9 @@ class vivoChannel(channelmgr.channel):
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
         return json.dumps(res)
 
-    def get_uniSdk_data(self):
+    def get_uniSdk_data(self, game_id: str = ""):
+        if game_id == "":
+            game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
 
@@ -170,7 +172,7 @@ class vivoChannel(channelmgr.channel):
             self.channel_name,
             self.activeAccount.subOpenId,
             self.activeAccount.openToken,
-            self.realGameId,
+            getShortGameId(game_id),
             "4.7.2.0",
             {
                 "realname": json.dumps({"realname_type": 0, "age": 22}),
@@ -190,7 +192,7 @@ class vivoChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "4.7.2.0",
-            "jf_game_id": self.game_id,
+            "jf_game_id": getShortGameId(game_id),,
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),

@@ -150,7 +150,9 @@ class huaweiChannel(channelmgr.channel):
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
         return json.dumps(res)
 
-    def get_uniSdk_data(self):
+    def get_uniSdk_data(self, game_id: str = ""):
+        if game_id == "":
+            game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
 
@@ -163,7 +165,7 @@ class huaweiChannel(channelmgr.channel):
             self.channel_name,
             self.session.playerId,
             self.session.gameAuthSign,
-            self.realGameId,
+            getShortGameId(game_id),
             "6.1.0.301",
             {
                 "anonymous": "",
@@ -187,7 +189,7 @@ class huaweiChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "6.1.0.301",
-            "jf_game_id": self.game_id,
+            "jf_game_id": getShortGameId(game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),

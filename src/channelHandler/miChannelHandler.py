@@ -128,7 +128,9 @@ class miChannel(channelmgr.channel):
         return json.dumps(res)
 
 
-    def get_uniSdk_data(self):
+    def get_uniSdk_data(self, game_id: str = ""):
+        if game_id == "":
+            game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
         
@@ -140,7 +142,7 @@ class miChannel(channelmgr.channel):
             self.channel_name,
             str(appAccountId),
             session,
-            self.realGameId,
+            getShortGameId(game_id),
             "3.3.0.7"
         )
         fd = genv.get("FAKE_DEVICE")
@@ -154,7 +156,7 @@ class miChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "3.0.5.002",
-            "jf_game_id": self.game_id,  # maybe works for all games
+            "jf_game_id": getShortGameId(game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),
