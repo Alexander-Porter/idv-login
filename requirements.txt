@@ -11,3 +11,4 @@ pyinstaller
 pywin32
 dnspython
 PyQt5
+PyQtWebEngine
