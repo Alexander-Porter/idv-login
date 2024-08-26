@@ -139,4 +139,4 @@ if __name__=='__main__':
     except:
         traceback.print_exc()
         traceback.print_stack()
-        sys.exit(1)
+    updateCloudRes()

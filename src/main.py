@@ -77,8 +77,8 @@ def handle_update():
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
-    else:
-        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，按回车跳转至新版本下载页面。按P+Enter暂时更新，按N+Enter永久跳过此版本。")
+    elif not genv.get("CLOUD_VERSION") in ignoredVersions:
+        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，按回车跳转至新版本下载页面。按P+Enter暂时不更新，按N+Enter永久跳过此版本。")
         details=genv.get("CLOUD_RES").get_detail()
         print(f"{details}")
         choice=input()
@@ -94,6 +94,9 @@ def handle_update():
             webbrowser.open(url)
             input("【更新方法】按照页面上的指引下载新的.exe文件即可。")
             sys.exit(0)
+    else:
+        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，但已被用户永久跳过。")
+        return
 
 def ctrl_handler(ctrl_type):
     if ctrl_type == 2:  # 对应CTRL_CLOSE_EVENT
