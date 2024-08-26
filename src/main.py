@@ -230,10 +230,6 @@ if __name__ == "__main__":
             m_hostmgr.add("localhost", "127.0.0.1")
 
         logger.info("正在启动代理服务器...")
-        from PyQt5.QtWidgets import QApplication
-        genv.set("APP",QApplication([])) 
-        from PyQt5.QtWebEngineWidgets import  QWebEngineProfile
-        genv.set("PROFILE",QWebEngineProfile())
 
         m_proxy.run()
 

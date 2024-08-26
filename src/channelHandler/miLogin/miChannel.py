@@ -21,7 +21,7 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 
 class MiBroswer(WebBroswer):
     def __init__(self):
-        super().__init__()
+        super().__init__("xiaomi_app",False)
 
     def verify(self, url: str) -> bool:
         return "code" in self.parse_url_query(url).keys()
@@ -137,7 +137,6 @@ class MiLogin:
     def webLogin(self):
         login_url = f"http://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}"
         miBroswer=MiBroswer()
-        miBroswer.listen_url_change()
         miBroswer.set_url(login_url)
         return self.getSTbyCode(miBroswer.run())
 
