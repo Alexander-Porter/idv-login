@@ -393,16 +393,14 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request, "i4.7.0")
 
-@app.before_request
-def before_request_func():
-    if request.method == "POST":
-        logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
-    else:
-        logger.debug(f"请求 {request.method} {request.path} {request.args}")
 @app.after_request
-def after_request_func(response):
-    if request.content_type == "application/json":
-        logger.debug(f"发送 {response.status} {response.headers} {response.get_json()}")
+def after_request_func(response:Response):
+    #只log出现错误的请求
+    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301:
+        logger.error(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
+        logger.error(f"发送 {response.status} {response.headers} {response.get_data().decode()}")
+    else:
+        logger.debug(f"请求 {request.url} {response.status}")
     return response
 
 class proxymgr:

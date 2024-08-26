@@ -28,8 +28,11 @@ jobs:
 
       - name: Insert build info
         run: |
-          echo -e 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"\n' > src/buildinfo.py
-          echo -e 'VERSION="v${{github.ref_name}}"\n' >> src/buildinfo.py
+          $buildInfo = 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"'
+          $versionInfo = 'VERSION="v${{github.ref_name}}"'
+          $buildInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8
+          $versionInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8 -Append
+        shell: pwsh
 
       - name: Build with PyInstaller
         run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt
