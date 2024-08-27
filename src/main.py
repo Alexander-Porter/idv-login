@@ -91,8 +91,10 @@ def ctrl_handler(ctrl_type):
 def initialize():
     # if we don't have enough privileges, relaunch as administrator
     if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+        #解决含空格的目录
+        argvs=[f'"{i}"' for i in sys.argv]
         ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, " ".join(sys.argv), None, 1
+            None, "runas", sys.executable, " ".join(argvs), script_dir , 1
         )
         sys.exit()
 
