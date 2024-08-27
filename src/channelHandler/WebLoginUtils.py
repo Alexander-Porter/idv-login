@@ -61,6 +61,8 @@ class WebBrowser(QWidget):
 
         #窗口置顶
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        #设置窗口大小
+        self.resize(1000, 1000)
 
     def set_url(self, url):
         self.view.load(QUrl(url))

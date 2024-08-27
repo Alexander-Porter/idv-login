@@ -36,6 +36,10 @@ class MiBrowser(WebBrowser):
         query_dict = parse_qs(parsed_url.query)
         return query_dict
     
+    def handle_url_change(self, url):
+        super().handle_url_change(url)
+        if self.parse_url_query(url.toString()).get("cUserId") != None:
+            self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}")
 
 def generate_fake_data():
     fake = Faker()
@@ -135,7 +139,7 @@ class MiLogin:
             raise Exception("Get ST failed")
 
     def webLogin(self):
-        login_url = f"http://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}"
+        login_url = "https://account.xiaomi.com/"
         miBrowser=MiBrowser()
         miBrowser.set_url(login_url)
         return self.getSTbyCode(miBrowser.run())
