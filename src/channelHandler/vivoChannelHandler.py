@@ -75,7 +75,7 @@ class vivoChannel(channelmgr.channel):
         real_game_id = getShortGameId(game_id)
         self.chosenAccount = chosenAccount
 
-        self.vivoLogin = VivoLogin(self.uuid)
+        self.vivoLogin = VivoLogin()
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
@@ -85,6 +85,7 @@ class vivoChannel(channelmgr.channel):
 
 
     def request_user_login(self):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         self.session:vivoLoginResp=vivoLoginResp(self.vivoLogin.webLogin())
         if len(self.session.subAccounts)==0:
             return False
@@ -112,7 +113,6 @@ class vivoChannel(channelmgr.channel):
                 self.activeAccount=self.session.subAccounts[i]
                 break
         self.name=self.session.phone
-        self.last_login_time=int(time.time())
         return self.session!=None
 
     def is_token_valid(self):
@@ -159,6 +159,7 @@ class vivoChannel(channelmgr.channel):
         return json.dumps(res)
 
     def get_uniSdk_data(self, game_id: str = ""):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
@@ -180,7 +181,7 @@ class vivoChannel(channelmgr.channel):
         )
         fd = genv.get("FAKE_DEVICE")
         self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(self.uniBody, self.realGameId,True)
+        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),True)
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON = json.loads(
             base64.b64decode(self.uniData["unisdk_login_json"]).decode()
@@ -192,7 +193,7 @@ class vivoChannel(channelmgr.channel):
             "udid": fd["udid"],
             "app_channel": self.channel_name,
             "sdk_version": "4.7.2.0",
-            "jf_game_id": getShortGameId(game_id),,
+            "jf_game_id": getShortGameId(game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
             "extra_unisdk_data": self._build_extra_unisdk_data(),

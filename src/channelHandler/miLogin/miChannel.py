@@ -14,12 +14,12 @@ import pyperclip as cb
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
-from channelHandler.WebLoginUtils import WebBroswer
+from channelHandler.WebLoginUtils import WebBrowser
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 
 
 
-class MiBroswer(WebBroswer):
+class MiBrowser(WebBrowser):
     def __init__(self):
         super().__init__("xiaomi_app",False)
 
@@ -136,9 +136,9 @@ class MiLogin:
 
     def webLogin(self):
         login_url = f"http://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}"
-        miBroswer=MiBroswer()
-        miBroswer.set_url(login_url)
-        return self.getSTbyCode(miBroswer.run())
+        miBrowser=MiBrowser()
+        miBrowser.set_url(login_url)
+        return self.getSTbyCode(miBrowser.run())
 
     def makeFakeDevice(self):
         device = DEVICE.copy()

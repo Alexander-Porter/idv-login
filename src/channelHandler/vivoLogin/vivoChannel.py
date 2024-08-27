@@ -14,14 +14,14 @@ import pyperclip as cb
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
-from channelHandler.WebLoginUtils import WebBroswer
+from channelHandler.WebLoginUtils import WebBrowser
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 
 
 
-class VivoBroswer(WebBroswer):
-    def __init__(self,name=""):
-        super().__init__(f"nearme_vivo{name}",True)
+class VivoBrowser(WebBrowser):
+    def __init__(self):
+        super().__init__("nearme_vivo",True)
         self.logger = setup_logger(__name__)
 
     def verify(self, url: str) -> bool:
@@ -50,16 +50,15 @@ class VivoBroswer(WebBroswer):
     
 
 class VivoLogin:
-    def __init__(self, name=""):
+    def __init__(self):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         self.logger = setup_logger(__name__)
-        self.name = name
 
     def webLogin(self):
         login_url = f"https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin"
-        miBroswer=VivoBroswer(self.name)
-        miBroswer.set_url(login_url)
-        resp=(miBroswer.run())
+        miBrowser=VivoBrowser()
+        miBrowser.set_url(login_url)
+        resp=(miBrowser.run())
         if resp.get("code")==0:
             return resp.get("data")
         else:

@@ -13,12 +13,11 @@ class CustomEncoder(json.JSONEncoder):
         json_str = super().encode(obj)
         return json_str.replace('/', '\\/')
 
-LOG_KEY="SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw"
 
 def _get_my_ip():
         #get my IP
     try:
-        return requests.get("https://api.ipify.org").text
+        return requests.get("https://who.nie.netease.com/").json.get("ip")
     except Exception as e:
         return "127.0.0.1"
 

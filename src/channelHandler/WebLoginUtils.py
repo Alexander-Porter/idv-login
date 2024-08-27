@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHB
 from PyQt5.QtCore import QUrl, QTimer
 from PyQt5.QtCore import pyqtSlot
 from envmgr import genv
-
-class WebBroswer(QWidget):
+from logutil import setup_logger
+class WebBrowser(QWidget):
     class WebEngineView(QWebEngineView):
         def createWindow(self, QWebEnginePage_WebWindowType):
             page = QWebEngineView(self)
@@ -19,13 +19,16 @@ class WebBroswer(QWidget):
 
     def __init__(self,name="WebLoginDefault",keepCookie=True):
         self.app = QApplication.instance()
+        self.logger=setup_logger(__name__)
         super().__init__()
         self.view = self.WebEngineView()
+        tmpName=genv.get("GLOB_LOGIN_UUID","")
+        name=tmpName if tmpName!="" else name
         try:
             self.profile:QWebEngineProfile =  QWebEngineProfile(name)
-            print("Get QWebEngineProfile successfully")
+            self.logger.info(f"Profile创建成功: {name}")
         except Exception as e:
-            print(f"Failed to create QWebEngineProfile: {e}")
+            self.logger.error(f"Profile创建失败： {e}")
             raise
 
         #cookie相关
@@ -44,7 +47,7 @@ class WebBroswer(QWidget):
         self.page.urlChanged.connect(self.handle_url_change)
 
         # 创建清除Cookie按钮
-        self.clear_cookie_button = QPushButton("清除Cookie")
+        self.clear_cookie_button = QPushButton("强制退登")
         self.clear_cookie_button.clicked.connect(self.clear_cookies)
 
         # 设置布局
@@ -68,7 +71,7 @@ class WebBroswer(QWidget):
 
 
     def handle_url_change(self, url):
-        print(f"URL changed: {url.toString()}")
+        self.logger.debug(f"URL changed: {url.toString()}")
         if self.verify(url.toString()):
             if self.parseReslt(url.toString()):
                 self.cleanup()
@@ -90,7 +93,8 @@ class WebBroswer(QWidget):
     def clear_cookies(self):
         cookie_store = self.profile.cookieStore()
         cookie_store.deleteAllCookies()
-        print("Cookies cleared")
+        #重载页面
+        self.view.reload()
 
     def run(self):
         self.show()

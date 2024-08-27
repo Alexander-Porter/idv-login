@@ -66,6 +66,7 @@ class miChannel(channelmgr.channel):
         self.uniData = None
 
     def request_user_login(self):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         self.miLogin.webLogin()
         self.oAuthData = self.miLogin.oauthData
         self.logger.debug(self.oAuthData)
@@ -78,7 +79,6 @@ class miChannel(channelmgr.channel):
             self.logger.error(f"Failed to get session data {e}")
             self.oAuthData = None
             return None,None
-        self.last_login_time = int(time.time())
         return data["appAccountId"], data["session"]
 
     def is_token_valid(self):
@@ -129,6 +129,7 @@ class miChannel(channelmgr.channel):
 
 
     def get_uniSdk_data(self, game_id: str = ""):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
@@ -146,7 +147,7 @@ class miChannel(channelmgr.channel):
             "3.3.0.7"
         )
         fd = genv.get("FAKE_DEVICE")
-        self.uniData = channelUtils.postSignedData(self.uniBody,self.realGameId)
+        self.uniData = channelUtils.postSignedData(self.uniBody, getShortGameId(game_id))
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
         res = {

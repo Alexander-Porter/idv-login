@@ -34,6 +34,7 @@ html = r"""<!DOCTYPE html>
                     <th scope="col">选择</th>
                     <th scope="col">UUID</th>
                     <th scope="col">名称</th>
+                    <th scope="col">上次登录</th>
                     <th scope="col">操作</th>
                 </tr>
             </thead>
@@ -45,6 +46,9 @@ html = r"""<!DOCTYPE html>
 
     <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.bundle.js"></script>
     <script>
+        function timeStampToLocalTime(timestamp) {
+            return new Date(timestamp * 1000).toLocaleString();
+        };
         function renameChannel(uuid) {
             var newName = prompt("请输入新的账号名称");
             if (newName) {
@@ -139,6 +143,7 @@ html = r"""<!DOCTYPE html>
                         row.insertCell().innerHTML = `<input type="checkbox" value="${channel.uuid}">`;
                         row.insertCell().innerHTML = channel.uuid;
                         row.insertCell().innerHTML = channel.name;
+                        row.insertCell().innerHTML = timeStampToLocalTime(channel.last_login_time);
                         var actionsCell = row.insertCell();
                         actionsCell.innerHTML = `
                             <button onclick="switchChannel('${channel.uuid}')">登录</button>

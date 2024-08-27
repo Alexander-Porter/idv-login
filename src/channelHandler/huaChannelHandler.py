@@ -82,6 +82,7 @@ class huaweiChannel(channelmgr.channel):
         self.session: huaweiLoginResponse = None
 
     def request_user_login(self):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         self.huaweiLogin.newOAuthLogin()
         self.refreshToken = self.huaweiLogin.refreshToken
         self.logger.debug(self.refreshToken)
@@ -96,7 +97,6 @@ class huaweiChannel(channelmgr.channel):
             self.logger.error(f"Failed to get session data {data}")
             self.refreshToken = None
             return None
-        self.last_login_time = int(time.time())
         self.session = res
         return res
 
@@ -151,6 +151,7 @@ class huaweiChannel(channelmgr.channel):
         return json.dumps(res)
 
     def get_uniSdk_data(self, game_id: str = ""):
+        genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
@@ -177,7 +178,7 @@ class huaweiChannel(channelmgr.channel):
         )
         fd = genv.get("FAKE_DEVICE")
         self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(self.uniBody, self.realGameId,False)
+        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON = json.loads(
             base64.b64decode(self.uniData["unisdk_login_json"]).decode()

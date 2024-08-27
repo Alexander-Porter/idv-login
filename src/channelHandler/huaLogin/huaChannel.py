@@ -18,16 +18,16 @@ from faker import Faker
 from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,COMMON_PARAMS
 from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
 from channelHandler.channelUtils import G_clipListener
-from channelHandler.WebLoginUtils import WebBroswer
+from channelHandler.WebLoginUtils import WebBrowser
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog
+from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton
 from AutoFillUtils import RecordMgr
 
 DEVICE_RECORD = 'huawei_device.json'
 
 
-class HuaweiBroswer(WebBroswer):
+class HuaweiBrowser(WebBrowser):
     class HuaweiRequestInterceptor(QWebEngineUrlSchemeHandler):
         def __init__(self, parent=None):
             super().__init__(parent)
@@ -47,7 +47,14 @@ class HuaweiBroswer(WebBroswer):
         self.profile.removeAllUrlSchemeHandlers()
         self.profile.installUrlSchemeHandler(b"hms", self.intercept_request)
         self.autoFillMgr=RecordMgr()
-
+        self.records=self.autoFillMgr.list_records()
+        #check genv for default account
+        defaultAccount=genv.get(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",None)
+        if defaultAccount:
+            #make sure default account is in records and then put it in index 0
+            if defaultAccount in self.records:
+                self.records.remove(defaultAccount)
+                self.records.insert(0,defaultAccount)
         self.autoFillCheckBox=QCheckBox("记住账号密码")
         self.toolBarLayout.addWidget(self.autoFillCheckBox)
         self.autoFillCheckBox.setChecked(genv.get("autoFill",False))
@@ -56,16 +63,18 @@ class HuaweiBroswer(WebBroswer):
         #增加一个下拉菜单QComboBox
         self.accountComboBox=QComboBox()
         self.toolBarLayout.addWidget(self.accountComboBox)
-        self.accountComboBox.addItems(self.autoFillMgr.list_records())
+        self.accountComboBox.addItems(self.records)
         self.accountComboBox.currentIndexChanged.connect(self.onAccountChanged)
         self.accountComboBox.textActivated.connect(self.onAccountChanged)
 
-    def onAccountChanged(self,index):
+        #增加一个按钮，文本为“填充”
+        self.fillButton=QPushButton("填充")
+        self.toolBarLayout.addWidget(self.fillButton)
+        self.fillButton.clicked.connect(self.onAccountChanged)
+
+    def onAccountChanged(self):
         #get account
         account=self.accountComboBox.currentText()
-        #request user to input full account
-        #将*全部替换为QInputDialog的部分
-        #创建一个输入框并选中指定内容
         text,ok=QInputDialog.getText(self,"二次验证","密码已被加密，请输入完整的账号来解密",text=account)
         if ok:
             #find password
@@ -160,7 +169,8 @@ class HuaweiBroswer(WebBroswer):
             if "account" in data and "pwd" in data:
                 if self.autoFillCheckBox.isChecked():
                     self.logger.info("读取账号密码成功")
-                    self.autoFillMgr.add_record(data["account"],data["pwd"])
+                    record=self.autoFillMgr.add_record(data["account"],data["pwd"])
+                    genv.set(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",record.truncated_username,True)
 
     def notify(self, url):
         if self.verify(url.toString()):
@@ -213,7 +223,7 @@ class HuaweiLogin:
         redirect_uri = hms_redirect_uri
         scope = hms_scope
         auth_url, self.code_verifier = get_authorization_code(client_id, redirect_uri, scope)
-        huaWebLogin=HuaweiBroswer()
+        huaWebLogin=HuaweiBrowser()
         huaWebLogin.set_url(auth_url)
         res=(huaWebLogin.run())
         self.standardCallback(res)

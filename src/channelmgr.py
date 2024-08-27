@@ -263,6 +263,7 @@ class ChannelManager:
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
             channel.last_login_time = int(time.time())
+            self.save_records()
             return r.json()
         else:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")

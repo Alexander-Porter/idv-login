@@ -54,7 +54,7 @@ class RecordMgr:
     def __init__(self):
         self.records = [AutoFillRecord(record_dict=i) for i in genv.get("autoFillData",[])]
 
-    def add_record(self, username, password):
+    def add_record(self, username, password)->AutoFillRecord:
         record = AutoFillRecord(username=username, password=password)
         hashed_username = hashlib.sha256(username.encode()).hexdigest()
         for i in self.records:
@@ -62,6 +62,7 @@ class RecordMgr:
                 self.records.remove(i)
         self.records.append(record)
         genv.set("autoFillData",[i.to_dict() for i in self.records],True)
+        return record
 
     def find_password(self, username):
         hashed_username = hashlib.sha256(username.encode()).hexdigest()
