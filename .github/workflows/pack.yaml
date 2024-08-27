@@ -2,8 +2,6 @@ name: Build and Package
 
 on:
     push:
-      tags:
-        - "v[0-100]+.[0-9]+.[0-1000]-stable"
     workflow_dispatch:
 
 jobs:
@@ -45,7 +43,13 @@ jobs:
       - name: Compile Python files to .pyc
         run: |
             .\python-embed\python.exe  -m compileall src
-            Get-ChildItem -Recurse -Filter '*.pyc' | Rename-Item -NewName { $_.Name -replace '\.cpython-3\d+', '' }
+            Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object {
+                $newName = $_.Name -replace '\.cpython-3\d+', ''
+                if (Test-Path -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName)) {
+                    Remove-Item -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName) -Force
+                }
+                Rename-Item -Path $_.FullName -NewName $newName
+            }
             Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object { Move-Item $_.FullName -Destination $_.Directory.Parent.FullName }
             Get-ChildItem -Recurse -Filter '*.py' | Remove-Item -Force
             Get-ChildItem -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
