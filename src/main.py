@@ -17,15 +17,7 @@
  """
 import pywintypes
 import sys
-import pyperclip as cb
-if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
-    try:
-        cb.copy(sys.argv[-1])
-    except pywintypes.error as e:
-        print(f"Failed to write {sys.argv[-1]} to clipboard: {e}")
-        input()
-        sys.exit(1)
-    sys.exit(0)
+
 
 from gevent import monkey
 monkey.patch_all()
@@ -40,6 +32,8 @@ import json
 import random
 import string
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(script_dir)
 
 from envmgr import genv
 from logutil import setup_logger
