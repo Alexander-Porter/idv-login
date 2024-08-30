@@ -60,11 +60,11 @@ jobs:
           mkdir dist
           Copy-Item -Recurse -Force python-embed dist/python-embed
           Copy-Item -Recurse -Force src dist/src
-          Copy-Item -Force tools/start.bat dist/start.bat
+          Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
         shell: pwsh
 
       - name: Compress package
-        run: Compress-Archive -Path dist -DestinationPath idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
+        run: Compress-Archive -Path dist/* -DestinationPath idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
         shell: pwsh
 
       - name: Calculate Client checksum

@@ -49,7 +49,7 @@ def uploadAllFilesAndGetMarkDown(fileList):
     #write markdown
     res=""
     for i in data:
-        res+=(f"[下载{i}]({data[i]})\n")
+        res+=(f"[点击下载{i}](https://j.keygen.eu.org/#{data[i]})\n")
     return res
 def getLatestRelease():
     headers={"Authorization":"token "+github_token}
@@ -133,7 +133,7 @@ if __name__=='__main__':
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        #releaseData["body"]+=('\n**注意**，点击链接后在"即将跳转到外部网站"处**手动复制网址**并**粘贴到地址栏访问**，否则会出现无法下载的错误！\n'+uploadAllFilesAndGetMarkDown(fileList))
+        releaseData["body"]+=('### 备用下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
         releaseToGitee(releaseData,fileList)
     except:

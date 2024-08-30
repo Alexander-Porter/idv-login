@@ -36,6 +36,9 @@ class huaweiLoginResponse:
         self.gameAuthSign = rawJson.get("gameAuthSign")
         self.playerId = rawJson.get("playerId")
         self.ts = rawJson.get("ts")
+    
+    def __str__(self) -> str:
+        return f"playerLevel:{self.playerLevel},unionId:{self.unionId},openIdSign:{self.openIdSign},openId:{self.openId},gameAuthSign:{self.gameAuthSign},playerId:{self.playerId},ts:{self.ts}"
 
 
 class huaweiChannel(channelmgr.channel):
@@ -128,15 +131,15 @@ class huaweiChannel(channelmgr.channel):
         }
         extra_data = {
             "anonymous": "",
-            "get_access_token": "1",
-            "extra_data": str(self.session.playerLevel),
+            "get_access_token": "0",
+            "extra_data": self._get_extra_data(),
             "timestamp": self.session.ts,
             "realname": json.dumps({"realname_type": 0, "duration": 0}),
         }
         res.update(extra_data)
         json_data = {
             "extra_data": extra_data.get("extra_data"),
-            "get_access_token": "1",
+            "get_access_token": "0",
             "sdk_udid": fd["udid"],
             "realname": extra_data.get("realname"),
         }
@@ -149,6 +152,29 @@ class huaweiChannel(channelmgr.channel):
         res["SAUTH_STR"] = base64.b64encode(str_data.encode()).decode()
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
         return json.dumps(res)
+    
+    def _get_extra_data(self):
+        self.logger.info(f"{getShortGameId(self.game_id)}")
+        if getShortGameId(self.game_id)=='g37':
+            self.logger.info(f"游戏{getShortGameId(self.game_id)}-需要HMS AccessToken, 二次登录中")
+            #self.logger.info(self.huaweiLogin.startPlay())
+            #if self.huaweiLogin.newHMSOAuth():
+            if True:
+                self.logger.info(self.session)
+                self.logger.info(self.huaweiLogin.accessToken)
+                ext={}
+                ext["playerLevel"]=str(self.session.playerLevel)
+                sdk={}
+                sdk["transtition_version"]=1
+                sdk["openId"]=self.session.openId
+                sdk["accessToken"]=self.huaweiLogin.accessToken
+                ext["sdk_info"]=sdk
+                return json.dumps(ext)
+            else:
+                self.logger.error(f"游戏{getShortGameId(self.game_id)}-HMS登录失败")
+                return ""
+        else:
+            return str(self.session.playerLevel)
 
     def get_uniSdk_data(self, game_id: str = ""):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
@@ -170,8 +196,8 @@ class huaweiChannel(channelmgr.channel):
             "6.1.0.301",
             {
                 "anonymous": "",
-                "get_access_token": "1",
-                "extra_data": str(self.session.playerLevel),
+                "get_access_token": "0",
+                "extra_data": self._get_extra_data(),
                 "timestamp": self.session.ts,
                 "realname": json.dumps({"realname_type": 0, "duration": 0}),
             },
