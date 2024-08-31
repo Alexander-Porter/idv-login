@@ -250,9 +250,11 @@ def handle_create_login():
         genv.set("pending_login_info",None)
         #auto login start
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
+                uuid=genv.get(f"auto-{request.args['game_id']}"),
+                genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
                 gevent.spawn(
                     genv.get("CHANNELS_HELPER").simulate_scan,
-                    genv.get(f"auto-{request.args['game_id']}"),
+                    uuid,
                     data["uuid"],
                     data["game_id"]
                 )
