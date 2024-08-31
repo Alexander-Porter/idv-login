@@ -17,6 +17,7 @@
  """
 
 
+import logging
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 import gevent
@@ -34,6 +35,7 @@ import subprocess
 
 app = Flask(__name__)
 logger=setup_logger(__name__)
+
 
 
 loginMethod = [
@@ -250,9 +252,10 @@ def handle_create_login():
         genv.set("pending_login_info",None)
         #auto login start
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
-                uuid=genv.get(f"auto-{request.args['game_id']}"),
+                uuid=genv.get(f"auto-{request.args['game_id']}")
                 genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
-                gevent.spawn(
+                gevent.spawn_later(
+                    1,
                     genv.get("CHANNELS_HELPER").simulate_scan,
                     uuid,
                     data["uuid"],
@@ -399,6 +402,9 @@ def globalProxy(path):
 def after_request_func(response:Response):
     #只log出现错误的请求
     if response.status_code!=200 and response.status_code!=302 and response.status_code!=301:
+        if response.status_code==404:
+            if ".ico" in request.url:
+                return response
         logger.error(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
         logger.error(f"发送 {response.status} {response.headers} {response.get_data().decode()}")
     else:
@@ -466,17 +472,19 @@ class proxymgr:
 
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
+        web_logger=setup_logger("web")
+        web_logger.setLevel("WARN")
         server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
                 keyfile=genv.get("FP_WEBKEY"),
-                application=app
+                application=app,
+                log=web_logger,
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warn("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
-
             server.serve_forever()
             return True
         else:
