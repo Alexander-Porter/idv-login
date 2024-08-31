@@ -21,7 +21,7 @@ from channelHandler.channelUtils import G_clipListener
 from channelHandler.WebLoginUtils import WebBrowser
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton
+from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
 
 DEVICE_RECORD = 'huawei_device.json'
@@ -60,6 +60,11 @@ class HuaweiBrowser(WebBrowser):
         self.autoFillCheckBox.setChecked(genv.get("autoFill",False))
         self.autoFillCheckBox.stateChanged.connect(self.saveAutoFillOption)
         
+        self.bypassCheckBox=QCheckBox("跳过二次验证")
+        self.toolBarLayout.addWidget(self.bypassCheckBox)
+        self.bypassCheckBox.setChecked(genv.get("bypass_double_check",False))
+        self.bypassCheckBox.stateChanged.connect(self.saveByPassOption)
+
         #增加一个下拉菜单QComboBox
         self.accountComboBox=QComboBox()
         self.toolBarLayout.addWidget(self.accountComboBox)
@@ -72,15 +77,52 @@ class HuaweiBrowser(WebBrowser):
         self.toolBarLayout.addWidget(self.fillButton)
         self.fillButton.clicked.connect(self.onAccountChanged)
 
+        self.deleteButton=QPushButton("删除")
+        self.toolBarLayout.addWidget(self.deleteButton)
+        self.deleteButton.clicked.connect(self.deleteAccount)
+
+    def deleteAccount(self):
+        account=self.accountComboBox.currentText()
+        self.autoFillMgr.remove_record(account)
+        self.accountComboBox.removeItem(self.accountComboBox.currentIndex())
+        if len(self.records)>0:
+            self.accountComboBox.setCurrentIndex(0)
+        self.logger.info(f"删除账号{account}")
+
+    def saveByPassOption(self):
+        checked=self.bypassCheckBox.isChecked()
+        if checked:
+            #show warning, QMessagebox
+            reply=QMessageBox.warning(self,"警告","跳过二次验证会使账号密码明文存储在本机内，存在安全风险。\n开启后，请不要将工作目录下的文件随意分享给他人。是否继续？",QMessageBox.Yes|QMessageBox.No)
+            if reply==QMessageBox.No:
+                self.bypassCheckBox.setChecked(False)
+                return
+        genv.set("bypass_double_check",checked,True)
+
     def onAccountChanged(self):
         #get account
         account=self.accountComboBox.currentText()
-        text,ok=QInputDialog.getText(self,"二次验证","密码已被加密，请输入完整的账号来解密",text=account)
-        if ok:
+        #check if has * mask
+        if "*" in account:
+            #ask for full account
+            if self.bypassCheckBox.isChecked():
+                text,ok=QInputDialog.getText(self,"关闭二次验证","密码已被加密，请输入完整的账号来解密，本次解密后该账号不再需要二次验证。",text=account)
+            else:
+                text,ok=QInputDialog.getText(self,"二次验证","密码已被加密，请输入完整的账号来解密",text=account)
+            if ok:
+                #find password
+                password=self.autoFillMgr.find_password(text)
+                if password:
+                    self.insertAcctPwd(text,password)
+                    if self.bypassCheckBox.isChecked():
+                        self.autoFillMgr.untruncate_username(text)
+                else:
+                    self.logger.info("未找到密码，账号输入错误或者未保存")
+        else:
             #find password
-            password=self.autoFillMgr.find_password(text)
+            password=self.autoFillMgr.find_password(account)
             if password:
-                self.insertAcctPwd(text,password)
+                self.insertAcctPwd(account,password)
             else:
                 self.logger.info("未找到密码，账号输入错误或者未保存")
 
@@ -114,19 +156,6 @@ class HuaweiBrowser(WebBrowser):
 
     def verify(self, url):
         return url.startswith("hms://")
-
-    def needAutoFillCallback(self,needAutoFill:bool):
-        if needAutoFill:
-            self.logger.info("需要记住")
-            account=self.autoFillMgr.list_records()[0]
-            text,input_ok=QInputDialog.getText(self,"二次验证","密码已被加密，请输入完整的账号来解密",text=account)
-            if input_ok:
-                #find password
-                password=self.autoFillMgr.find_password(text)
-                if password:
-                    self.insertAcctPwd(text,password)
-                else:
-                    self.logger.info("未找到密码，账号输入错误或者未保存")
 
     def parseReslt(self, url):
         self.result = url
@@ -169,7 +198,10 @@ class HuaweiBrowser(WebBrowser):
             if "account" in data and "pwd" in data:
                 if self.autoFillCheckBox.isChecked():
                     self.logger.info("读取账号密码成功")
-                    record=self.autoFillMgr.add_record(data["account"],data["pwd"])
+                    if self.bypassCheckBox.isChecked():
+                        record=self.autoFillMgr.add_untruncate_record(data["account"],data["pwd"])
+                    else:
+                        record=self.autoFillMgr.add_record(data["account"],data["pwd"])
                     genv.set(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",record.truncated_username,True)
 
     def notify(self, url):

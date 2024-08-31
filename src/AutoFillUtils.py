@@ -73,7 +73,29 @@ class RecordMgr:
     
     def list_records(self):
         return [i.truncated_username for i in self.records]
+    
+    def remove_record(self, username):
+        hashed_username = hashlib.sha256(username.encode()).hexdigest()
+        for i in self.records:
+            if i.hashed_username == hashed_username or i.truncated_username == username:
+                self.records.remove(i)
+                genv.set("autoFillData",[i.to_dict() for i in self.records],True)
 
+    def clear_records(self):
+        self.records = []
+        genv.set("autoFillData",[],True)
+
+    def untruncate_username(self, username):
+        hashed_username = hashlib.sha256(username.encode()).hexdigest()
+        for i in self.records:
+            if i.hashed_username == hashed_username:
+                i.truncated_username= username
+                genv.set("autoFillData",[i.to_dict() for i in self.records],True)
+    
+    def add_untruncate_record(self, username, password):
+        record = self.add_record(username, password)
+        self.untruncate_username(username)
+        return record
 
 if __name__ == "__main__":
     mgr = RecordMgr()
