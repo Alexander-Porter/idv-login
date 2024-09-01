@@ -30,7 +30,7 @@ class InvalidHostName(Exception):
 class DNSResolver(object):
 
     def __init__(self):
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
     
     def gethostbyname(self, hostname):
         answers=[]

@@ -49,7 +49,7 @@ class miChannel(channelmgr.channel):
             name,
         )
         self.oAuthData = oAuthData
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         self.crossGames = False
         #Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         self.game_id = game_id

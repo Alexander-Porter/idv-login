@@ -70,7 +70,7 @@ def generate_md5(input_string):
 class MiLogin:
     def __init__(self, appId, oauthData=None):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         self.appId = appId
         self.oauthData = oauthData
         if os.path.exists(DEVICE_RECORD):
@@ -135,8 +135,9 @@ class MiLogin:
             self.oauthData = res
             return res
         else:
-            self.logger.error(res)
-            raise Exception("Get ST failed")
+            self.logger.error(f"小米登录失败，请重试。原始响应：{res}")
+            self.oauthData=None
+            return None
 
     def webLogin(self):
         login_url = "https://account.xiaomi.com/"

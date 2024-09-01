@@ -99,7 +99,7 @@ class channel:
 
 class ChannelManager:
     def __init__(self):
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         self.channels = []
         from channelHandler.miChannelHandler import miChannel
         from channelHandler.huaChannelHandler import huaweiChannel
@@ -206,7 +206,7 @@ class ChannelManager:
                 self.logger.error(f"手动导入失败: {tmp_channel.name}")
                 return False
         except:
-            self.logger.error(f"手动导入失败", stack_info=True, exc_info=True)
+            self.logger.exception(f"手动导入失败: {tmp_channel.name}")
             return False
 
     def login(self, uuid: str):
@@ -297,9 +297,7 @@ class ChannelManager:
                         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                         return False
                 except:
-                    self.logger.error(
-                        f"模拟扫码请求失败", stack_info=True, exc_info=True
-                    )
+                    self.logger.exception("模拟扫码请求失败")
                     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                     return False
         return None

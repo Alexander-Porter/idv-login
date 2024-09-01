@@ -34,7 +34,7 @@ from logutil import setup_logger
 
 class certmgr:
     def __init__(self) -> None:
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         pass
 
     def generate_private_key(self, bits: int):
@@ -122,10 +122,8 @@ class certmgr:
                 shell=True,
             )
         except Exception as e:
-            self.logger.error(
-                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息：",
-                stack_info=True,
-                exc_info=True,
+            self.logger.exception(
+                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息："
             )
             # 读取certutil的输出到日志
             subprocess.check_call(

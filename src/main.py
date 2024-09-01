@@ -36,7 +36,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
 
 from envmgr import genv
-from logutil import setup_logger
+
 
 
 m_certmgr = None
@@ -207,7 +207,8 @@ if __name__ == "__main__":
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
-    logger = setup_logger(__name__)
+    from logutil import setup_logger
+    logger=setup_logger()
     try:
         cloudBuildInfo()
         initialize()
@@ -252,9 +253,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.exception(
-            f"发生未处理的异常:{e}.反馈时请发送日志\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt",
-            stack_info=True,
-            exc_info=True,
+            f"发生未处理的异常:{e}.反馈时请发送日志\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
         )
 
         input("拦截退出事件.")

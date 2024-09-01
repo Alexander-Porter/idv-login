@@ -34,7 +34,7 @@ import subprocess
 
 
 app = Flask(__name__)
-logger=setup_logger(__name__)
+logger=setup_logger()
 
 
 
@@ -321,7 +321,7 @@ def _set_default_channel():
             "success":True,
         }
     except:
-        logger.error("设置默认账号失败",exc_info=True,stack_info=True)
+        logger.exception("设置默认账号失败")
         resp={
             "success":False,
         }
@@ -472,8 +472,10 @@ class proxymgr:
 
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
-        web_logger=setup_logger("web")
-        web_logger.setLevel("WARN")
+        #创建一个空日志
+        import logging
+        web_logger=logging.getLogger("web")
+        web_logger.setLevel(logging.WARN)
         server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
@@ -483,7 +485,7 @@ class proxymgr:
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             logger.info("拦截成功! 您现在可以打开游戏了")
-            logger.warn("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
+            logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
             server.serve_forever()
             return True

@@ -42,7 +42,7 @@ class HuaweiBrowser(WebBrowser):
 
     def __init__(self):
         super().__init__("huawei",True)
-        self.logger=setup_logger(__name__)
+        self.logger=setup_logger()
         self.intercept_request = self.HuaweiRequestInterceptor(self)
         self.profile.removeAllUrlSchemeHandlers()
         self.profile.installUrlSchemeHandler(b"hms", self.intercept_request)
@@ -215,7 +215,7 @@ class HuaweiLogin:
     def __init__(self, channelConfig, refreshToken=None):
 
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-        #self.logger = setup_logger(__name__)
+        #self.logger = setup_logger()
         self.channelConfig = channelConfig
         self.refreshToken = refreshToken
         self.accessToken=None

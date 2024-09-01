@@ -19,7 +19,7 @@ class WebBrowser(QWidget):
 
     def __init__(self,name="WebLoginDefault",keepCookie=True):
         self.app = QApplication.instance()
-        self.logger=setup_logger(__name__)
+        self.logger=setup_logger()
         super().__init__()
         self.view = self.WebEngineView()
         tmpName=genv.get("GLOB_LOGIN_UUID","")
@@ -82,7 +82,7 @@ class WebBrowser(QWidget):
         return self.cookies
 
     def cookie_added(self, cookie):
-        print(f"Cookie added: {cookie.name().data().decode()}")
+        self.logger.debug(f"Cookie added: {cookie.name().data().decode()}")
         self.cookies[cookie.name().data().decode()] = cookie.value().data().decode()
 
     def verify(self, url):

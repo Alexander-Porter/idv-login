@@ -68,7 +68,7 @@ class vivoChannel(channelmgr.channel):
             last_login_time,
             name,
         )
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         self.crossGames = True
 
         self.game_id = game_id
@@ -86,7 +86,11 @@ class vivoChannel(channelmgr.channel):
 
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
-        self.session:vivoLoginResp=vivoLoginResp(self.vivoLogin.webLogin())
+        resp=self.vivoLogin.webLogin()
+        if resp==None:
+            self.session=None
+            return False
+        self.session:vivoLoginResp=vivoLoginResp(resp)
         if len(self.session.subAccounts)==0:
             return False
         elif len(self.session.subAccounts)==1:

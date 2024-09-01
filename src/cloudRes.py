@@ -6,7 +6,7 @@ from envmgr import genv
 from const import manual_login_channels
 from logutil import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger()
 
 class CloudRes:
     def __init__(self, url, cache_dir):

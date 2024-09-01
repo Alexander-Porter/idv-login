@@ -26,13 +26,13 @@ FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
 class hostmgr:
     def __init__(self) -> None:
-        self.logger=setup_logger(__name__)
+        self.logger=setup_logger()
         if (os.path.isfile(FN_HOSTS) == False):
             self.logger.warning(f"Hosts文件不存在，尝试创建中...")
             try:
                 open(FN_HOSTS, 'w').close()
             except:
-                self.logger.error(f"Hosts文件创建失败",stack_info=True)
+                self.logger.exception(f"Hosts文件创建失败！")
                 sys.exit()
         elif not os.access(FN_HOSTS, os.W_OK):
             self.logger.warning(f"Hosts文件不可写，请检查{FN_HOSTS}是否被设置了只读权限！")

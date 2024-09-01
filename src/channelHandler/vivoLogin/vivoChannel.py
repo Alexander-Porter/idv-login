@@ -22,7 +22,7 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 class VivoBrowser(WebBrowser):
     def __init__(self):
         super().__init__("nearme_vivo",True)
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
 
     def verify(self, url: str) -> bool:
         return "openid" in self.parse_url_query(url).keys()
@@ -52,15 +52,19 @@ class VivoBrowser(WebBrowser):
 class VivoLogin:
     def __init__(self):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
 
     def webLogin(self):
         login_url = f"https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin"
         miBrowser=VivoBrowser()
         miBrowser.set_url(login_url)
         resp=(miBrowser.run())
-        if resp.get("code")==0:
-            return resp.get("data")
-        else:
-            self.logger.error(resp.get("msg"))
+        try:
+            if resp.get("code")==0:
+                return resp.get("data")
+            else:
+                self.logger.error(resp.get("msg"))
+                return None
+        except:
+            self.logger.error(f"登录失败，原始响应{resp}")
             return None
