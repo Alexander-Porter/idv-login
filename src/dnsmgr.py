@@ -31,11 +31,12 @@ class DNSResolver(object):
 
     def __init__(self):
         self.logger = setup_logger()
+        
     
     def gethostbyname(self, hostname):
         answers=[]
         q = dns.message.make_query(hostname, dns.rdatatype.A)
-        r = dns.query.udp(q,"114.114.114.114")
+        r = dns.query.udp(q,"114.114.114.114",timeout=2)
         for answer in r.answer:
             answers.append(str(list(answer.items.keys())[0]))
         if answers:

@@ -166,8 +166,10 @@ def initialize():
     logger.info("初始化内置浏览器")
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
+    from PyQt5.QtNetwork import QNetworkProxyFactory
     genv.set("APP",QApplication([]))
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
+    QNetworkProxyFactory.setUseSystemConfiguration(False);
 
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
