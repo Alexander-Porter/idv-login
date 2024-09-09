@@ -39,11 +39,13 @@ class DNSResolver(object):
         #q = dns.message.make_query(hostname, dns.rdatatype.A)
         #r = dns.query.udp(q,"114.114.114.114",timeout=2)
         try:
-            r = dns.resolver.query(hostname, 'A')
+            r = dns.resolver.resolve(hostname, 'A')
             self.logger.info(f"DNS 服务器地址:{r.nameserver}")
             for answer in r.response.answer:
                 answers.append(str(list(answer.items.keys())[0]))
             if answers:
                 return answers[-1]
-        finally:
+            return None
+        except:
+            self.logger.exception(f"DNS解析失败。")
             return None

@@ -1,0 +1,19 @@
+### IdentityV Login Helper v5.3.4-stable CHANGELOG
+
+## Improvement 🚀
+[·] 修复了使用校园网时，代理服务器启动卡住的问题。
+
+## In Progress 🚧
+[·] 九游渠道服支持。
+
+## Known Bugs 💀
+[·] 九游、应用宝微信渠道容易过期。
+[·] 部分地区小米渠道登录会失败，请自行解决网络问题。
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请**标明出处**并遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.8版
+    * Windows 10/11 用户请下载Py3.12版
+    * [下载前必看](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)
