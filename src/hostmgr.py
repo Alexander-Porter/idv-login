@@ -41,11 +41,13 @@ class hostmgr:
             try:
                 m_host = Hosts()
                 hostsOkay = m_host.exists(['localhost'])
+                self.logger.debug(hostsOkay)
             except:
                 self.logger.warning(f"Hosts文件编码异常，正在尝试删除{FN_HOSTS}。")
                 os.remove(FN_HOSTS)
                 open(FN_HOSTS, 'w').close()
-                input("按任意键继续")
+                input("按任意键退出。")
+                sys.exit(1)
 
     def add(self, dnsname, ip) :
         m_host = Hosts()
@@ -53,7 +55,7 @@ class hostmgr:
         try:
             m_host.write()
         except:
-            self.logger.error(f"写Hosts文件失败",exc_info=True)
+            self.logger.error(f"写Hosts文件失败，请参考常见问题解决方案。")
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)
