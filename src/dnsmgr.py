@@ -19,6 +19,7 @@
 import dns.message
 import dns.query
 import dns.rdatatype
+import dns.resolver
 from logutil import setup_logger
 
 
@@ -35,11 +36,14 @@ class DNSResolver(object):
     
     def gethostbyname(self, hostname):
         answers=[]
-        q = dns.message.make_query(hostname, dns.rdatatype.A)
-        r = dns.query.udp(q,"114.114.114.114",timeout=2)
-        for answer in r.answer:
-            answers.append(str(list(answer.items.keys())[0]))
-        if answers:
-            return answers[-1]
-        else:
+        #q = dns.message.make_query(hostname, dns.rdatatype.A)
+        #r = dns.query.udp(q,"114.114.114.114",timeout=2)
+        try:
+            r = dns.resolver.query(hostname, 'A')
+            self.logger.info(f"DNS 服务器地址:{r.nameserver}")
+            for answer in r.response.answer:
+                answers.append(str(list(answer.items.keys())[0]))
+            if answers:
+                return answers[-1]
+        finally:
             return None
