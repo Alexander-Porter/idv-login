@@ -1,1 +1,82 @@
-{"lastModified": 1725898473, "version": "v5.3.4-stable", "detail": "### IdentityV Login Helper v5.3.4-stable CHANGELOG\r\n\r\n## Improvement \ud83d\ude80\r\n[\u00b7] \u4fee\u590d\u4e86\u4f7f\u7528\u6821\u56ed\u7f51\u65f6\uff0c\u4ee3\u7406\u670d\u52a1\u5668\u542f\u52a8\u5361\u4f4f\u7684\u95ee\u9898\u3002\r\n\r\n## In Progress \ud83d\udea7\r\n[\u00b7] \u4e5d\u6e38\u6e20\u9053\u670d\u652f\u6301\u3002\r\n\r\n## Known Bugs \ud83d\udc80\r\n[\u00b7] \u4e5d\u6e38\u3001\u5e94\u7528\u5b9d\u5fae\u4fe1\u6e20\u9053\u5bb9\u6613\u8fc7\u671f\u3002\r\n[\u00b7] \u90e8\u5206\u5730\u533a\u5c0f\u7c73\u6e20\u9053\u767b\u5f55\u4f1a\u5931\u8d25\uff0c\u8bf7\u81ea\u884c\u89e3\u51b3\u7f51\u7edc\u95ee\u9898\u3002\r\n\r\n## Others \ud83e\uddf0\r\n[\u00b7] **\u672c\u5de5\u5177\u5b8c\u5168\u514d\u8d39\u5f00\u6e90\uff0c\u4e25\u7981\u5c06\u6b64\u5de5\u5177\u7528\u4e8e\u4efb\u4f55\u5546\u4e1a\u884c\u4e3a\uff01\u4e8c\u6b21\u5f00\u53d1\u53ca\u4f20\u64ad\u8bf7**\u6807\u660e\u51fa\u5904**\u5e76\u9075\u5b88`GPLv3`\u534f\u8bae\uff01**\r\n\r\n## Tips\r\n    * Windows 7 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.8\u7248\r\n    * Windows 10/11 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.12\u7248\r\n    * [\u4e0b\u8f7d\u524d\u5fc5\u770b](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)", "downloadUrl": "https://gitee.com/opguess/idv-login/releases/tag/v5.3.4-stable", "guideUrl": "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3", "data": [{"package_name": "com.netease.dwrg", "app_channel": "xiaomi_app", "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw", "game_id": "h55", "xiaomi_app": "mi_2882303761517637640"}, {"package_name": "com.netease.dwrg", "app_channel": "huawei", "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw", "game_id": "h55", "huawei": {"cp_id": "900086000000106632", "product_id": "9105163812218187474", "client_id": "157844731798224896", "client_secret": "59E9B52D3F196696D0B8AE35F6978C4D172D0818E7766C4480F155D71B078E5A", "app_id": "100129243", "package_name": "com.netease.dwrg.huawei", "api_key": "CV5ssiv1KtmnKwn6pp4UD1/pt9+7gHsDHrFhZa+SZ7yD94RZreeVp58cEA7PBD+YpHTLcgOGFCvdUophUKLla9WFrU+R"}}, {"package_name": "com.netease.onmyoji", "app_channel": "huawei", "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf", "game_id": "g37", "huawei": {"cp_id": "900086000000106632", "product_id": "9105163812218187441", "client_id": "227877450401448000", "client_secret": "060616328E7F76FD71BA6744B69243946FCA3E8716E4600E0459CCD5B671333C", "app_id": "10531189", "package_name": "com.netease.onmyoji.huawei", "api_key": "CV6asp/nV0BCvrO5dipQ7mSvRcQEV1nyOWh30RcJoQwPjV9IuUWYOPaa1iASg2qE48w2TbeDg//PoBnpRLAtNRPa0U42"}}, {"package_name": "com.netease.onmyoji", "app_channel": "xiaomi_app", "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf", "game_id": "g37", "xiaomi_app": "mi_2882303761517467169"}, {"package_name": "com.netease.mrzh", "app_channel": "xiaomi_app", "log_key": "-BQb6RCHHhYI1ADS6pJigOehE-sITVya", "game_id": "g66", "xiaomi_app": "mi_2882303761517760985"}, {"package_name": "com.netease.mrzh", "app_channel": "huawei", "log_key": "-BQb6RCHHhYI1ADS6pJigOehE-sITVya", "game_id": "g66", "huawei": {"cp_id": "900086000000106632", "product_id": "9105163812218187467", "client_id": "159170010378403840", "client_secret": "FFCE372C18A7CF9DD683ACE5DB04D64C76756D3084E6A9B4562E44749B76A636", "app_id": "100245697", "package_name": "com.netease.mrzh.huawei", "api_key": "CV4+GV7i2luO/wfCVQg28vaDifI6ZfK3DJw0twRMaCtV5EIu1yYSbI8sen7j+DhLYx7oixpH9AiG6mELeo4zNXmEaGHt"}}]}
+{
+    "lastModified": 1726845957,
+    "version": "v5.3.4-stable",
+    "detail": "### IdentityV Login Helper v5.3.4-stable CHANGELOG\r\n\r\n## Improvement \ud83d\ude80\r\n[\u00b7] \u4fee\u590d\u4e86\u4f7f\u7528\u6821\u56ed\u7f51\u65f6\uff0c\u4ee3\u7406\u670d\u52a1\u5668\u542f\u52a8\u5361\u4f4f\u7684\u95ee\u9898\u3002\r\n\r\n## In Progress \ud83d\udea7\r\n[\u00b7] \u4e5d\u6e38\u6e20\u9053\u670d\u652f\u6301\u3002\r\n\r\n## Known Bugs \ud83d\udc80\r\n[\u00b7] \u4e5d\u6e38\u3001\u5e94\u7528\u5b9d\u5fae\u4fe1\u6e20\u9053\u5bb9\u6613\u8fc7\u671f\u3002\r\n[\u00b7] \u90e8\u5206\u5730\u533a\u5c0f\u7c73\u6e20\u9053\u767b\u5f55\u4f1a\u5931\u8d25\uff0c\u8bf7\u81ea\u884c\u89e3\u51b3\u7f51\u7edc\u95ee\u9898\u3002\r\n\r\n## Others \ud83e\uddf0\r\n[\u00b7] **\u672c\u5de5\u5177\u5b8c\u5168\u514d\u8d39\u5f00\u6e90\uff0c\u4e25\u7981\u5c06\u6b64\u5de5\u5177\u7528\u4e8e\u4efb\u4f55\u5546\u4e1a\u884c\u4e3a\uff01\u4e8c\u6b21\u5f00\u53d1\u53ca\u4f20\u64ad\u8bf7**\u6807\u660e\u51fa\u5904**\u5e76\u9075\u5b88`GPLv3`\u534f\u8bae\uff01**\r\n\r\n## Tips\r\n    * Windows 7 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.8\u7248\r\n    * Windows 10/11 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.12\u7248\r\n    * [\u4e0b\u8f7d\u524d\u5fc5\u770b](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)",
+    "downloadUrl": "https://gitee.com/opguess/idv-login/releases/tag/v5.3.4-stable",
+    "guideUrl": "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3",
+    "data": [
+        {
+            "package_name": "com.netease.dwrg",
+            "app_channel": "xiaomi_app",
+            "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+            "game_id": "h55",
+            "xiaomi_app": "mi_2882303761517637640"
+        },
+        {
+            "package_name": "com.netease.dwrg",
+            "app_channel": "huawei",
+            "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+            "game_id": "h55",
+            "huawei": {
+                "cp_id": "900086000000106632",
+                "product_id": "9105163812218187474",
+                "client_id": "157844731798224896",
+                "client_secret": "59E9B52D3F196696D0B8AE35F6978C4D172D0818E7766C4480F155D71B078E5A",
+                "app_id": "100129243",
+                "package_name": "com.netease.dwrg.huawei",
+                "api_key": "CV5ssiv1KtmnKwn6pp4UD1/pt9+7gHsDHrFhZa+SZ7yD94RZreeVp58cEA7PBD+YpHTLcgOGFCvdUophUKLla9WFrU+R"
+            }
+        },
+        {
+            "package_name": "com.netease.onmyoji",
+            "app_channel": "huawei",
+            "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf",
+            "game_id": "g37",
+            "huawei": {
+                "cp_id": "900086000000106632",
+                "product_id": "9105163812218187441",
+                "client_id": "227877450401448000",
+                "client_secret": "060616328E7F76FD71BA6744B69243946FCA3E8716E4600E0459CCD5B671333C",
+                "app_id": "10531189",
+                "package_name": "com.netease.onmyoji.huawei",
+                "api_key": "CV6asp/nV0BCvrO5dipQ7mSvRcQEV1nyOWh30RcJoQwPjV9IuUWYOPaa1iASg2qE48w2TbeDg//PoBnpRLAtNRPa0U42"
+            }
+        },
+        {
+            "package_name": "com.netease.onmyoji",
+            "app_channel": "xiaomi_app",
+            "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf",
+            "game_id": "g37",
+            "xiaomi_app": "mi_2882303761517467169"
+        },
+        {
+            "package_name": "com.netease.mrzh",
+            "app_channel": "xiaomi_app",
+            "log_key": "-BQb6RCHHhYI1ADS6pJigOehE-sITVya",
+            "game_id": "g66",
+            "xiaomi_app": "mi_2882303761517760985"
+        },
+        {
+            "package_name": "com.netease.mrzh",
+            "app_channel": "huawei",
+            "log_key": "-BQb6RCHHhYI1ADS6pJigOehE-sITVya",
+            "game_id": "g66",
+            "huawei": {
+                "cp_id": "900086000000106632",
+                "product_id": "9105163812218187467",
+                "client_id": "159170010378403840",
+                "client_secret": "FFCE372C18A7CF9DD683ACE5DB04D64C76756D3084E6A9B4562E44749B76A636",
+                "app_id": "100245697",
+                "package_name": "com.netease.mrzh.huawei",
+                "api_key": "CV4+GV7i2luO/wfCVQg28vaDifI6ZfK3DJw0twRMaCtV5EIu1yYSbI8sen7j+DhLYx7oixpH9AiG6mELeo4zNXmEaGHt"
+            }
+        },
+        {
+            "package_name": "com.netease.aceracer",
+            "app_channel": "xiaomi_app",
+            "log_key": "iE_MXAOF3HA0tPZGMeGFMiShe3smSyV1",
+            "game_id": "h65",
+            "xiaomi_app": "mi_2882303761518398970"
+        }
+    ]
+}
