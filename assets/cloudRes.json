@@ -77,6 +77,13 @@
             "log_key": "iE_MXAOF3HA0tPZGMeGFMiShe3smSyV1",
             "game_id": "h65",
             "xiaomi_app": "mi_2882303761518398970"
+        },
+        {
+            "package_name": "com.netease.dfjs",
+            "app_channel": "xiaomi_app",
+            "log_key": "3NSFYgJKe252LCoV-fYyM-Q6IT23oMq_",
+            "game_id": "g112",
+            "xiaomi_app": "mi_2882303761519914651"
         }
     ]
 }
