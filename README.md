@@ -1,4 +1,4 @@
-# IdentityV-login-helper(绕过注册时间限制-一键法)
+# IdentityV-login-helper
 ![Language](https://img.shields.io/badge/language-python-blue.svg)
 ![GitHub License](https://img.shields.io/github/license/Alexander-Porter/idv-login)
 ![GitHub Release](https://img.shields.io/github/v/release/Alexander-Porter/idv-login)
@@ -7,13 +7,9 @@
 
 
 项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
-QQ群：[click](https://www.bilibili.com/opus/920131433914171416)
-视频教程（已过时）：[click](https://www.bilibili.com/video/BV1qM4m1Q7i8)
+教程：[click]([https://www.bilibili.com/video/BV1qM4m1Q7i8](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3))
 
 ## 1. 使用方式
-
-### 特别注意
-1. 如果遇到账号二次验证界面白屏的问题，请自行百度*打开TLS 1.2 教程*
 
 ### 使用预编译版本
 1. 从本仓库的``release``页下载最新版本的可执行文件(*.exe)
@@ -85,7 +81,6 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 | 渠道 | 描述 |
 |------|------|
 | 应用宝(微信) | Token过期很快，难度较大 |
-| vivo账号 | Token过期时间一小时，难度较低，保存Cookie即可 |
 | 九游 | Token过期很快，难度?? |
 
 一个渠道服登录实现的类模板在[这里](src/channelHandler/miChannelHandler.py)。
