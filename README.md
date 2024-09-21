@@ -7,7 +7,7 @@
 
 
 项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
-教程：[click]([https://www.bilibili.com/video/BV1qM4m1Q7i8](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3))
+教程：[click](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)
 
 ## 1. 使用方式
 
