@@ -20,16 +20,18 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 
 
 class VivoBrowser(WebBrowser):
-    def __init__(self):
+    def __init__(self,gamePackage):
         super().__init__("nearme_vivo",True)
         self.logger = setup_logger()
+        self.gamePackage=gamePackage
 
     def verify(self, url: str) -> bool:
         return "openid" in self.parse_url_query(url).keys()
 
     def parseReslt(self, url):
         #get cookies
-        u="https://joint.vivo.com.cn/h5/union/get?gamePackage="
+        u=f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
+        self.logger.info(u)
         try:
             r=requests.get(u,cookies=self.cookies)
             self.result=r.json()
@@ -50,13 +52,14 @@ class VivoBrowser(WebBrowser):
     
 
 class VivoLogin:
-    def __init__(self):
+    def __init__(self,gamePackage=""):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         self.logger = setup_logger()
+        self.gamePackage=gamePackage
 
     def webLogin(self):
         login_url = f"https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin"
-        miBrowser=VivoBrowser()
+        miBrowser=VivoBrowser(self.gamePackage)
         miBrowser.set_url(login_url)
         resp=(miBrowser.run())
         try:

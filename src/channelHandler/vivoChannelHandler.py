@@ -69,13 +69,21 @@ class vivoChannel(channelmgr.channel):
             name,
         )
         self.logger = setup_logger()
-        self.crossGames = True
+        self.crossGames = False
+        cloudRes = genv.get("CLOUD_RES")
 
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
-        self.chosenAccount = chosenAccount
+        res = cloudRes.get_channelData(self.channel_name, real_game_id)
+        if res == None:
+            self.logger.error(f"Failed to get channel config for {self.name}")
+            self.logger.error(f"游戏{real_game_id}-渠道{self.channel_name}暂不小号登录，如有小号登录需求，请参照教程联系开发者发起添加请求。即将开始默认账号登录。")
+            self.crossGames=True
+            self.vivoLogin = VivoLogin()
+        else:
+            self.vivoLogin = VivoLogin(res.get(self.channel_name))
 
-        self.vivoLogin = VivoLogin()
+        self.chosenAccount = chosenAccount
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
@@ -91,6 +99,7 @@ class vivoChannel(channelmgr.channel):
             self.session=None
             return False
         self.session:vivoLoginResp=vivoLoginResp(resp)
+        print(len(self.session.subAccounts))
         if len(self.session.subAccounts)==0:
             return False
         elif len(self.session.subAccounts)==1:
@@ -99,6 +108,7 @@ class vivoChannel(channelmgr.channel):
             if self.chosenAccount!="":#check if the chosen account is valid
                 for i in range(len(self.session.subAccounts)):
                     if self.session.subAccounts[i].subOpenId==self.chosenAccount:
+                        self.logger.info(f"尝试登录指定账号{self.session.subAccounts[i].nickName}")
                         break
                 else:
                     self.chosenAccount=self.session.subAccounts[0].subOpenId
@@ -116,7 +126,7 @@ class vivoChannel(channelmgr.channel):
             if self.session.subAccounts[i].subOpenId==self.chosenAccount:
                 self.activeAccount=self.session.subAccounts[i]
                 break
-        self.name=self.session.phone
+        self.name=f"{self.session.phone}-{self.activeAccount.nickName}"
         return self.session!=None
 
     def is_token_valid(self):

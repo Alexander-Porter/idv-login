@@ -289,7 +289,7 @@ def _switch_channel():
          genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
     #debug only
     else:
-        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-h55")
+        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-g37")
     return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
 
 @app.route("/_idv-login/del", methods=["GET"])
@@ -444,7 +444,8 @@ class proxymgr:
                             ["taskkill", "/f", "/im", t_pid],
                             shell=True
                         )
-
+                    import time
+                    time.sleep(2)
                     break
 
     def run(self):

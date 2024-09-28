@@ -54,7 +54,7 @@ def handle_exit():
 
 def handle_update():
     ignoredVersions=genv.get("ignoredVersions",[])
-    if "dev" in genv.get("VERSION").lower():
+    if "dev" in genv.get("VERSION","v5.2.4").lower() or "main" in genv.get("VERSION","v5.2.4").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
