@@ -18,9 +18,14 @@
 
 from loguru import logger
 import sys
-logger.remove(0)
-logger.add(sys.stdout,level="INFO")
-logger.add("log.txt",rotation="10MB", encoding="utf-8", diagnose=True)
+try:
+    logger.remove(0)
+    logger.add(sys.stdout,level="INFO")
+    logger.add("log.txt",rotation="10MB", encoding="utf-8", diagnose=True)
+except Exception as e:
+    print(e)
+    from logging import getLogger
+    logger=getLogger("log")
 
 def setup_logger():
     return logger

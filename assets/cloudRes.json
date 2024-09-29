@@ -14,6 +14,16 @@
         },
         {
             "package_name": "com.netease.dwrg",
+            "app_channel": "myapp",
+            "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+            "game_id": "h55",
+            "myapp": {
+                "channel": "1106682786",
+                "wx_appid": "wxc88a4fdf253cb98c"
+            }
+        },
+        {
+            "package_name": "com.netease.dwrg",
             "app_channel": "nearme_vivo",
             "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
             "game_id": "h55",
