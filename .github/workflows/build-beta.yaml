@@ -1,6 +1,9 @@
 name: Build Beta
 
 on:
+  push:
+    branches:
+      - nuitka
   workflow_dispatch:
   
 jobs:
