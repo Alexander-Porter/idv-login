@@ -118,10 +118,16 @@ def getNeteaseGameInfo(apkPath):
             data = f.read()
             data = data.split('\n')
             for line in data:
-                if 'WX_APP_ID' in line:
-                    channelData['wx_appid'] = line.split('=')[1]
-                if 'OFFER_ID' in line:
-                    channelData['channel'] = line.split('=')[1]
+                line = line.strip()
+                try:
+                    if 'WX_APP_ID' in line:
+                        channelData['wx_appid'] = line.split('=')[1]
+                    elif 'OFFER_ID' in line:
+                        channelData['channel'] = line.split('=')[1]
+                    elif 'QQ_APP_ID' in line:
+                        channelData['channel'] = line.split('=')[1]
+                except:
+                    pass
 
     RES={}
     RES["package_name"]=package_name
