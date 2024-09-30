@@ -38,6 +38,7 @@ class channel:
         create_time: int = int(time.time()),
         last_login_time: int = 0,
         name: str = "",
+        uuid: str = "",
     ) -> None:
         self.login_info = login_info
         self.user_info = user_info
@@ -51,7 +52,7 @@ class channel:
 
         self.create_time = create_time
         self.last_login_time = last_login_time
-        self.uuid = f"{login_info['login_channel']}-{login_info['code']}"
+        self.uuid = f"{login_info['login_channel']}-{login_info['code']}" if uuid == "" else uuid
         self.channel_name = login_info["login_channel"]
         self.crossGames = True
         if name == "":
@@ -69,6 +70,7 @@ class channel:
             create_time=data.get("create_time", int(time.time())),
             last_login_time=data.get("last_login_time", 0),
             name=data.get("name", ""),
+            uuid=data.get("uuid", ""),
         )
 
     def get_uniSdk_data(self, game_id: str = ""):
