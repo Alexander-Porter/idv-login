@@ -38,7 +38,7 @@ class MiBrowser(WebBrowser):
     
     def handle_url_change(self, url):
         super().handle_url_change(url)
-        if self.parse_url_query(url.toString()).get("cUserId") != None:
+        if url.toString().startswith("https://game.xiaomi.com/") and "oauthcallback" not in url.toString():
             self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}")
 
 def generate_fake_data():
@@ -140,7 +140,7 @@ class MiLogin:
             return None
 
     def webLogin(self):
-        login_url = "https://account.xiaomi.com/"
+        login_url = "https://account.xiaomi.com/fe/service/login/password?sid=newgamecenterweb&qs=%253Fsid%253Dnewgamecenterweb%2526callback%253Dhttps%25253A%25252F%25252Fgame.xiaomi.com%25252Fauth%25252Fmi_login&callback=https%3A%2F%2Fgame.xiaomi.com%2Fauth%2Fmi_login&_sign=GDzEamQvXougqttdJc8mC0nEyRA%3D&serviceParam=%7B%22checkSafePhone%22%3Afalse%2C%22checkSafeAddress%22%3Afalse%2C%22lsrp_score%22%3A0.0%7D&showActiveX=false&theme=&needTheme=false&bizDeviceType=&_locale=zh_CN"
         miBrowser=MiBrowser()
         miBrowser.set_url(login_url)
         return self.getSTbyCode(miBrowser.run())
