@@ -77,8 +77,8 @@ class wechatChannel(channelmgr.channel):
         last_login_time: int = 0,
         name: str = "",
         game_id: str = "",
-        refreshToken: str = "",
         session: myappVeriftResp = None,
+        uuid: str = "",
     ) -> None:
         super().__init__(
             login_info,
@@ -88,6 +88,7 @@ class wechatChannel(channelmgr.channel):
             create_time,
             last_login_time,
             name,
+            uuid,
         )
         self.logger = setup_logger()
         self.crossGames = False
@@ -149,6 +150,7 @@ class wechatChannel(channelmgr.channel):
             name=data.get("name", ""),
             game_id=data.get("game_id", ""),
             session=data.get("session_json", None),
+            uuid=data.get("uuid", ""),
         )
 
     def _get_extra_data(self):
