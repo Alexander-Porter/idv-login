@@ -40,4 +40,6 @@ jobs:
 
 
             - name: Unpack APK
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: python tools/unpack.py
