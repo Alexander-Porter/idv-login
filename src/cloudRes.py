@@ -17,7 +17,7 @@ class CloudRes:
 
     def fetch_json_from_url(self):
         try:
-            response = requests.get(self.url)
+            response = requests.get(self.url,proxies={})
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
