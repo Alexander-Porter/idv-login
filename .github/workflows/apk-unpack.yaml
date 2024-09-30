@@ -26,12 +26,24 @@ jobs:
               with:
                 python-version: 3.12
 
+            - name: Create url.txt
+              run: echo "${{ github.event.inputs.url }}" > url.txt
+
+            - name: Cache Apk
+              id: cache-apk
+              uses: actions/cache@v4
+              with:
+                path: app.apk
+                #key is md5(url)
+                key: ${{ hashFiles('url.txt') }}
+  
             - name: Download APK
               run: |
                 curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"  -o app.apk ${{ github.event.inputs.url }}
 
             - name: Download JADX
               run: |
+                pip install requests
                 wget https://github.com/skylot/jadx/releases/download/v1.5.0/jadx-1.5.0.zip
                 mkdir jadx
                 cd jadx
