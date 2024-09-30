@@ -35,7 +35,7 @@ jobs:
           
       - name: Build with nuitka
         run: |
-          nuitka --onefile --show-progress --windows-uac-admin --output-filename=idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe --plugin-enable=pyqt5,gevent src/main.py
+          nuitka --onefile --show-progress --windows-uac-admin --output-filename=idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe --assume-yes-for-downloads=yes --plugin-enable=pyqt5,gevent src/main.py
 
 
       - name: Calcaulate Client checksum
