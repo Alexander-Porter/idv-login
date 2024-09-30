@@ -38,11 +38,11 @@ jobs:
           
       - name: Build with nuitka
         run: |
-          nuitka --onefile --show-progress --windows-uac-admin --output-filename=idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe --assume-yes-for-downloads --plugin-enable=pyqt5,gevent src/main.py
+          nuitka --output-dir=dist/ --onefile --show-progress --windows-uac-admin --output-filename=idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe --assume-yes-for-downloads --plugin-enable=pyqt5,gevent src/main.py
 
 
       - name: Calcaulate Client checksum
-        run: Get-FileHash "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+        run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
