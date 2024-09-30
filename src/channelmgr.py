@@ -96,7 +96,8 @@ class channel:
             "name": self.name,
         }
 
-
+    def before_save(self):
+        pass
 class ChannelManager:
     def __init__(self):
         self.logger = setup_logger()
@@ -129,12 +130,13 @@ class ChannelManager:
                             elif channel_name =="nearme_vivo":
                                 tmpChannel: vivoChannel = vivoChannel.from_dict(item)
                                 self.channels.append(tmpChannel)
-                            elif channel_name == "myapp":
+                            elif channel_name == "myapp" and item["uuid"].startswith("wx-"):
                                 tmpChannel:wechatChannel=wechatChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
-                    self.logger.error(f"读取渠道服登录信息失败。已经清空渠道服信息。",exc_info=True,stack_info=True)
+                    self.logger.exception(f"读取渠道服登录信息失败。已经清空渠道服信息。")
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
                         json.dump([], f)
         else:
@@ -144,6 +146,8 @@ class ChannelManager:
 
     def save_records(self):
         with open(genv.get("FP_CHANNEL_RECORD"), "w") as file:
+            for i in self.channels:
+                i.before_save()
             oldData = [channel.__dict__.copy() for channel in self.channels]
             data = oldData.copy()
             for channel_data in data:
@@ -152,7 +156,6 @@ class ChannelManager:
                     mini_data = {"data": channel_data[key]}
                     try:
                         json.dumps(mini_data)
-
                     except:
                         to_be_deleted.append(key)
                 for key in to_be_deleted:
@@ -174,9 +177,11 @@ class ChannelManager:
             exchange_info["ext_info"] if "ext_info" in exchange_info.keys() else {},
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
-        if login_info["login_channel"] in [i["channel"] for i in manual_login_channels]:
+        if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp":
             self.logger.error(f"不支持扫码的渠道服: {login_info['login_channel']}")
             return False
+        if login_info["login_channel"] == "myapp":
+            self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
         self.channels.append(tmp_channel)
         self.save_records()
 
@@ -202,8 +207,9 @@ class ChannelManager:
 
         if channle_name == "myapp":
             from channelHandler.wechatChannelHandler import wechatChannel
-
             tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
+            tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
+
         try:
             tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():

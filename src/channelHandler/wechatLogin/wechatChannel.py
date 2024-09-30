@@ -64,8 +64,10 @@ class WechatLogin:
         with open("qrcode.png","wb") as f:
             f.write(base64.b64decode(qrcode))
         time.sleep(0.5)
+        #不要阻塞        os.system("qrcode.png")，使用webbrowser打开
+        import webbrowser
+        webbrowser.open("qrcode.png")
 
-        os.system("qrcode.png")
 
         while True:
             r=requests.get(f"https://long.open.weixin.qq.com/connect/l/qrconnect?f=json&uuid={uuid}")
@@ -84,7 +86,7 @@ class WechatLogin:
             "platform":"desktop_m_wechat",
             "client_hope_switch":"1",
             "wx_appid":self.wx_appid,
-            "version":"2.2.3",
+            "version":"2.2.2",
             "sig":sig_helper(ts=ts).hexdigest(),
             "anti_hope_switch":"1",
             "appid":self.wx_appid,

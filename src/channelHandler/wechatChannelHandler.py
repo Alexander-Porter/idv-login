@@ -28,6 +28,7 @@ from logutil import setup_logger
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.wechatLogin.wechatChannel import WechatLogin
 
+
 class myappVeriftResp:
     def __init__(self, rawJson: dict) -> None:
         try:
@@ -47,7 +48,7 @@ class myappVeriftResp:
             self.msg = "Failed to parse json"
             print(e)
 
-    def __dict__(self):
+    def __json__(self):
         return {
             "atk": self.atk,
             "atk_expire": self.atk_expire,
@@ -63,6 +64,7 @@ class myappVeriftResp:
             "visitorLoginData": self.visitorLoginData,
         }
 
+
 class wechatChannel(channelmgr.channel):
 
     def __init__(
@@ -76,7 +78,7 @@ class wechatChannel(channelmgr.channel):
         name: str = "",
         game_id: str = "",
         refreshToken: str = "",
-
+        session: myappVeriftResp = None,
     ) -> None:
         super().__init__(
             login_info,
@@ -97,41 +99,43 @@ class wechatChannel(channelmgr.channel):
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
             return False
-        
+
         self.wx_appid = res.get(self.channel_name).get("wx_appid")
-        self.channel= res.get(self.channel_name).get("channel")
-        
-        self.refreshToken = refreshToken
-        self.wechatLogin = WechatLogin(self.wx_appid,self.channel, self.refreshToken)
+        self.channel = res.get(self.channel_name).get("channel")
+
+        self.wechatLogin = WechatLogin(self.wx_appid, self.channel)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
-        self.session: myappVeriftResp = None
-        
-
+        self.session: myappVeriftResp = myappVeriftResp(session) if session != None else None
 
     def request_user_login(self):
-        if self.refreshToken == "":
+        if self.session == None:
             genv.set("GLOB_LOGIN_UUID", self.uuid)
-            resp=self.vivoLogin.webLogin()
-            if resp==None:
-                self.session=None
+            resp = self.wechatLogin.webLogin()
+            if resp == None:
+                self.session = None
                 return False
-            self.session=myappVeriftResp(resp)
-            return self.session!=None
+            self.session = myappVeriftResp(resp)
+            return self.session != None
         else:
-            r=requests.get(f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.refreshToken}")
-            if not r.status_code==200:
+            r = requests.get(
+                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.retk}"
+            )
+            if not r.status_code == 200:
                 self.logger.error(f"Refresh token 过期: {r.text}")
-                self.refreshToken=""
+                self.session = None
                 return self.request_user_login()
-            self.session.retk=r.json().get("refresh_token")
-            self.session.atk=r.json().get("access_token")
-            self.refreshToken=self.session.retk
+            self.session.retk = r.json().get("refresh_token")
+            self.session.atk = r.json().get("access_token")
             return True
 
     def is_token_valid(self):
-        return self.session!=None
+        return self.session != None
+
+    def before_save(self):
+        self.session_json = self.session.__json__()
+        return super().before_save()
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -144,9 +148,23 @@ class wechatChannel(channelmgr.channel):
             last_login_time=data.get("last_login_time", 0),
             name=data.get("name", ""),
             game_id=data.get("game_id", ""),
-            refreshToken=data.get("refreshToken", None),
-            session=data.get("session", None),
+            session=data.get("session_json", None),
         )
+
+    def _get_extra_data(self):
+        self.logger.info(f"{getShortGameId(self.game_id)}")
+        return json.dumps(
+                {
+                    "login_type": 8,
+                    "session_id": "hy_gameid",
+                    "session_type": "wc_actoken",
+                    "openid": self.session.openid,
+                    "openkey": self.session.atk,
+                    "pf": self.session.pf,
+                    "pfkey": self.session.pfKey,
+                    "zoneid": "1",
+                })
+
 
     def _build_extra_unisdk_data(self) -> str:
         fd = genv.get("FAKE_DEVICE")
@@ -154,16 +172,10 @@ class wechatChannel(channelmgr.channel):
             "SAUTH_STR": "",
             "SAUTH_JSON": "",
         }
-        
+
         extra_data = {
-            "login_type": 8,
-            "session_id": "hy_gameid",
-            "session_type": "wc_actoken",
-            "openid": self.session.openid,
-            "openkey": self.session.atk,
-            "pf": self.session.pf,
-            "pfkey": self.session.pfKey,
-            "zoneid": "1",
+            "extra_data": self._get_extra_data(),
+            "realname": json.dumps({"realname_type": 0, "age": 22}),
         }
 
         res.update(extra_data)
@@ -200,14 +212,17 @@ class wechatChannel(channelmgr.channel):
             self.session.openid,
             self.session.atk,
             getShortGameId(game_id),
-            "2.2.3",
+            "2.2.2",
             {
-                "realname": json.dumps({"realname_type": 0, "age": 22}),
+                "get_access_token": "1",
+                "extra_data": self._get_extra_data(),
             },
         )
         fd = genv.get("FAKE_DEVICE")
         self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),True)
+        self.uniData = channelUtils.postSignedData(
+            self.uniBody, getShortGameId(game_id), True
+        )
 
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON = json.loads(
@@ -219,7 +234,7 @@ class wechatChannel(channelmgr.channel):
             "login_channel": self.channel_name,
             "udid": fd["udid"],
             "app_channel": self.channel_name,
-            "sdk_version": "2.2.3",
+            "sdk_version": "2.2.2",
             "jf_game_id": getShortGameId(game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",
