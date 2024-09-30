@@ -5,11 +5,13 @@ import os,subprocess,re
 import base64
 import logging
 
+import requests
+
 def validate(data, key):
     s_key = data["UNISDK_SERVER_KEY"]
     try:
         val=data[key]
-        if key=='UNISDK_SERVER_KEY':
+        if key=='UNISDK_SERVER_KEY' or key=='APP_CHANNEL':
             return val
         decode = base64.b64decode(s_key)
         if len(decode) != 124:
@@ -33,6 +35,35 @@ def validate(data, key):
     except Exception as e:
         logging.exception("Exception occurred")
         return str
+github_token=os.getenv("GITHUB_TOKEN")
+def updateCloudRes(item):
+    #get now cloud res
+    url="https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json"
+    headers={"Authorization":"token "+github_token}
+    r=requests.get(url,headers=headers)
+    fileInfo=r.json()
+    sha=fileInfo["sha"]
+    import base64
+    import json
+    content=base64.b64decode(fileInfo["content"]).decode()
+    data=json.loads(content)
+    #update cloud res
+
+
+    import time
+    data["lastModified"]=int(time.time())
+    data["data"].append(item)
+
+    commitMessage=f"Live update for {item['game_id']}-{item['app_channel']}"
+    dataStr=json.dumps(data,indent=4)
+    dataStr=base64.b64encode(dataStr.encode()).decode()
+    data={
+        "message":commitMessage,
+        "content":dataStr,
+        "sha":sha
+    }
+    r=requests.put(url,headers=headers,json=data)
+    print(r.json())
 
 def getNeteaseGameInfo(apkPath):
     app_channel = None
@@ -61,12 +92,12 @@ def getNeteaseGameInfo(apkPath):
 
     #get channel data
     with open(f'res/assets/{app_channel}_data', 'r') as f:
-        channelData = f.read()
-        channelData = base64.b64decode(channelData).decode()
-        channelData = json.loads(channelData)
-        log_key=validate(channelData, "JF_LOG_KEY")
-        app_channel=validate(channelData, "APP_CHANNEL")
-        game_id=validate(channelData, "JF_GAMEID")
+        myData = f.read()
+        myData = base64.b64decode(myData).decode()
+        myData = json.loads(myData)
+        log_key=validate(myData, "JF_LOG_KEY")
+        app_channel=validate(myData, "APP_CHANNEL")
+        game_id=validate(myData, "JF_GAMEID")
 
     if app_channel=='xiaomi_app':
         namespaces = {'android': 'http://schemas.android.com/apk/res/android'}
@@ -100,4 +131,6 @@ def getNeteaseGameInfo(apkPath):
     RES[app_channel]=channelData
     print(RES)
     print(json.dumps(RES))
+    if app_channel in ["xiaomi_app","huawei","myapp"]:
+        updateCloudRes(RES)
 getNeteaseGameInfo("app.apk")

@@ -62,6 +62,13 @@ class CloudRes:
                 return item
         return None
     
+    def get_by_game_id_and_key(self,shortGameId,key):
+        data=self.local_data.get('data', [])
+        for item in data:
+            if item.get('game_id') == shortGameId and item.get(key) != "" and item.get(key) != None:
+                return item
+        return None
+
     def get_version(self):
         return self.local_data.get('version', genv.get('VERSION'))
     
