@@ -2,17 +2,48 @@ jadx_path = r"jadx/bin/jadx"
 import base64
 import json
 import os,subprocess,re
+import base64
+import logging
+
+def validate(data, key):
+    s_key = data["UNISDK_SERVER_KEY"]
+    try:
+        val=data[key]
+        if key=='UNISDK_SERVER_KEY':
+            return val
+        decode = base64.b64decode(s_key)
+        if len(decode) != 124:
+            logging.error(f"f size error: {len(decode)}<>124")
+            return val
+
+        copy_of_range = decode[:62]
+        copy_of_range2 = decode[62:124]
+        hash_map = {}
+
+        for i in range(62):
+            hash_map[(copy_of_range[i] - 76) + copy_of_range2[i]] = copy_of_range2[i]
+
+        char_array = list(val)
+        for i in range(len(char_array)):
+            b = ord(char_array[i])
+            if b in hash_map:
+                char_array[i] = chr(hash_map[b])
+
+        return ''.join(char_array)
+    except Exception as e:
+        logging.exception("Exception occurred")
+        return str
+
 def getNeteaseGameInfo(apkPath):
     app_channel = None
     application=None
     package_name = None
     log_key=None
     game_id=None
-    #jadx apkPath --single-class com.netease.dwrg.Channel   --output-format json
-    #use jadx to get package name
+
     os.makedirs('res', exist_ok=True)
     subprocess.check_call([jadx_path, apkPath, '--no-src', '-dr', 'res'])
-    #reading res/assets/channel_auth_data, which is a base64 encoded json file
+
     with open('res/assets/channel_auth_data', 'r') as f:
         data = f.read()
         #decode base64
@@ -20,7 +51,7 @@ def getNeteaseGameInfo(apkPath):
         #load json
         data = json.loads(data)
         app_channel = data.get('APP_CHANNEL')
-    #reading AndroidManifest.xml
+
     import xml.etree.ElementTree as ET
 
     with open('res/AndroidManifest.xml', 'r') as f:
@@ -28,36 +59,21 @@ def getNeteaseGameInfo(apkPath):
         root = ET.fromstring(data)
         package_name = root.attrib['package']
         application = root.find('application')
-        #use regular expression to get package name com.netease.???.xxxx -> com.netease.???
-        package_name=re.search(r'(com\.netease.+?)\.\w+',package_name).group(1)
-    subprocess.check_call([jadx_path, apkPath, '--single-class', f'{package_name}.Channel', '--output-format', 'json','--single-class-output', 'res/Channel.json'])
-    log_key_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_LOG_KEY, "(.*?)"\);')
-    log_key_pattern2=re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_LOG_KEY\", "(.*?)"\);')
-    game_id_pattern = re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(ConstProp\.JF_GAMEID, "(.*?)"\);')
-    game_id_pattern2= re.compile(r'SdkMgr\.getInst\(\)\.setPropStr\(\"JF_GAMEID\", "(.*?)"\);')
+        if "huawei" in package_name or "HUAWEI" in package_name:
+            app_channel = "huawei"
+        elif "xiaomi" in package_name or "XIAOMI" in package_name or "mi" in package_name or "MI" in package_name:
+            app_channel = "xiaomi_app"
+        elif "com.tencent" in package_name:
+            app_channel = "myapp"
 
-    # 遍历每行代码
-    with open('res/Channel.json', 'r') as f:
-        json_data = json.load(f)
-        for i in json_data['methods']:
-            # 遍历每行代码
-            for j in i['lines']:
-                if not log_key:
-                    match = log_key_pattern.search(j['code'])
-                    if match:
-                        log_key = match.group(1)
-                if not log_key:
-                    match = log_key_pattern2.search(j['code'])
-                    if match:
-                        log_key = match.group(1)
-                if not game_id:
-                    match = game_id_pattern.search(j['code'])
-                    if match:
-                        game_id = match.group(1)
-                if not game_id:
-                    match = game_id_pattern2.search(j['code'])
-                    if match:
-                        game_id = match.group(1)
+    #get channel data
+    with open(f'res/assets/{app_channel}_data', 'r') as f:
+        channelData = f.read()
+        channelData = base64.b64decode(channelData).decode()
+        channelData = json.loads(channelData)
+        log_key=validate(channelData, "JF_LOG_KEY")
+        app_channel=validate(channelData, "APP_CHANNEL")
+        game_id=validate(channelData, "JF_GAMEID")
 
     if app_channel=='xiaomi_app':
         namespaces = {'android': 'http://schemas.android.com/apk/res/android'}
@@ -68,6 +84,21 @@ def getNeteaseGameInfo(apkPath):
         with open('res/assets/agconnect-services.json', 'r') as f:
             hw_data=json.loads(f.read())
             channelData=hw_data['client']
+    if app_channel=='myapp':
+        #open ysdkconf.ini
+        with open('res/assets/ysdkconf.ini', 'r') as f:
+            channelData={
+                "wx_appid":"",
+                "channel":""
+            }
+            data = f.read()
+            data = data.split('\n')
+            for line in data:
+                if 'WX_APP_ID' in line:
+                    channelData['wx_appid'] = line.split('=')[1]
+                if 'OFFER_ID' in line:
+                    channelData['channel'] = line.split('=')[1]
+
     RES={}
     RES["package_name"]=package_name
     RES["app_channel"]=app_channel
