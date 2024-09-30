@@ -44,13 +44,6 @@ def getNeteaseGameInfo(apkPath):
     os.makedirs('res', exist_ok=True)
     subprocess.check_call([jadx_path, apkPath, '--no-src', '-dr', 'res'])
 
-    with open('res/assets/channel_auth_data', 'r') as f:
-        data = f.read()
-        #decode base64
-        data = base64.b64decode(data).decode()
-        #load json
-        data = json.loads(data)
-        app_channel = data.get('APP_CHANNEL')
 
     import xml.etree.ElementTree as ET
 
