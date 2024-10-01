@@ -66,7 +66,7 @@ class CloudRes:
         data=self.local_data.get('data', [])
         for item in data:
             if item.get('game_id') == shortGameId and item.get(key) != "" and item.get(key) != None:
-                return item
+                return item.get(key)
         return None
 
     def get_version(self):
