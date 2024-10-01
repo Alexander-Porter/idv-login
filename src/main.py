@@ -54,17 +54,18 @@ def handle_exit():
 
 def handle_update():
     ignoredVersions=genv.get("ignoredVersions",[])
-    if "dev" in genv.get("VERSION","v5.2.4").lower() or "main" in genv.get("VERSION","v5.2.4").lower():
+    if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
     elif not genv.get("CLOUD_VERSION") in ignoredVersions:
-        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，按回车跳转至新版本下载页面。按P+Enter暂时不更新，按N+Enter永久跳过此版本。")
+        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}。")
         details=genv.get("CLOUD_RES").get_detail()
         print(f"{details}")
-        choice=input()
+        print("[*]直接按回车：跳转至新版本下载页面。输入P再回车：暂时不更新。输入N再回车：永久跳过此版本。")
+        choice=input("[*]请选择：")
         if choice.lower()=="p":
             return
         elif choice.lower()=="n":
@@ -182,7 +183,7 @@ def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
-    print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
+    print(" - 本程序使用GNU GPLv3协议开源，完全免费，严禁倒卖！")
     print(" - This program is free software: you can redistribute it and/or modify")
     print(" - it under the terms of the GNU General Public License as published by")
     print(" - the Free Software Foundation, either version 3 of the License, or")
@@ -250,12 +251,12 @@ if __name__ == "__main__":
             m_hostmgr.add("localhost", "127.0.0.1")
 
         logger.info("正在启动代理服务器...")
-
         m_proxy.run()
 
     except Exception as e:
         logger.exception(
-            f"发生未处理的异常:{e}.反馈时请发送日志\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
+            f"发生未处理的异常:{e}.反馈时请发送日志！\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
         )
-
-        input("拦截退出事件.")
+        file = os.path.realpath("log.txt")
+        os.system(f'explorer /select, {file}')
+        input("已经为您打开程序工作目录，拦截退出事件.")

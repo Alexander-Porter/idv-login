@@ -401,7 +401,7 @@ def globalProxy(path):
 @app.after_request
 def after_request_func(response:Response):
     #只log出现错误的请求
-    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301:
+    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
         if response.status_code==404:
             if ".ico" in request.url:
                 return response
