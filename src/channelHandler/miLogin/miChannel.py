@@ -15,19 +15,34 @@ from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
+
 
 
 
 class MiBrowser(WebBrowser):
     def __init__(self):
         super().__init__("xiaomi_app",False)
+        self.isQQ=False
 
     def verify(self, url: str) -> bool:
+        if self.isQQ:
+            #https://imgcache.qq.com/open/connect/widget/mobile/login/proxy.htm?#&t=1727755653#&openid=04C2CAE9E4A3BF2A524F6E29F6D47834&appid=1106134065&access_token=598455137B3A4F41CA48695CE5D79EA2&pay_token=9C76DAB9F2A5FE387BB25D3791CDFEA2&key=114b75718187ac213b0d289c7d03ce37&serial=&token_key=&browser=0&browser_error=0&status_os=&sdkv=&status_machine=&update_auth=&has_auth=&auth_time=1727755653&page_type=0&redirect_uri_key=B07C7F1E10A996BB22D59268FF8F8CED50877B3B75636263DE388C7631A73E1E15A47C4B8D301E5887DF54B6371C15EC40DF5701F2B799FD70F3ECC7A62D464A26BEC9A98B4DF474DE571E58C0A4132324E9AD1B71D7138CF29835AC768BDCFA3A027DF429A98FEE1553CA1582A72CF03959907618AA30B16F3EF200E519A6B452F0FC794B5A76DFB916D15C83D74E72577B0F0CD95F7FEC58F35B83F8B5FF6698349852F2A762A6203A02270FEA984BF1D334BE99766156D74CF306EF861225553E310B5A2143B66270B2A56CCB76DEC77E2F8C39B708A6688EDA80E8F3DCF0755D975F2D662A67672A8BFC289ABC3EC69ACBFEF5C0CE2635D46604E7A12D1E14442613C2FE5D981C7E75E938CAC2D691860325927A032A
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(url)
+            if parsed_url.netloc=="imgcache.qq.com" and parsed_url.path=="/open/connect/widget/mobile/login/proxy.htm":
+                query_dict = parse_qs(parsed_url.fragment)
+                return "access_token" in query_dict.keys()
+            return False
         return "code" in self.parse_url_query(url).keys()
 
     def parseReslt(self, url):
-        self.result = self.parse_url_query(url).get("code")[0]
+        if self.isQQ:
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(url)
+            query_dict = parse_qs(parsed_url.fragment)
+            self.result = query_dict,self.isQQ
+        else:
+            self.result = self.parse_url_query(url).get("code")[0],self.isQQ
         return True
 
     def parse_url_query(self,url):
@@ -38,6 +53,10 @@ class MiBrowser(WebBrowser):
     
     def handle_url_change(self, url):
         super().handle_url_change(url)
+        if "graph.qq.com" in url.toString():
+            self.isQQ=True
+            self.logger.info(f"识别到小米渠道QQ登录")
+            self.set_url("https://openmobile.qq.com/oauth2.0/m_authorize?client_id=1106134065&scope=all&redirect_uri=auth://tauth.qq.com/&style=qr&response_type=token")
         if url.toString().startswith("https://game.xiaomi.com/") and "oauthcallback" not in url.toString():
             self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}")
 
@@ -68,11 +87,13 @@ def generate_md5(input_string):
 
 
 class MiLogin:
-    def __init__(self, appId, oauthData=None):
+    def __init__(self, appId, oauthData=None,account_type=4):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         self.logger = setup_logger()
         self.appId = appId
         self.oauthData = oauthData
+        self.account_type=account_type
+
         if os.path.exists(DEVICE_RECORD):
             with open(DEVICE_RECORD, "r") as f:
                 self.device = json.load(f)
@@ -109,10 +130,41 @@ class MiLogin:
             self.logger.error(res)
             raise Exception("Init account data failed")
 
+    def getSTbyQQResp(self,qAuthResp):
+        params = {
+            "accountType": self.account_type,
+            "openid":qAuthResp.get("openid")[0],
+            "accessToken":qAuthResp.get("access_token")[0],
+            "isSaveSt": "true",
+            "appid": "2000202",
+        }
+        self.logger.info(params)
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Connection": "close",
+            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 12; M2102K1AC Build/V417IR)",
+            "Host": "account.migc.g.mi.com",
+            "Accept-Encoding": "gzip",
+        }
+        response = requests.get(
+            "http://account.migc.g.mi.com/misdk/v2/oauth",
+            params=utils.generate_unsign_request(params, AES_KEY),
+            headers=headers,
+        )
+        res = utils.decrypt_response(response.text, AES_KEY)
+        if res["code"] == 0:
+            self.oauthData = res
+            return res
+        else:
+            self.logger.error(f"小米登录失败，请重试。原始响应：{res}")
+            self.oauthData=None
+            return None
+
     def getSTbyCode(self, code) -> None:
+        
         print(code + "called")
         params = {
-            "accountType": 4,
+            "accountType": self.account_type,
             "code": code,
             "isSaveSt": "true",
             "appid": "2000202",
@@ -140,10 +192,14 @@ class MiLogin:
             return None
 
     def webLogin(self):
-        login_url = "https://account.xiaomi.com/fe/service/login/password?sid=newgamecenterweb&qs=%253Fsid%253Dnewgamecenterweb%2526callback%253Dhttps%25253A%25252F%25252Fgame.xiaomi.com%25252Fauth%25252Fmi_login&callback=https%3A%2F%2Fgame.xiaomi.com%2Fauth%2Fmi_login&_sign=GDzEamQvXougqttdJc8mC0nEyRA%3D&serviceParam=%7B%22checkSafePhone%22%3Afalse%2C%22checkSafeAddress%22%3Afalse%2C%22lsrp_score%22%3A0.0%7D&showActiveX=false&theme=&needTheme=false&bizDeviceType=&_locale=zh_CN"
+        login_url = "http://account.xiaomi.com/fe/service/login/password?sid=newgamecenterweb&qs=%253Fsid%253Dnewgamecenterweb%2526callback%253Dhttps%25253A%25252F%25252Fgame.xiaomi.com%25252Fauth%25252Fmi_login&callback=https%3A%2F%2Fgame.xiaomi.com%2Fauth%2Fmi_login&_sign=GDzEamQvXougqttdJc8mC0nEyRA%3D&serviceParam=%7B%22checkSafePhone%22%3Afalse%2C%22checkSafeAddress%22%3Afalse%2C%22lsrp_score%22%3A0.0%7D&showActiveX=false&theme=&needTheme=false&bizDeviceType=&_locale=zh_CN"
         miBrowser=MiBrowser()
         miBrowser.set_url(login_url)
-        return self.getSTbyCode(miBrowser.run())
+        resp, isQQ=miBrowser.run()
+        if isQQ:
+            self.account_type=2
+            return self.getSTbyQQResp(resp)
+        return self.getSTbyCode(resp)
 
     def makeFakeDevice(self):
         device = DEVICE.copy()

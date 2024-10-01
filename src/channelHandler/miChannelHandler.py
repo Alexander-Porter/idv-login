@@ -38,6 +38,7 @@ class miChannel(channelmgr.channel):
         name: str = "",
         oAuthData: dict = {},
         game_id: str = "",
+        account_type:int = 4,
     ) -> None:
         super().__init__(
             login_info,
@@ -60,15 +61,18 @@ class miChannel(channelmgr.channel):
             self.logger.error(f"Failed to get channel config for {self.name}")
             Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
             return
-        self.miLogin = MiLogin(res.get(self.channel_name).replace("mi_",""), self.oAuthData)
+        self.miLogin = MiLogin(res.get(self.channel_name).replace("mi_",""), self.oAuthData,account_type)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
+        self.account_type=account_type
 
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         self.miLogin.webLogin()
         self.oAuthData = self.miLogin.oauthData
+        self.account_type=self.miLogin.account_type
+        self.logger.info(f"小米登录类型：{self.account_type}")
         self.logger.debug(self.oAuthData)
         return self.oAuthData!=None
 
@@ -99,6 +103,7 @@ class miChannel(channelmgr.channel):
             name=data.get("name", ""),
             oAuthData=data.get("oAuthData", None),
             game_id=data.get("game_id", ""),
+            account_type=data.get("account_type", 4),
         )
 
     def get_sdk_udid(self):
