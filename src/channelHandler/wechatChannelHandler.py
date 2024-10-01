@@ -120,6 +120,7 @@ class wechatChannel(channelmgr.channel):
             self.session = myappVeriftResp(resp)
             return self.session != None
         else:
+            self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
             r = requests.get(
                 f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.retk}"
             )
@@ -132,7 +133,7 @@ class wechatChannel(channelmgr.channel):
             return True
 
     def is_token_valid(self):
-        return self.session != None
+        return self.session != None and self.last_login_time+self.session.atk_expire > int(time.time())
 
     def before_save(self):
         self.session_json = self.session.__json__()
