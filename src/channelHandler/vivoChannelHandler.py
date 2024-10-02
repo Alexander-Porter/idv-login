@@ -126,7 +126,7 @@ class vivoChannel(channelmgr.channel):
             if self.session.subAccounts[i].subOpenId==self.chosenAccount:
                 self.activeAccount=self.session.subAccounts[i]
                 break
-        self.name=f"{self.session.phone}-{self.activeAccount.nickName}"
+        self.uuid=f"{self.session.phone}-{self.activeAccount.nickName}"
         return self.session!=None
 
     def is_token_valid(self):

@@ -1,14 +1,9 @@
 import base64
-import json
 import os
-import random
-import string
 import time
 import requests
-import sys
-from faker import Faker
 import random
-
+import gevent
 
 #from logutil import setup_logger
 from loguru import logger
@@ -63,7 +58,7 @@ class WechatLogin:
 
         with open("qrcode.png","wb") as f:
             f.write(base64.b64decode(qrcode))
-        time.sleep(0.5)
+        gevent.sleep(0.5)
         #不要阻塞        os.system("qrcode.png")，使用webbrowser打开
         import webbrowser
         webbrowser.open("qrcode.png")
@@ -75,7 +70,7 @@ class WechatLogin:
             if r.json().get("wx_code") != "":
                 self.logger.info(f"扫码成功{r.json().get('wx_code')}")
                 break
-            time.sleep(1)
+            gevent.sleep(1)
 
         #https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
         #url = "https://ysdk.qq.com/auth/wx_verify_code?channel=00000000&code=071wemFa1jjCfI0y3nJa1oJELV2wemFj&offerid=1106682786&platform=desktop_m_wechat&client_hope_switch=1&wx_appid=wxc88a4fdf253cb98c&app_version=1.5.203&version=2.2.2&sig=B78BC35D588A6478C2B4EF30BFC074E8&anti_hope_switch=1&appid=wxc88a4fdf253cb98c&timestamp=1727609746541"

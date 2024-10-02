@@ -387,7 +387,6 @@ def handle_token_exchange():
 @app.route("/mpay/api/reverify/<path>")
 @app.route("/mpay/api/qrcode/<path>", methods=["GET"])
 def handle_qrcode(path):
-    logger.info(f"UNCHANGED {request.url}")
     return proxy(request)
 
 
@@ -444,8 +443,7 @@ class proxymgr:
                             ["taskkill", "/f", "/im", t_pid],
                             shell=True
                         )
-                    import time
-                    time.sleep(2)
+                    gevent.sleep(2)
                     break
 
     def run(self):

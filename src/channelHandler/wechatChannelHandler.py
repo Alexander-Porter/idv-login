@@ -118,7 +118,7 @@ class wechatChannel(channelmgr.channel):
                 self.session = None
                 return False
             self.session = myappVeriftResp(resp)
-            return self.session != None
+
         else:
             self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
             r = requests.get(
@@ -130,7 +130,11 @@ class wechatChannel(channelmgr.channel):
                 return self.request_user_login()
             self.session.retk = r.json().get("refresh_token")
             self.session.atk = r.json().get("access_token")
+            self.logger.debug(f"微信刷新token返回：{r.json()}")
+        if self.session!=None:
+            self.last_login_time=int(time.time())
             return True
+        return False
 
     def is_token_valid(self):
         return self.session != None and self.last_login_time+self.session.atk_expire > int(time.time())

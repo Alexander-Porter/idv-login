@@ -38,7 +38,7 @@ class miChannel(channelmgr.channel):
         name: str = "",
         oAuthData: dict = {},
         game_id: str = "",
-        account_type:int = 4,
+        account_type: int = 4,
     ) -> None:
         super().__init__(
             login_info,
@@ -52,29 +52,33 @@ class miChannel(channelmgr.channel):
         self.oAuthData = oAuthData
         self.logger = setup_logger()
         self.crossGames = False
-        #Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
+        # Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
         cloudRes = genv.get("CLOUD_RES")
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
-            Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
+            Exception(
+                f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。"
+            )
             return
-        self.miLogin = MiLogin(res.get(self.channel_name).replace("mi_",""), self.oAuthData,account_type)
+        self.miLogin = MiLogin(
+            res.get(self.channel_name).replace("mi_", ""), self.oAuthData, account_type
+        )
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
-        self.account_type=account_type
+        self.account_type = account_type
 
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         self.miLogin.webLogin()
         self.oAuthData = self.miLogin.oauthData
-        self.account_type=self.miLogin.account_type
+        self.account_type = self.miLogin.account_type
         self.logger.info(f"小米登录类型：{self.account_type}")
         self.logger.debug(self.oAuthData)
-        return self.oAuthData!=None
+        return self.oAuthData != None
 
     def _get_session(self):
         try:
@@ -82,7 +86,7 @@ class miChannel(channelmgr.channel):
         except Exception as e:
             self.logger.error(f"Failed to get session data {e}")
             self.oAuthData = None
-            return None,None
+            return None, None
         return data["appAccountId"], data["session"]
 
     def is_token_valid(self):
@@ -109,29 +113,33 @@ class miChannel(channelmgr.channel):
     def get_sdk_udid(self):
         return self.oAuthData["uuid"]
 
-    def _build_extra_unisdk_data(self)->str:
-        res={
-            "SAUTH_STR":"",
-            "SAUTH_JSON":"",
-            "extra_data":"",
-            "realname":"",
-            "get_access_token":"1",
+    def _build_extra_unisdk_data(self) -> str:
+        res = {
+            "SAUTH_STR": "",
+            "SAUTH_JSON": "",
+            "extra_data": "",
+            "realname": "",
+            "get_access_token": "1",
         }
-        extra=json.dumps({"adv_channel":"0","adid":"0"})
-        realname=json.dumps({"realname_type":0,"age":18})
-        json_data={"extra_data":extra,"get_access_token":"1","sdk_udid":self.get_sdk_udid(),"realname":realname}
+        extra = json.dumps({"adv_channel": "0", "adid": "0"})
+        realname = json.dumps({"realname_type": 0, "age": 18})
+        json_data = {
+            "extra_data": extra,
+            "get_access_token": "1",
+            "sdk_udid": self.get_sdk_udid(),
+            "realname": realname,
+        }
         json_data.update(self.uniBody)
 
-        str_data=json_data.copy()
-        str_data.update({"username":self.uniSDKJSON["username"]})
-        str_data="&".join([f"{k}={v}" for k, v in str_data.items()])
+        str_data = json_data.copy()
+        str_data.update({"username": self.uniSDKJSON["username"]})
+        str_data = "&".join([f"{k}={v}" for k, v in str_data.items()])
 
-        res["SAUTH_STR"]=base64.b64encode(str_data.encode()).decode()
-        res["SAUTH_JSON"]=base64.b64encode(json.dumps(json_data).encode()).decode()
-        res["extra_data"]=extra
-        res["realname"]=realname
+        res["SAUTH_STR"] = base64.b64encode(str_data.encode()).decode()
+        res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
+        res["extra_data"] = extra
+        res["realname"] = realname
         return json.dumps(res)
-
 
     def get_uniSdk_data(self, game_id: str = ""):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
@@ -139,22 +147,26 @@ class miChannel(channelmgr.channel):
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
-        
+
         if not self.is_token_valid():
             self.request_user_login()
-        appAccountId,session = self._get_session()
+        appAccountId, session = self._get_session()
         self.uniBody = channelUtils.buildSAUTH(
             self.channel_name,
             self.channel_name,
             str(appAccountId),
             session,
             getShortGameId(game_id),
-            "3.3.0.7"
+            "3.3.0.7",
         )
         fd = genv.get("FAKE_DEVICE")
-        self.uniData = channelUtils.postSignedData(self.uniBody, getShortGameId(game_id))
+        self.uniData = channelUtils.postSignedData(
+            self.uniBody, getShortGameId(game_id)
+        )
         self.logger.info(f"Get unisdk data for {self.uniData}")
-        self.uniSDKJSON=json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
+        self.uniSDKJSON = json.loads(
+            base64.b64decode(self.uniData["unisdk_login_json"]).decode()
+        )
         res = {
             "user_id": self.get_sdk_udid(),
             "token": base64.b64encode(session.encode()).decode(),

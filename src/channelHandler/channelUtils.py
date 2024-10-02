@@ -7,6 +7,7 @@ import time
 import requests
 import pyperclip as cb
 from envmgr import genv
+import gevent
 
 class CustomEncoder(json.JSONEncoder):
     def encode(self, obj):
@@ -87,7 +88,7 @@ def G_clipListener(verify,maxAttempt)->str:
             cb.copy("")
             return nowData
         else:
-            time.sleep(1)
+            gevent.sleep(1)
     return None
 
 
