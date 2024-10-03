@@ -1,8 +1,8 @@
 {
-    "lastModified": 1727711031,
-    "version": "v5.3.4-stable",
-    "detail": "### IdentityV Login Helper v5.3.4-stable CHANGELOG\r\n\r\n## Improvement \ud83d\ude80\r\n[\u00b7] \u4fee\u590d\u4e86\u4f7f\u7528\u6821\u56ed\u7f51\u65f6\uff0c\u4ee3\u7406\u670d\u52a1\u5668\u542f\u52a8\u5361\u4f4f\u7684\u95ee\u9898\u3002\r\n\r\n## In Progress \ud83d\udea7\r\n[\u00b7] \u4e5d\u6e38\u6e20\u9053\u670d\u652f\u6301\u3002\r\n\r\n## Known Bugs \ud83d\udc80\r\n[\u00b7] \u4e5d\u6e38\u3001\u5e94\u7528\u5b9d\u5fae\u4fe1\u6e20\u9053\u5bb9\u6613\u8fc7\u671f\u3002\r\n[\u00b7] \u90e8\u5206\u5730\u533a\u5c0f\u7c73\u6e20\u9053\u767b\u5f55\u4f1a\u5931\u8d25\uff0c\u8bf7\u81ea\u884c\u89e3\u51b3\u7f51\u7edc\u95ee\u9898\u3002\r\n\r\n## Others \ud83e\uddf0\r\n[\u00b7] **\u672c\u5de5\u5177\u5b8c\u5168\u514d\u8d39\u5f00\u6e90\uff0c\u4e25\u7981\u5c06\u6b64\u5de5\u5177\u7528\u4e8e\u4efb\u4f55\u5546\u4e1a\u884c\u4e3a\uff01\u4e8c\u6b21\u5f00\u53d1\u53ca\u4f20\u64ad\u8bf7**\u6807\u660e\u51fa\u5904**\u5e76\u9075\u5b88`GPLv3`\u534f\u8bae\uff01**\r\n\r\n## Tips\r\n    * Windows 7 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.8\u7248\r\n    * Windows 10/11 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.12\u7248\r\n    * [\u4e0b\u8f7d\u524d\u5fc5\u770b](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)",
-    "downloadUrl": "https://gitee.com/opguess/idv-login/releases/tag/v5.3.4-stable",
+    "lastModified": 1727934598,
+    "version": "v5.4.0-stable",
+    "detail": "### IdentityV Login Helper v5.4.0-stable CHANGELOG\r\n\r\n## Improvement \ud83d\ude80\r\n[\u00b7] \u4fee\u590d\u4e86\u5c0f\u7c73\u6e20\u9053QQ\u767b\u5f55\u63d0\u793a\u8981\u521b\u5efa\u89d2\u8272\u7684\u95ee\u9898\uff0c\u73b0\u5728\u6539\u4e3a\u624bQ\u626b\u7801\u767b\u5f55\r\n[\u00b7] \u65b0\u589e\u4e86\u5e94\u7528\u5b9d\u5fae\u4fe1\u533a\u624b\u52a8\u767b\u5f55\r\n[\u00b7] \u65b0\u589e\u4e86VIVO\u6e20\u9053\u5c0f\u53f7\u767b\u5f55\r\n\r\n## In Progress \ud83d\udea7\r\n[\u00b7] \u4e5d\u6e38\u6e20\u9053\u670d\u652f\u6301\u3002\r\n\r\n## Known Bugs \ud83d\udc80\r\n[\u00b7] \u4e5d\u6e38\u6e20\u9053\u5bb9\u6613\u8fc7\u671f\u3002\r\n[\u00b7] \u90e8\u5206\u5730\u533a\u5c0f\u7c73\u6e20\u9053\u767b\u5f55\u4f1a\u5931\u8d25\uff0c\u8bf7\u81ea\u884c\u89e3\u51b3\u7f51\u7edc\u95ee\u9898\u3002\r\n\r\n## Others \ud83e\uddf0\r\n[\u00b7] **\u672c\u5de5\u5177\u5b8c\u5168\u514d\u8d39\u5f00\u6e90\uff0c\u4e25\u7981\u5c06\u6b64\u5de5\u5177\u7528\u4e8e\u4efb\u4f55\u5546\u4e1a\u884c\u4e3a\uff01\u4e8c\u6b21\u5f00\u53d1\u53ca\u4f20\u64ad\u8bf7**\u6807\u660e\u51fa\u5904**\u5e76\u9075\u5b88`GPLv3`\u534f\u8bae\uff01**\r\n\r\n## Tips\r\n    * Windows 7 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.8\u7248\r\n    * Windows 10/11 \u7528\u6237\u8bf7\u4e0b\u8f7dPy3.12\u7248\r\n\r\n[\u4e0b\u8f7d\u524d\u5fc5\u770b](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)",
+    "downloadUrl": "https://gitee.com/opguess/idv-login/releases/tag/v5.4.0-stable",
     "guideUrl": "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3",
     "data": [
         {
@@ -23,11 +23,11 @@
             }
         },
         {
-            "package_name": "com.netease.dwrg",
+            "package_name": "com.netease.mrzh",
             "app_channel": "nearme_vivo",
-            "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
-            "game_id": "h55",
-            "nearme_vivo": "com.netease.dwrg5.vivo"
+            "log_key": "-BQb6RCHHhYI1ADS6pJigOehE-sITVya",
+            "game_id": "g66",
+            "nearme_vivo": "com.netease.mrzh.vivo"
         },
         {
             "package_name": "com.netease.dwrg",
@@ -121,6 +121,20 @@
                 "wx_appid": "wx0e002353baf972cb",
                 "channel": "1106958946"
             }
+        },
+        {
+            "package_name": "com.netease.dwrg",
+            "app_channel": "nearme_vivo",
+            "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+            "game_id": "h55",
+            "nearme_vivo": "com.netease.dwrg5.vivo"
+        },
+        {
+            "package_name": "com.netease.onmyoji",
+            "app_channel": "nearme_vivo",
+            "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf",
+            "game_id": "g37",
+            "nearme_vivo": "com.netease.onmyoji.vivo"
         }
     ]
 }
