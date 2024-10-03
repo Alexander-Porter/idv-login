@@ -118,19 +118,28 @@ class wechatChannel(channelmgr.channel):
                 self.session = None
                 return False
             self.session = myappVeriftResp(resp)
-
+            #get user info
+            #https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID
+            try:
+                r = requests.get(
+                    f"https://api.weixin.qq.com/sns/userinfo?access_token={self.session.atk}&openid={self.session.openid}"
+                )
+                r.encoding="utf-8"
+                self.name=r.json().get("nickname")
+            except:
+                pass
         else:
             self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
             r = requests.get(
-                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.retk}"
+                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}"
             )
             if not r.status_code == 200:
                 self.logger.error(f"Refresh token 过期: {r.text}")
                 self.session = None
                 return self.request_user_login()
-            self.session.retk = r.json().get("refresh_token")
+            self.session.rtk = r.json().get("refresh_token")
             self.session.atk = r.json().get("access_token")
-            self.logger.debug(f"微信刷新token返回：{r.json()}")
+            self.logger.info(f"微信刷新token返回：{r.json()}")
         if self.session!=None:
             self.last_login_time=int(time.time())
             return True
