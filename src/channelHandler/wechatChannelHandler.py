@@ -146,7 +146,15 @@ class wechatChannel(channelmgr.channel):
         return False
 
     def is_token_valid(self):
-        return self.session != None and self.last_login_time+self.session.atk_expire > int(time.time())
+        #	/sns/auth
+        if self.session != None and self.last_login_time+self.session.atk_expire > int(time.time()):
+            r = requests.get(
+                    f"https://api.weixin.qq.com/sns/auth?access_token={self.session.atk}&openid={self.session.openid}"
+                )
+            self.logger.debug(r.json())
+            return r.json().get("errcode")==0
+        else:
+            return False
 
     def before_save(self):
         self.session_json = self.session.__json__()
