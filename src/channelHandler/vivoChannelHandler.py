@@ -95,6 +95,7 @@ class vivoChannel(channelmgr.channel):
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         resp=self.vivoLogin.webLogin()
+        self.logger.debug(resp)
         if resp==None:
             self.session=None
             return False
@@ -126,6 +127,7 @@ class vivoChannel(channelmgr.channel):
             if self.session.subAccounts[i].subOpenId==self.chosenAccount:
                 self.activeAccount=self.session.subAccounts[i]
                 break
+        self.logger.debug(self.activeAccount)
         self.uuid=f"{self.session.phone}-{self.activeAccount.nickName}"
         return self.session!=None
 
@@ -201,7 +203,7 @@ class vivoChannel(channelmgr.channel):
             base64.b64decode(self.uniData["unisdk_login_json"]).decode()
         )
         res = {
-            "user_id": self.session.openId,
+            "user_id": self.activeAccount.subOpenId,
             "token": base64.b64encode(self.activeAccount.openToken.encode()).decode(),
             "login_channel": self.channel_name,
             "udid": fd["udid"],
