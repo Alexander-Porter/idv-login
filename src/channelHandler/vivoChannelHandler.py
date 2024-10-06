@@ -126,8 +126,7 @@ class vivoChannel(channelmgr.channel):
         for i in range(len(self.session.subAccounts)):
             if self.session.subAccounts[i].subOpenId==self.chosenAccount:
                 self.activeAccount=self.session.subAccounts[i]
-                break
-        self.logger.debug(self.activeAccount)
+                self.activeAccount.openToken=self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
         self.uuid=f"{self.session.phone}-{self.activeAccount.nickName}"
         return self.session!=None
 
