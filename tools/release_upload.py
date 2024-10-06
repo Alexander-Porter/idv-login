@@ -45,11 +45,13 @@ def uploadFile(filePath):
 def uploadAllFilesAndGetMarkDown(fileList):
     data={}
     for i in fileList:
+        if i.endswith(".sha256"):
+            continue
         data[i]=uploadFile(i)
     #write markdown
     res=""
     for i in data:
-        res+=(f"[点击下载{i}](https://j.keygen.eu.org/#{data[i]})\n")
+        res+=(f"[点我下载{i}](https://j.keygen.eu.org/#{data[i]})\n")
     return res
 def getLatestRelease():
     headers={"Authorization":"token "+github_token}
@@ -133,7 +135,7 @@ if __name__=='__main__':
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        releaseData["body"]+=('### 备用下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
+        releaseData["body"]+=('\n\n### 下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
         releaseToGitee(releaseData,fileList)
     except:

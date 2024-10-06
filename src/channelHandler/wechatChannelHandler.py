@@ -134,7 +134,7 @@ class wechatChannel(channelmgr.channel):
                 f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}"
             )
             if not r.status_code == 200:
-                self.logger.error(f"Refresh token 过期: {r.text}")
+                self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。{r.text}")
                 self.session = None
                 return self.request_user_login()
             self.session.rtk = r.json().get("refresh_token")

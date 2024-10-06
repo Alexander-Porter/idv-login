@@ -4,10 +4,7 @@ import time
 import requests
 import gevent
 
-#from logutil import setup_logger
-from loguru import logger
-def setup_logger():
-    return logger
+from logutil import setup_logger
 
 #1106682786 is offerid
 def sig_helper(magicValue="5C2F##3[6$^(68#%#D3E96;]35q#FB46",ts="1"):
