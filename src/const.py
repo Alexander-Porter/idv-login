@@ -16,8 +16,10 @@ html = r"""<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>渠道服账号</title>
-    <script src="https://cdn.staticfile.net/sweetalert/2.1.2/sweetalert.min.js"></script>
-    <link href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    
+    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-y/sweetalert/2.1.2/sweetalert.min.js"></script>
+    <link href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-y/bootstrap/5.1.3/css/bootstrap.css" rel="stylesheet">
+    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-y/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
 </head>
 
 <body>
@@ -45,7 +47,7 @@ html = r"""<!DOCTYPE html>
         </table>
     </div>
 
-    <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.bundle.js"></script>
+    
     <script>
         function timeStampToLocalTime(timestamp) {
             return new Date(timestamp * 1000).toLocaleString();
