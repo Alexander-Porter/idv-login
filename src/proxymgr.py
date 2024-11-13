@@ -146,6 +146,9 @@ def proxy(request):
     ]
 
     response = Response(resp.content, resp.status_code, headers)
+    #将请求体和响应体打印到日志
+    logger.debug(f"请求 {request.url} {request.headers}")
+    logger.debug(f"{resp.content}")
     return response
 
 
@@ -372,6 +375,7 @@ def handle_qrcode_query():
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
+        genv.set("CHANNEL_ACCOUNT_SELECTED", "")
         return  proxy(request)
     else:
         logger.info(f"捕获到渠道服登录Token.")
