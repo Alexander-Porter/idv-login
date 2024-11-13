@@ -51,7 +51,10 @@ import winreg as reg
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
-    print("再见!")
+    print("遥测日志已保存至程序工作目录下的log.txt。请将其发给开发者以帮助解决问题。")
+    file = os.path.realpath("log.txt")
+    os.system(f'explorer /select, {file}')
+    input("按任意键退出。")
 
 def handle_update():
     ignoredVersions=genv.get("ignoredVersions",[])
