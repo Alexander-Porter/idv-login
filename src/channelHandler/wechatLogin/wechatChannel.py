@@ -55,7 +55,8 @@ class WechatLogin:
 
         with open("qrcode.png","wb") as f:
             f.write(base64.b64decode(qrcode))
-        gevent.sleep(0.5)
+        #gevent.sleep(0.5)
+        time.sleep(0.5)
         #不要阻塞
         import subprocess
         subprocess.Popen(["start", "qrcode.png"], shell=True)
@@ -67,7 +68,8 @@ class WechatLogin:
             if r.json().get("wx_code") != "":
                 self.logger.info(f"扫码成功{r.json().get('wx_code')}")
                 break
-            gevent.sleep(1)
+            #gevent.sleep(1)
+            time.sleep(1)
 
         verifyData={
             "channel":"00000000",

@@ -20,8 +20,8 @@ import pywintypes
 import sys
 
 
-from gevent import monkey
-monkey.patch_all()
+#from gevent import monkey
+#monkey.patch_all()
 
 import os
 import sys

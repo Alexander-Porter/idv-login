@@ -88,7 +88,8 @@ def G_clipListener(verify,maxAttempt)->str:
             cb.copy("")
             return nowData
         else:
-            gevent.sleep(1)
+            #gevent.sleep(1)
+            time.sleep(1)
     return None
 
 

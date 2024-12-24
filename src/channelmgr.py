@@ -73,7 +73,7 @@ class channel:
             uuid=data.get("uuid", ""),
         )
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    async def get_uniSdk_data(self, game_id: str = ""):
         return {
             "user_id": self.user_info["id"],
             "token": self.user_info["token"],
@@ -187,7 +187,7 @@ class ChannelManager:
         self.channels.append(tmp_channel)
         self.save_records()
 
-    def manual_import(self, channle_name: str, game_id: str):
+    async def manual_import(self, channle_name: str, game_id: str):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
@@ -213,7 +213,7 @@ class ChannelManager:
             tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
 
         try:
-            tmp_channel.request_user_login()
+            await tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():
                 self.channels.append(tmp_channel)
                 self.save_records()
@@ -262,8 +262,8 @@ class ChannelManager:
                 return channel
         return None
 
-    def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
-        channel_data = channel.get_uniSdk_data(game_id)
+    async def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
+        channel_data = await channel.get_uniSdk_data(game_id)
         if not channel_data:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             return False
@@ -285,7 +285,7 @@ class ChannelManager:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             return False
 
-    def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
+    async def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
         for channel in self.channels:
             if channel.uuid == uuid:
                 data = {
@@ -300,7 +300,7 @@ class ChannelManager:
                 }
                 try:
                     if scanner_uuid=="Kinich":
-                        return channel.get_uniSdk_data()
+                        return await channel.get_uniSdk_data()
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
                         params=data,
@@ -308,7 +308,7 @@ class ChannelManager:
                     )
                     self.logger.info(f"模拟扫码请求: {r.json()}")
                     if r.status_code == 200:
-                        return self.simulate_confirm(channel, scanner_uuid, game_id)
+                        return await self.simulate_confirm(channel, scanner_uuid, game_id)
                     else:
                         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                         return False

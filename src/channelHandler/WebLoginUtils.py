@@ -1,111 +1,78 @@
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtCore
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
-from PyQt5.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
-from PyQt5.QtCore import QUrl, QTimer
-from PyQt5.QtCore import pyqtSlot
-from envmgr import genv
+from playwright.async_api import async_playwright
 from logutil import setup_logger
-class WebBrowser(QWidget):
-    class WebEngineView(QWebEngineView):
-        def createWindow(self, QWebEnginePage_WebWindowType):
-            page = QWebEngineView(self)
-            page.urlChanged.connect(self.on_url_changed)
-            return page
+from envmgr import genv
+import os
+import asyncio
 
-        def on_url_changed(self, url):
-            self.setUrl(url)
-
-    def __init__(self,name="WebLoginDefault",keepCookie=True):
-        self.app = QApplication.instance()
-        self.logger=setup_logger()
-        super().__init__()
-        self.view = self.WebEngineView()
-        tmpName=genv.get("GLOB_LOGIN_UUID","")
-        name=tmpName if tmpName!="" else name
-        try:
-            self.profile:QWebEngineProfile =  QWebEngineProfile(name)
-            self.logger.info(f"Profile创建成功: {name}")
-        except Exception as e:
-            self.logger.error(f"Profile创建失败： {e}")
-            raise
-
-        #cookie相关
-        if keepCookie:
-            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
-        else:
-            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
-        self.profile.cookieStore().cookieAdded.connect(self.cookie_added)
-        
-        #page相关
-        self.view.setPage(QWebEnginePage(self.profile, self.view))
-        self.page = self.view.page()
+class WebBrowser:
+    def __init__(self, name="WebLoginDefault", keep_cookie=True):
+        self.logger = setup_logger()
+        self.name = name
+        self.keep_cookie = keep_cookie
         self.cookies = {}
         self.result = ""
-        self.page.loadFinished.connect(self.on_load_finished)
-        self.page.urlChanged.connect(self.handle_url_change)
+        self.uuid = genv.get("GLOB_LOGIN_UUID","")
+        
+    async def initialize(self):
+        if not os.path.exists(self.uuid):
+            os.makedirs(self.uuid)
+        user_data_dir = os.path.join(os.getcwd(), self.uuid)
+        self.playwright = await async_playwright().start()
+        self.context = await self.playwright.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=False,
+            channel="msedge",
+            args=["--start-maximized"],
+        )
 
-        # 创建清除Cookie按钮
-        self.clear_cookie_button = QPushButton("强制退登")
-        self.clear_cookie_button.clicked.connect(self.clear_cookies)
+        if not self.keep_cookie:
+            await self.context.clear_cookies()
 
-        # 设置布局
-        self.toolBarLayout=QHBoxLayout()
-        self.toolBarLayout.addWidget(self.clear_cookie_button)
+        self.page = await self.context.new_page()
+        self.page.on("load", lambda: asyncio.create_task(self.handle_url_change()))
+        self.logger.info("Browser initialized.")
 
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.view)
-        self.layout.addLayout(self.toolBarLayout)
-        self.setLayout(self.layout)
 
-        #窗口置顶
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        #设置窗口大小
-        self.resize(1000, 1000)
+    async def set_url(self, url):
+        await self.page.goto(url)
 
-    def set_url(self, url):
-        self.view.load(QUrl(url))
-
-    @pyqtSlot(bool)
     def on_load_finished(self, success):
-        pass
+        if success:
+            self.logger.info("Page loaded successfully")
+        else:
+            self.logger.error("Page failed to load")
 
-
-    def handle_url_change(self, url):
-        self.logger.debug(f"URL changed: {url.toString()}")
-        if self.verify(url.toString()):
-            if self.parseReslt(url.toString()):
+    async def handle_url_change(self):
+        url = self.page.url
+        self.logger.debug(f"URL changed: {url}")
+        if self.verify(url):
+            if self.parse_result(url):
                 self.cleanup()
 
-    def export_cookie(self):
+    async def export_cookie(self):
+        self.cookies = await self.context.cookies()
+        self.logger.debug(f"Exported cookies: {self.cookies}")
         return self.cookies
-
-    def cookie_added(self, cookie):
-        self.logger.debug(f"Cookie added: {cookie.name().data().decode()}")
-        self.cookies[cookie.name().data().decode()] = cookie.value().data().decode()
 
     def verify(self, url):
         return True
 
-    def parseReslt(self, url):
+    def parse_result(self, url):
         self.result = url
         return True
 
-    def clear_cookies(self):
-        cookie_store = self.profile.cookieStore()
-        cookie_store.deleteAllCookies()
-        #重载页面
-        self.view.reload()
+    async def clear_cookies(self):
+        await self.context.clear_cookies()
+        self.logger.info("Cookies cleared.")
 
-    def run(self):
-        self.show()
-        self.app.exec_()
+    async def run(self):
+        await self.page.wait_for_event("close", timeout=0)
+        #self.page.on("framenavigated", self.handle_url_change)
+        
         return self.result
 
-    def cleanup(self):
-        #self.view.setPage(None)
-        self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
-        self.close()
-
-    
+    async def cleanup(self):
+        self.logger.info("Cleaning up resources.")
+        await self.page.close()
+        await self.context.close()
+        await self.playwright.stop()

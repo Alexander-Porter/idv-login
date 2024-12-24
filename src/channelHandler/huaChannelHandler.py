@@ -84,16 +84,16 @@ class huaweiChannel(channelmgr.channel):
         self.uniData = None
         self.session: huaweiLoginResponse = None
 
-    def request_user_login(self):
+    async def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
-        self.huaweiLogin.newOAuthLogin()
+        await self.huaweiLogin.newOAuthLogin()
         self.refreshToken = self.huaweiLogin.refreshToken
         self.logger.debug(self.refreshToken)
         return self.refreshToken != None
 
-    def _get_session(self):
+    async def _get_session(self):
         try:
-            data = self.huaweiLogin.initAccountData()
+            data = await self.huaweiLogin.initAccountData()
             res = huaweiLoginResponse(data)
         except Exception as e:
             self.logger.error(f"{e}")
@@ -176,16 +176,15 @@ class huaweiChannel(channelmgr.channel):
         else:
             return str(self.session.playerLevel)
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    async def get_uniSdk_data(self, game_id: str = ""):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
-
         if not self.is_token_valid():
-            self.request_user_login()
-        if self._get_session() == None:
+            await self.request_user_login()
+        if await self._get_session() == None:
             return None
         self.uniBody = channelUtils.buildSAUTH(
             self.channel_name,
