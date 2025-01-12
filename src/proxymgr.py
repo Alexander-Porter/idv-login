@@ -156,7 +156,7 @@ def requestPostAsCv(request, cv):
         new_body = request.get_json()
         new_body["cv"] = cv
         new_body.pop("arch", None)
-    except:
+    except Exception as e:
         new_body = dict(x.split("=") for x in request.get_data(as_text=True).split("&"))
         new_body["cv"] = cv
         new_body.pop("arch", None)
@@ -449,33 +449,40 @@ class proxymgr:
         
 
     def check_port(self):
-        with os.popen('netstat -ano | findstr ":443"') as r:
-            r = r.read().split("\n")
-        for cur in r:
-            info = [i for i in cur.split(" ") if i != ""]
-            if len(info) > 4:
-                if info[1].find(":443") != -1:
-                    t_pid = info[4]
-                    try:
-                        readable_exe_name=psutil.Process(int(t_pid)).exe()
-                    except:
-                        readable_exe_name="未知程序"
-                        logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                        return True
-                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
-                    input()
-                    if t_pid=='4':
-                        subprocess.check_call(
-                            ['net','stop','http','/y'],
-                            shell=True
+        def is_port_in_use(port, host='127.0.0.1'):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind((host, port))
+                    return False  # 端口未被占用
+                except socket.error:
+                    return True  # 端口被占用
+        if is_port_in_use(443):
+            with os.popen('netstat -ano | findstr ":443"') as netstat_output:
+                netstat_output = netstat_output.read().split("\n")
+            for cur in netstat_output:
+                info = [i for i in cur.split(" ") if i != ""]
+                if len(info) > 4:
+                    if info[1].find(":443") != -1:
+                        t_pid = info[4]
+                        try:
+                            readable_exe_name=psutil.Process(int(t_pid)).exe()
+                        except psutil.AccessDenied:
+                            readable_exe_name = "权限不足"
+                            logger.warning(f"读取进程{t_pid}的可执行文件名失败！权限不足。")
+                            return
+                        logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
+                        input()
+                        if t_pid=='4':
+                            subprocess.check_call(
+                                ['net','stop','http','/y'],
+                                shell=True
+                                )
+                        else:
+                            subprocess.check_call(
+                                ["taskkill", "/f", "/pid", t_pid],
+                                shell=True
                             )
-                    else:
-                        subprocess.check_call(
-                            ["taskkill", "/f", "/im", t_pid],
-                            shell=True
-                        )
-                    #gevent.sleep(2)
-                    break
+                        break
 
     def run(self):
         from dnsmgr import DNSResolver
@@ -489,7 +496,7 @@ class proxymgr:
             try:
                 if (
                     target is None
-                    or g_req.get(f"https://{target}", verify=False).status_code != 200
+                    or g_req.get(f"https://{target}", verify=False,headers={"Host":domain}).status_code != 200
                 ):
                     logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
