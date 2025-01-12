@@ -166,6 +166,46 @@ class ChannelManager:
         self.logger.info("渠道服登录信息已更新")
 
     def list_channels(self,game_id: str):
+        from channelHandler.miChannelHandler import miChannel
+        from channelHandler.huaChannelHandler import huaweiChannel
+        from channelHandler.vivoChannelHandler import vivoChannel
+        from channelHandler.wechatChannelHandler import wechatChannel
+        if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
+            with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
+                try:
+                    data = json.load(file)
+                    for item in data:
+                        if "login_info" in item.keys():
+                            channel_name = item["login_info"]["login_channel"]
+                            if channel_name == "xiaomi_app":
+
+                                tmpChannel: miChannel = miChannel.from_dict(item)
+                                # if tmpChannel.is_token_valid():
+                                self.channels.append(tmpChannel)
+                                # else:
+                                #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name == "huawei":
+                                tmpChannel: huaweiChannel = huaweiChannel.from_dict(item)
+                                # if tmpChannel.is_token_valid():
+                                self.channels.append(tmpChannel)
+                                # else:
+                                #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name =="nearme_vivo":
+                                tmpChannel: vivoChannel = vivoChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
+                            elif channel_name == "myapp" and item["uuid"].startswith("wx-"):
+                                tmpChannel:wechatChannel=wechatChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
+                            else:
+                                self.channels.append(channel.from_dict(item))
+                except:
+                    self.logger.exception(f"读取渠道服登录信息失败。已经清空渠道服信息。")
+                    with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
+                        json.dump([], f)
+        else:
+            with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
+                json.dump([], f)
+            self.channels = []
         return sorted(
             [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
@@ -187,27 +227,27 @@ class ChannelManager:
         self.channels.append(tmp_channel)
         self.save_records()
 
-    def manual_import(self, channle_name: str, game_id: str):
+    def _manual_import(self, channel_name: str, game_id: str):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
-            "login_channel": channle_name,
+            "login_channel": channel_name,
             "src_client_country_code": "CN",
         }
-        if channle_name == "xiaomi_app":
+        if channel_name == "xiaomi_app":
             from channelHandler.miChannelHandler import miChannel
 
             tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
-        if channle_name == "huawei":
+        if channel_name == "huawei":
             from channelHandler.huaChannelHandler import huaweiChannel
 
             tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
-        if channle_name == "nearme_vivo":
+        if channel_name == "nearme_vivo":
             from channelHandler.vivoChannelHandler import vivoChannel
 
             tmp_channel: vivoChannel = vivoChannel(tmpData,game_id=game_id)
 
-        if channle_name == "myapp":
+        if channel_name == "myapp":
             from channelHandler.wechatChannelHandler import wechatChannel
             tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
             tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
@@ -223,6 +263,16 @@ class ChannelManager:
                 return False
         except:
             self.logger.exception(f"手动导入失败: {tmp_channel.name}")
+            return False
+        
+    def manual_import(self, channel_name: str, game_id: str):
+        if channel_name in ["xiaomi_app","huawei","nearme_vivo"]:
+            import subprocess
+            from jobUtils import run_job
+            
+            return run_job("import",channel_name,game_id)
+        else:
+            self.logger.error(f"不支持手动导入的渠道服: {channel_name}")
             return False
 
     def login(self, uuid: str):
@@ -285,7 +335,7 @@ class ChannelManager:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             return False
 
-    def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
+    def _simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
         for channel in self.channels:
             if channel.uuid == uuid:
                 data = {
@@ -317,3 +367,16 @@ class ChannelManager:
                     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                     return False
         return None
+    
+    def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
+        channel=None
+        for i in self.channels:
+            if i.uuid == uuid:
+                channel=i
+        if channel:
+            if channel.channel_name in ["xiaomi_app","huawei","nearme_vivo"]:
+                from jobUtils import run_job
+                return run_job("scan",uuid,scanner_uuid,game_id)
+            return self._simulate_scan(uuid, scanner_uuid, game_id)
+        else:
+            return None

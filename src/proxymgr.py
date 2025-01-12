@@ -18,9 +18,8 @@
 
 
 import logging
-from flask import Flask, request, Response, jsonify
-from gevent import pywsgi
-import gevent
+from quart import Quart, request, Response, jsonify
+
 from envmgr import genv
 from logutil import setup_logger
 
@@ -33,7 +32,7 @@ import const
 import subprocess
 
 
-app = Flask(__name__)
+app = Quart(__name__)
 logger=setup_logger()
 
 
@@ -254,13 +253,9 @@ def handle_create_login():
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
                 uuid=genv.get(f"auto-{request.args['game_id']}")
                 genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
-                gevent.spawn_later(
-                    1,
-                    genv.get("CHANNELS_HELPER").simulate_scan,
-                    uuid,
-                    data["uuid"],
-                    data["game_id"]
-                )
+                import asyncio
+                asyncio.create_task(genv.get("CHANNELS_HELPER").simulate_scan(uuid,data["uuid"],data["game_id"]))
+
         new_config = resp.get_json()
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
@@ -308,10 +303,10 @@ def _rename_channel():
 
 @app.route("/_idv-login/import", methods=["GET"])
 def _import_channel():
-    resp={
-        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"])
-    }
-    return jsonify(resp)
+    import asyncio
+    asyncio.run(genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"]))
+    return jsonify({"success":True})
+
 
 @app.route("/_idv-login/setDefault", methods=["GET"])
 def _set_default_channel():
@@ -398,14 +393,14 @@ def globalProxy(path):
         return requestPostAsCv(request, "i4.7.0")
 
 @app.after_request
-def after_request_func(response:Response):
+async def after_request_func(response: Response):
     #只log出现错误的请求
     if response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
         if response.status_code==404:
             if ".ico" in request.url:
                 return response
-        logger.error(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
-        logger.error(f"发送 {response.status} {response.headers} {response.get_data().decode()}")
+        #logger.error(f"请求 {request.url} {request.headers} {(await request.get_data()).decode()}")
+        #logger.error(f"发送 {response.status} {response.headers} {(await response.get_data()).decode()}")
     else:
         logger.debug(f"请求 {request.url} {response.status}")
     return response
@@ -443,7 +438,7 @@ class proxymgr:
                             ["taskkill", "/f", "/im", t_pid],
                             shell=True
                         )
-                    gevent.sleep(2)
+                    #gevent.sleep(2)
                     break
 
     def run(self):
@@ -475,18 +470,13 @@ class proxymgr:
         import logging
         web_logger=logging.getLogger("web")
         web_logger.setLevel(logging.WARN)
-        server = pywsgi.WSGIServer(
-                listener=("127.0.0.1", 443),
-                certfile=genv.get("FP_WEBCERT"),
-                keyfile=genv.get("FP_WEBKEY"),
-                application=app,
-                log=web_logger,
-            )
+        
+
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
-            server.serve_forever()
+            app.run(host="127.0.0.1", port=443, certfile=genv.get("FP_WEBCERT"), keyfile=genv.get("FP_WEBKEY"),debug=True)
             return True
         else:
             logger.error("检测拦截目标域名失败！请将程序加入杀毒软件白名单后重试。")

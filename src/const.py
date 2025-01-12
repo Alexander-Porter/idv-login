@@ -31,6 +31,10 @@ html = r"""<!DOCTYPE html>
             <p>当前自动登录账号：<strong id="default">Empty</strong></p>
             <button onclick="clearDefault()">清除自动登录</button>
         </div>
+        <div>
+            <input type="checkbox" id="selectAll" onclick="toggleSelectAll()"> 全选
+            <button onclick="batchDelete()">批量删除</button>
+        </div>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -41,17 +45,17 @@ html = r"""<!DOCTYPE html>
                     <th scope="col">操作</th>
                 </tr>
             </thead>
-            <tbody id="channelTableBody">
+            <tbody id="channelTableBody"></tbody>
                 <!-- 账号记录将在这里显示 -->
             </tbody>
         </table>
     </div>
 
-    
     <script>
         function timeStampToLocalTime(timestamp) {
             return new Date(timestamp * 1000).toLocaleString();
         };
+
         function renameChannel(uuid) {
             var newName = prompt("请输入新的账号名称");
             if (newName) {
@@ -96,6 +100,7 @@ html = r"""<!DOCTYPE html>
                     }
                 });
         }
+
         function defaultChannel(uuid) {
             game_id = getQueryVariable("game_id");
             fetch(`/_idv-login/setDefault?uuid=${uuid}&game_id=${game_id}`)
@@ -133,9 +138,32 @@ html = r"""<!DOCTYPE html>
             }
             return ("");
         }
-        // 在页面加载时获取账号列表
+
+        function toggleSelectAll() {
+            var checkboxes = document.querySelectorAll('#channelTableBody input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = document.getElementById('selectAll').checked);
+        }
+
+        function batchDelete() {
+            var selectedCheckboxes = document.querySelectorAll('#channelTableBody input[type="checkbox"]:checked');
+            var uuids = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+            if (uuids.length > 0 && confirm("确定要删除选中的账号吗？")) {
+                uuids.forEach(uuid => {
+                    fetch(`/_idv-login/del?uuid=${uuid}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                swal('账号已成功删除');
+                                location.reload();
+                            } else {
+                                swal('删除失败');
+                            }
+                        });
+                });
+            }
+        }
+
         window.onload = function () {
-            //获得query参数game_id
             game_id = getQueryVariable("game_id");
             fetch('/_idv-login/list?game_id=' + game_id)
                 .then(response => response.json())
@@ -176,23 +204,20 @@ html = r"""<!DOCTYPE html>
                         document.getElementById('default').innerText = data.uuid;
                     }
                 });
-
         }
-        function manual() {
-            //获取channelSelect的值
-            var selectedChannel = document.getElementById('channelSelect').value;
-            
-            fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    swal('执行成功');
-                                    location.reload();
-                                } else {
-                                    swal('执行失败，请检查工具日志');
-                                }
-                            });
 
+        function manual() {
+            var selectedChannel = document.getElementById('channelSelect').value;
+            fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        swal('执行成功');
+                        location.reload();
+                    } else {
+                        swal('执行失败，请检查工具日志');
+                    }
+                });
         }
     </script>
 </body>
