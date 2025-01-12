@@ -116,9 +116,10 @@ def setup_workpath():
 def setup_global_vars():
     global m_certmgr, m_hostmgr, m_proxy, m_cloudres
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
-    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
+    genv.set("MI_DOMAIN", "account.xiaomi.com")
+    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_e.pem"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
-    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
+    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_3.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
@@ -237,48 +238,43 @@ if __name__ == "__main__":
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     logger.info(sys.argv)
     
-    #获取启动参数，如果是import channel_name game_id则调用导入模块
-    if len(sys.argv)>1:
-        setup_global_vars()
-        setup_cloud_resources()
-        setup_fake_device()
-        if user_name is not None and not all(ord(char) < 128 for char in user_name):
-            logger.error(f"用户名包含非ASCII字符: {user_name}，将导致华为、小米、VIVO账号登录失败！")
-            logger.error("如有相关需求，请将用户名修改为纯ASCII字符后重试！具体请参见常见问题解决文档。")
-        try:
-            if sys.argv[1]=="import":
-                if len(sys.argv)>3:
-                    logger.info("初始化内置浏览器")
-                    from PyQt5.QtWidgets import QApplication
-                    from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
-                    from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
-                    from PyQt5.QtNetwork import QNetworkProxyFactory
-                    genv.set("APP",QApplication([]))
-                    QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
-                    QNetworkProxyFactory.setUseSystemConfiguration(False);
-
+    def handle_startup_arguments():
+        # 获取启动参数，如果是import channel_name game_id则调用导入模块
+        if len(sys.argv) > 1:
+            setup_global_vars()
+            setup_cloud_resources()
+            setup_fake_device()
+            if user_name is not None and not all(ord(char) < 128 for char in user_name):
+                logger.error(f"用户名包含非ASCII字符: {user_name}，将导致华为、小米、VIVO账号登录失败！")
+                logger.error("如有相关需求，请将用户名修改为纯ASCII字符后重试！具体请参见常见问题解决文档。")
+            try:
+                if sys.argv[1] == "import" and len(sys.argv) > 3:
+                    initialize_browser()
                     from channelmgr import ChannelManager
-                    ChannelManager()._manual_import(sys.argv[2],sys.argv[3])
+                    ChannelManager()._manual_import(sys.argv[2], sys.argv[3])
                     sys.exit(0)
-            elif sys.argv[1]=="scan":
-                if len(sys.argv)>4:
-                    logger.info("初始化内置浏览器")
-                    from PyQt5.QtWidgets import QApplication
-                    from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
-                    from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
-                    from PyQt5.QtNetwork import QNetworkProxyFactory
-                    genv.set("APP",QApplication([]))
-                    QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
-                    QNetworkProxyFactory.setUseSystemConfiguration(False);
-
+                elif sys.argv[1] == "scan" and len(sys.argv) > 4:
+                    initialize_browser()
                     from channelmgr import ChannelManager
-                    ChannelManager()._simulate_scan(sys.argv[2],sys.argv[3],sys.argv[4])
+                    ChannelManager()._simulate_scan(sys.argv[2], sys.argv[3], sys.argv[4])
                     sys.exit(0)
-        except Exception as e:
-            logger.exception(f"启动参数解析时发生异常:{e}")
-            logger.error("启动参数格式错误！")
-            os.system("pause")
-            sys.exit(-1)
+            except Exception as e:
+                logger.exception(f"启动参数解析时发生异常: {e}")
+                logger.error("启动参数格式错误！")
+                os.system("pause")
+                sys.exit(-1)
+
+    def initialize_browser():
+        logger.info("初始化内置浏览器")
+        from PyQt5.QtWidgets import QApplication
+        from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
+        from PyQt5.QtNetwork import QNetworkProxyFactory
+        genv.set("APP", QApplication([]))
+        QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
+        QNetworkProxyFactory.setUseSystemConfiguration(False)
+
+    handle_startup_arguments()
     try:
         cloudBuildInfo()
         initialize()
@@ -309,7 +305,7 @@ if __name__ == "__main__":
 
             srv_key = m_certmgr.generate_private_key(bits=2048)
             srv_cert = m_certmgr.generate_cert(
-                [genv.get("DOMAIN_TARGET"), "localhost"], srv_key, ca_cert, ca_key
+                [genv.get("DOMAIN_TARGET"), "localhost",genv.get("MI_DOMAIN")], srv_key, ca_cert, ca_key
             )
 
             if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
@@ -329,6 +325,7 @@ if __name__ == "__main__":
             )
         else:
             m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+            m_hostmgr.add(genv.get("MI_DOMAIN"), "127.0.0.1")
             m_hostmgr.add("localhost", "127.0.0.1")
 
         logger.info("正在启动代理服务器...")

@@ -272,8 +272,7 @@ class ChannelManager:
             
             return run_job("import",channel_name,game_id)
         else:
-            self.logger.error(f"不支持手动导入的渠道服: {channel_name}")
-            return False
+            return self._manual_import(channel_name,game_id)
 
     def login(self, uuid: str):
         for channel in self.channels:

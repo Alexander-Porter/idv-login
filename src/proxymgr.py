@@ -18,7 +18,7 @@
 
 
 import logging
-from quart import Quart, request, Response, jsonify
+from quart import Quart, Request, request, Response, jsonify
 
 from envmgr import genv
 from logutil import setup_logger
@@ -392,6 +392,42 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request, "i4.7.0")
 
+@app.before_request
+async def before_request_func():
+    #读取hosts，如果是某个特定域名，则直接返回
+    if request.host==genv.get("MI_DOMAIN"):
+        logger.info(f"请求 {request.url} {request.headers}")
+        query = request.args.copy()
+        new_body = await request.get_data(as_text=True)
+        # 向目标服务发送代理请求
+        resp = requests.request(
+            method=request.method,
+            url=genv.get("MI_IP") + request.path,
+            params=query,
+            headers=request.headers,
+            data=new_body,
+            cookies=request.cookies,
+            allow_redirects=False,
+            verify=False,
+        )
+        app.logger.info(resp.url)
+        # 构造代理响应
+        excluded_headers = [
+            "content-encoding",
+            "content-length",
+            "transfer-encoding",
+            "connection",
+        ]
+        headers = [
+            (name, value)
+            for (name, value) in resp.raw.headers.items()
+            if name.lower() not in excluded_headers
+        ]
+
+        response = Response(resp.content, resp.status_code, headers)
+        return response
+    else:
+        return None
 @app.after_request
 async def after_request_func(response: Response):
     #只log出现错误的请求
@@ -445,26 +481,30 @@ class proxymgr:
         from dnsmgr import DNSResolver
 
         resolver = DNSResolver()
-        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-        logger.info(target)
-        
-        # result check
-        try:
-            if (
-                target == None
-                or g_req.get(f"https://{target}", verify=False).status_code != 200
-            ):
+        def resolve_target(domain,default_address):
+            target = resolver.gethostbyname(domain)
+            logger.info(target)
+            
+            # result check
+            try:
+                if (
+                    target is None
+                    or g_req.get(f"https://{target}", verify=False).status_code != 200
+                ):
+                    logger.warning(
+                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
+                    )
+                    target = default_address
+            except:
                 logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
                 )
-                target = "42.186.193.21"
-        except:
-            logger.warning(
-                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
-            )
-            target = "42.186.193.21"
+                target = default_address
+            return target
+        genv.set("URI_REMOTEIP", "https://"+resolve_target(genv.get("DOMAIN_TARGET"),"42.186.193.21"))
+        genv.set("MI_IP", "https://"+resolve_target(genv.get("MI_DOMAIN"),"39.156.81.45"))
+        
 
-        genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
         #创建一个空日志
         import logging
