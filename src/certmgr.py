@@ -21,6 +21,7 @@ import sys
 import datetime
 from cryptography import x509
 from cryptography.x509.oid import NameOID
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from typing import List
@@ -135,6 +136,12 @@ class certmgr:
             return False
         else:
             return True
+
+    def get_certificate_expiry_date(cert_path):
+        with open(cert_path, "rb") as cert_file:
+            cert_data = cert_file.read()
+            cert = x509.load_pem_x509_certificate(cert_data, default_backend())
+            return cert.not_valid_after
 
     def export_key(self, fn, key):
         try:

@@ -20,7 +20,7 @@ import pywintypes
 import sys
 
 m_certmgr,m_hostmgr,m_proxy=None,None,None
-from logutil import setup_logger
+
 
 import os
 import sys
@@ -50,6 +50,7 @@ import winreg as reg
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
+    m_hostmgr.remove(genv.get("MI_DOMAIN"))
     print("再见!")
 
 def handle_update():
@@ -117,9 +118,9 @@ def setup_global_vars():
     global m_certmgr, m_hostmgr, m_proxy, m_cloudres
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("MI_DOMAIN", "account.xiaomi.com")
-    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_e.pem"))
+    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_4.pem"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
-    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_3.pem"))
+    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_4.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
@@ -229,13 +230,15 @@ if __name__ == "__main__":
     kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     user_name = get_current_username()
-    logger=setup_logger()
+    
 
     genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
     print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
+    from logutil import setup_logger
+    logger=setup_logger()
     logger.info(sys.argv)
     
     def handle_startup_arguments():
@@ -307,6 +310,7 @@ if __name__ == "__main__":
             srv_cert = m_certmgr.generate_cert(
                 [genv.get("DOMAIN_TARGET"), "localhost",genv.get("MI_DOMAIN")], srv_key, ca_cert, ca_key
             )
+            #, "localhost",genv.get("MI_DOMAIN")
 
             if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
                 logger.error("导入CA证书失败!")

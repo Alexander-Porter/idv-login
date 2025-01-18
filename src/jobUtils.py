@@ -19,5 +19,6 @@ def run_job(*args):
     # 拼接命令
     command = f"{executable_path} {' '.join(args)}"
     # 执行命令
-    os.system(command)
+    result = os.system(command)
+    return result == 0
 

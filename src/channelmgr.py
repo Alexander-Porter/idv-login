@@ -170,6 +170,7 @@ class ChannelManager:
         from channelHandler.huaChannelHandler import huaweiChannel
         from channelHandler.vivoChannelHandler import vivoChannel
         from channelHandler.wechatChannelHandler import wechatChannel
+        self.channels=[]
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
                 try:
