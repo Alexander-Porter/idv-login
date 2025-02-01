@@ -1,6 +1,7 @@
 cryptography==42.0.8
 Faker
-Flask
+hypercorn
+quart
 gevent
 psutil
 pycryptodome
