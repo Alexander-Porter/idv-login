@@ -207,7 +207,7 @@ def initialize():
 
     if user_name is not None and not all(ord(char) < 128 for char in user_name):
         logger.warning(f"用户名包含非ASCII字符: {user_name}，如中文，可能导致华为、小米、VIVO渠道服登录异常！")
-        logger.warning("如有相关需求，请将用户名修改为纯英文后重试！具体请参见常见问题解决文档。")
+        logger.warning("如有相关需求，请参见《常见问题解决文档》问题18。")
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")

@@ -411,7 +411,20 @@ def handle_qrcode_query():
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        return  proxy(request)
+        resp=  proxy(request)
+        try:
+            # 尝试读取 form 数据
+            form_data = request.form.to_dict()
+            logger.debug(f"数据上传内容: {form_data}")
+        except Exception as e:
+            logger.error(f"解析上传数据失败: {e}")
+            return resp
+        game_id = form_data.get("game_id", "")
+        if resp.status_code==200 and genv.get(f"auto-close-{game_id}", False):
+            logger.info("检测到登录已完成请求，即将自动关闭程序...")
+            # 使用 gevent 延迟退出，确保响应能够正常返回
+            gevent.spawn_later(3, sys.exit, 0)
+        return resp
     else:
         logger.info(f"捕获到渠道服登录Token.")
         resp: Response = proxy(request)
@@ -437,7 +450,7 @@ def handle_data_upload():
     try:
         # 尝试读取 form 数据
         form_data = request.form.to_dict()
-        logger.info(f"数据上传内容: {form_data}")
+        logger.debug(f"数据上传内容: {form_data}")
     except Exception as e:
         logger.error(f"解析上传数据失败: {e}")
         return resp
