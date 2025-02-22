@@ -3,3 +3,8 @@ dist/
 *.spec
 log.txt
 *.pyc
+/.vs
+main.dist/
+main.build/
+src/buildinfo.py
+.vscode/

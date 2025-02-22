@@ -16,17 +16,33 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 import json
+import string
 import time
 import base64
 import channelmgr
 
 from envmgr import genv
 from logutil import setup_logger
-from channelHandler.miLogin.miChannel import MiLogin
 from channelHandler.channelUtils import getShortGameId
+from channelHandler.huaLogin.huaChannel import HuaweiLogin
 
 
-class miChannel(channelmgr.channel):
+class huaweiLoginResponse:
+    def __init__(self, rawJson: dict) -> None:
+        self.playerLevel = rawJson.get("playerLevel")
+        self.unionId = rawJson.get("unionId")
+        self.openIdSign = rawJson.get("openIdSign")
+        self.openId = rawJson.get("openId")
+        self.gameAuthSign = rawJson.get("gameAuthSign")
+        self.playerId = rawJson.get("playerId")
+        self.ts = rawJson.get("ts")
+    
+    def __str__(self) -> str:
+        return f"playerLevel:{self.playerLevel},unionId:{self.unionId},openIdSign:{self.openIdSign},openId:{self.openId},gameAuthSign:{self.gameAuthSign},playerId:{self.playerId},ts:{self.ts}"
+
+
+class huaweiChannel(channelmgr.channel):
+
     def __init__(
         self,
         login_info: dict,
@@ -36,9 +52,8 @@ class miChannel(channelmgr.channel):
         create_time: int = int(time.time()),
         last_login_time: int = 0,
         name: str = "",
-        oAuthData: dict = {},
+        refreshToken: str = "",
         game_id: str = "",
-        account_type: int = 4,
     ) -> None:
         super().__init__(
             login_info,
@@ -49,48 +64,47 @@ class miChannel(channelmgr.channel):
             last_login_time,
             name,
         )
-        self.oAuthData = oAuthData
+        self.refreshToken = refreshToken
         self.logger = setup_logger()
-        self.crossGames = False
-        # Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
+        self.crossGames = True
+        # To DO: Use Actions to auto update game_id-app_id mapping by uploading an APK.
+        # this is a temporary solution for IDV
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
+        # find cloudConfig
         cloudRes = genv.get("CLOUD_RES")
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
-            Exception(
-                f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。"
-            )
+            Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
             return
-        self.miLogin = MiLogin(
-            res.get(self.channel_name).replace("mi_", ""), self.oAuthData, account_type
-        )
+        self.huaweiLogin = HuaweiLogin(res.get(self.channel_name), self.refreshToken)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
-        self.account_type = account_type
+        self.session: huaweiLoginResponse = None
 
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
-        self.miLogin.webLogin()
-        self.oAuthData = self.miLogin.oauthData
-        self.account_type = self.miLogin.account_type
-        self.logger.info(f"小米登录类型：{self.account_type}")
-        self.logger.debug(self.oAuthData)
-        return self.oAuthData != None
+        self.huaweiLogin.newOAuthLogin()
+        self.refreshToken = self.huaweiLogin.refreshToken
+        self.logger.debug(self.refreshToken)
+        return self.refreshToken != None
 
     def _get_session(self):
         try:
-            data = self.miLogin.initAccountData()
+            data = self.huaweiLogin.initAccountData()
+            res = huaweiLoginResponse(data)
         except Exception as e:
-            self.logger.error(f"Failed to get session data {e}")
-            self.oAuthData = None
-            return None, None
-        return data["appAccountId"], data["session"]
+            self.logger.error(f"{e}")
+            self.logger.error(f"Failed to get session data {data}")
+            self.refreshToken = None
+            return None
+        self.session = res
+        return res
 
     def is_token_valid(self):
-        if self.oAuthData is None:
+        if self.refreshToken is None:
             self.logger.info(f"Token is invalid for {self.name}")
             return False
         return True
@@ -105,29 +119,29 @@ class miChannel(channelmgr.channel):
             create_time=data.get("create_time", int(time.time())),
             last_login_time=data.get("last_login_time", 0),
             name=data.get("name", ""),
-            oAuthData=data.get("oAuthData", None),
+            refreshToken=data.get("refreshToken", None),
             game_id=data.get("game_id", ""),
-            account_type=data.get("account_type", 4),
         )
 
-    def get_sdk_udid(self):
-        return self.oAuthData["uuid"]
-
     def _build_extra_unisdk_data(self) -> str:
+        fd = genv.get("FAKE_DEVICE")
         res = {
             "SAUTH_STR": "",
             "SAUTH_JSON": "",
-            "extra_data": "",
-            "realname": "",
-            "get_access_token": "1",
         }
-        extra = json.dumps({"adv_channel": "0", "adid": "0"})
-        realname = json.dumps({"realname_type": 0, "age": 18})
+        extra_data = {
+            "anonymous": "",
+            "get_access_token": "0",
+            "extra_data": self._get_extra_data(),
+            "timestamp": self.session.ts,
+            "realname": json.dumps({"realname_type": 0, "duration": 0}),
+        }
+        res.update(extra_data)
         json_data = {
-            "extra_data": extra,
-            "get_access_token": "1",
-            "sdk_udid": self.get_sdk_udid(),
-            "realname": realname,
+            "extra_data": extra_data.get("extra_data"),
+            "get_access_token": "0",
+            "sdk_udid": fd["udid"],
+            "realname": extra_data.get("realname"),
         }
         json_data.update(self.uniBody)
 
@@ -137,9 +151,30 @@ class miChannel(channelmgr.channel):
 
         res["SAUTH_STR"] = base64.b64encode(str_data.encode()).decode()
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
-        res["extra_data"] = extra
-        res["realname"] = realname
         return json.dumps(res)
+    
+    def _get_extra_data(self):
+        self.logger.info(f"{getShortGameId(self.game_id)}")
+        if getShortGameId(self.game_id)=='g37':
+            self.logger.info(f"游戏{getShortGameId(self.game_id)}-需要HMS AccessToken, 二次登录中")
+            #self.logger.info(self.huaweiLogin.startPlay())
+            #if self.huaweiLogin.newHMSOAuth():
+            if True:
+                self.logger.info(self.session)
+                self.logger.info(self.huaweiLogin.accessToken)
+                ext={}
+                ext["playerLevel"]=str(self.session.playerLevel)
+                sdk={}
+                sdk["transtition_version"]=1
+                sdk["openId"]=self.session.openId
+                sdk["accessToken"]=self.huaweiLogin.accessToken
+                ext["sdk_info"]=sdk
+                return json.dumps(ext)
+            else:
+                self.logger.error(f"游戏{getShortGameId(self.game_id)}-HMS登录失败")
+                return ""
+        else:
+            return str(self.session.playerLevel)
 
     def get_uniSdk_data(self, game_id: str = ""):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
@@ -150,30 +185,37 @@ class miChannel(channelmgr.channel):
 
         if not self.is_token_valid():
             self.request_user_login()
-        appAccountId, session = self._get_session()
+        if self._get_session() == None:
+            return None
         self.uniBody = channelUtils.buildSAUTH(
             self.channel_name,
             self.channel_name,
-            str(appAccountId),
-            session,
+            self.session.playerId,
+            self.session.gameAuthSign,
             getShortGameId(game_id),
-            "3.3.0.7",
+            "6.1.0.301",
+            {
+                "anonymous": "",
+                "get_access_token": "0",
+                "extra_data": self._get_extra_data(),
+                "timestamp": self.session.ts,
+                "realname": json.dumps({"realname_type": 0, "duration": 0}),
+            },
         )
         fd = genv.get("FAKE_DEVICE")
-        self.uniData = channelUtils.postSignedData(
-            self.uniBody, getShortGameId(game_id)
-        )
+        self.logger.info(json.dumps(self.uniBody))
+        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
         self.logger.info(f"Get unisdk data for {self.uniData}")
         self.uniSDKJSON = json.loads(
             base64.b64decode(self.uniData["unisdk_login_json"]).decode()
         )
         res = {
-            "user_id": self.get_sdk_udid(),
-            "token": base64.b64encode(session.encode()).decode(),
+            "user_id": self.session.playerId,
+            "token": base64.b64encode(self.session.gameAuthSign.encode()).decode(),
             "login_channel": self.channel_name,
             "udid": fd["udid"],
             "app_channel": self.channel_name,
-            "sdk_version": "3.0.5.002",
+            "sdk_version": "6.1.0.301",
             "jf_game_id": getShortGameId(game_id),
             "pay_channel": self.channel_name,
             "extra_data": "",

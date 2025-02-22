@@ -31,9 +31,10 @@ from cryptography.hazmat.primitives.serialization import (
 )
 from logutil import setup_logger
 
+
 class certmgr:
     def __init__(self) -> None:
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         pass
 
     def generate_private_key(self, bits: int):
@@ -60,9 +61,9 @@ class certmgr:
             .issuer_name(issuer)
             .public_key(privatekey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))
             .not_valid_after(
-                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
+                datetime.datetime.now() + datetime.timedelta(days=360)
             )
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=None),
@@ -71,7 +72,7 @@ class certmgr:
             .sign(privatekey, hashes.SHA256())
         )
 
-    def generate_cert(self, hostnames:List[str], privatekey, ca_cert, ca_key):
+    def generate_cert(self, hostnames: List[str], privatekey, ca_cert, ca_key):
         # generate the CSR for multiple domains
         tmp_names = [
             x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
@@ -88,11 +89,7 @@ class certmgr:
             x509.CertificateSigningRequestBuilder()
             .subject_name(x509.Name(tmp_names))
             .add_extension(
-                x509.SubjectAlternativeName(
-                    [
-                        x509.DNSName(i) for i in hostnames
-                    ]
-                ),
+                x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
                 critical=False,
             )
             .sign(privatekey, hashes.SHA256())
@@ -105,16 +102,12 @@ class certmgr:
             .issuer_name(ca_cert.subject)
             .public_key(csr.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))#avoid using UTC
             .not_valid_after(
-                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
+                datetime.datetime.now() + datetime.timedelta(days=360)#for chrome 
             )
             .add_extension(
-                x509.SubjectAlternativeName(
-                    [
-                        x509.DNSName(i) for i in hostnames
-                    ]
-                ),
+                x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
                 critical=False,
             )
             .sign(ca_key, hashes.SHA256())
@@ -123,14 +116,16 @@ class certmgr:
     def import_to_root(self, fn) -> bool:
         try:
             subprocess.check_call(
-                ["certutil", "-addstore", "-f", "Root", fn],
+                ["certutil", "-addstore", "Root", fn],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 shell=True,
             )
         except Exception as e:
-            self.logger.error("导入CA证书失败。请关闭杀毒软件后重试。报错信息：",stack_info=True,exc_info=True)
-            #读取certutil的输出到日志
+            self.logger.exception(
+                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息："
+            )
+            # 读取certutil的输出到日志
             subprocess.check_call(
                 ["certutil", "-addstore", "-f", "Root", fn],
                 stderr=subprocess.STDOUT,

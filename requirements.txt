@@ -1,6 +1,14 @@
-cryptography
+cryptography==42.0.8
+Faker
 Flask
 gevent
 psutil
-pyinstaller
+pycryptodome
+pyperclip
 Requests
+requests_toolbelt
+pywin32
+dnspython
+PyQt5
+PyQtWebEngine
+loguru

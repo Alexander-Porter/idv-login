@@ -1,14 +1,16 @@
-### IdentityV Login Helper v5.2.2-beta CHANGELOG
+### IdentityV Login Helper v5.2.3-beta CHANGELOG
+
+***注意，这是一个Beta版本***
 
 ## Improvement 🚀
-[+] 增加全局捕获错误时对错误的输出
-[+] 重构渠道服登录方式，为个别渠道特殊实现做准备
+[·] 小米渠道服支持
+[·] 增加了一个Config支持
 
 ## In Progress 🚧
-[·] 小米渠道服：小米账号登录，正在开发中
+[·] 华为渠道服支持。
 
 ## Known Bugs 💀
-[·] 华为渠道服、小米渠道服Token容易过期
+[·] 华为渠道服、Vivo渠道容易过期
 
 ## Others 🧰
 [·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请遵守`GPLv3`协议！**

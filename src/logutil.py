@@ -16,22 +16,16 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-import logging
+from loguru import logger
+import sys
+try:
+    logger.remove(0)
+    logger.add(sys.stdout,level="INFO")
+    logger.add("log.txt",rotation="10MB", encoding="utf-8", diagnose=True)
+except Exception as e:
+    print(e)
+    from logging import getLogger
+    logger=getLogger("log")
 
-def setup_logger(module_name):
-    logger = logging.getLogger(module_name)
-
-    file_handler = logging.FileHandler('log.txt',encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter('%(asctime)s [%(name)s] %(levelname)s - %(message)s')
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter('%(asctime)s [%(name)s] %(levelname)s - %(message)s')
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-
-    logger.setLevel(logging.DEBUG)
-
+def setup_logger():
     return logger

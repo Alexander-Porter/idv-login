@@ -17,22 +17,27 @@
  """
 
 
+import logging
+import sys
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
+import gevent
 from envmgr import genv
-from channelmgr import ChannelManager
 from logutil import setup_logger
 
 import socket
 import requests
 import json
 import os
-import sys
 import psutil
+import const
 import subprocess
 
+
 app = Flask(__name__)
-logger=setup_logger(__name__)
+logger=setup_logger()
+
+
 
 loginMethod = [
     {
@@ -246,17 +251,32 @@ def handle_create_login():
         }
         genv.set("CACHED_QRCODE_DATA",data)
         genv.set("pending_login_info",None)
+        #auto login start
+        if genv.get(f"auto-{request.args['game_id']}", "") != "":
+                logger.info(f"即将自动登录{genv.get(f'auto-{request.args['game_id']}', '')}，六秒后开始扫码")
+                uuid=genv.get(f"auto-{request.args['game_id']}")
+                genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
+                gevent.spawn_later(
+                    6,
+                    genv.get("CHANNELS_HELPER").simulate_scan,
+                    uuid,
+                    data["uuid"],
+                    data["game_id"]
+                )
         new_config = resp.get_json()
-        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index"
+        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
     except:
         return proxy(request)
 
+@app.route("/_idv-login/manualChannels",methods=["GET"])
+def _manual_list():
+    return jsonify(const.manual_login_channels)
 
 @app.route("/_idv-login/list", methods=["GET"])
 def _list_channels():
     try:
-        body=genv.get("CHANNELS_HELPER").list_channels()
+        body=genv.get("CHANNELS_HELPER").list_channels(request.args["game_id"])
     except Exception as e:
         body = {
             "error": str(e)
@@ -269,6 +289,9 @@ def _switch_channel():
     if genv.get("CACHED_QRCODE_DATA"):
          data=genv.get("CACHED_QRCODE_DATA")
          genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
+    #debug only
+    else:
+        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-g37")
     return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
 
 @app.route("/_idv-login/del", methods=["GET"])
@@ -285,9 +308,92 @@ def _rename_channel():
     }
     return jsonify(resp)
 
+@app.route("/_idv-login/import", methods=["GET"])
+def _import_channel():
+    resp={
+        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"])
+    }
+    return jsonify(resp)
+
+@app.route("/_idv-login/setDefault", methods=["GET"])
+def _set_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}",request.args["uuid"],True)
+        resp={
+            "success":True,
+        }
+    except:
+        logger.exception("设置默认账号失败")
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+@app.route("/_idv-login/clearDefault", methods=["GET"])
+def _clear_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        resp={
+            "success":True,
+        }
+    except:
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+@app.route("/_idv-login/get-auto-close-state", methods=["GET"])
+def _get_auto_close_state():
+    """查询指定游戏的自动关闭状态"""
+    try:
+        game_id = request.args["game_id"]
+        current_state = genv.get(f"auto-close-{game_id}", False)
+        return jsonify({
+            "success": True,
+            "state": current_state,
+            "game_id": game_id
+        })
+    except Exception as e:
+        logger.exception(f"查询游戏 {game_id} 的自动关闭状态失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+@app.route("/_idv-login/switch-auto-close-state", methods=["GET"])
+def _switch_auto_close_state():
+    """切换指定游戏的自动关闭状态"""
+    try:
+        game_id = request.args["game_id"]
+        current_state = genv.get(f"auto-close-{game_id}", False)
+        new_state = not current_state
+        genv.set(f"auto-close-{game_id}", new_state, True)
+        return jsonify({
+            "success": True,
+            "state": new_state,
+            "game_id": game_id
+        })
+    except Exception as e:
+        logger.exception(f"切换游戏 {game_id} 的自动关闭状态失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+@app.route("/_idv-login/defaultChannel", methods=["GET"])
+def get_default():
+    uuid=genv.get(f"auto-{request.args['game_id']}","")
+    if uuid=="":
+        return jsonify({"uuid":""})
+    elif genv.get("CHANNELS_HELPER").query_channel(uuid)==None:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        return jsonify({"uuid":""})
+    else:
+        return jsonify({"uuid":uuid})
+
+
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
-    import const
     return Response(const.html)
 
 @app.route("/mpay/api/qrcode/query", methods=["GET"])
@@ -320,9 +426,29 @@ def handle_token_exchange():
 @app.route("/mpay/api/reverify/<path>")
 @app.route("/mpay/api/qrcode/<path>", methods=["GET"])
 def handle_qrcode(path):
-    logger.info(f"UNCHANGED {request.url}")
     return proxy(request)
 
+@app.route("/mpay/api/data/upload", methods=["POST"])
+def handle_data_upload():
+    """处理数据上传请求"""
+    # 先正常转发请求
+    resp = proxy(request)
+    
+    try:
+        # 尝试读取 form 数据
+        form_data = request.form.to_dict()
+        logger.info(f"数据上传内容: {form_data}")
+    except Exception as e:
+        logger.error(f"解析上传数据失败: {e}")
+        return resp
+    # 请求完成后检查是否需要自动关闭
+    game_id = form_data.get("game_id", "")
+    if genv.get(f"auto-close-{game_id}", False):
+        logger.info("检测到登录已完成请求，即将自动关闭程序...")
+        # 使用 gevent 延迟退出，确保响应能够正常返回
+        gevent.spawn_later(3, sys.exit, 0)
+    
+    return resp
 
 @app.route("/<path:path>", methods=["GET", "POST"])
 def globalProxy(path):
@@ -331,21 +457,25 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request, "i4.7.0")
 
-@app.before_request
-def before_request_func():
-    if request.method == "POST":
-        logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
-    else:
-        logger.debug(f"请求 {request.method} {request.path} {request.args}")
 @app.after_request
-def after_request_func(response):
-    if request.content_type == "application/json":
-        logger.debug(f"发送 {response.status} {response.headers} {response.get_json()}")
+def after_request_func(response:Response):
+    #只log出现错误的请求
+    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
+        if response.status_code==404:
+            if ".ico" in request.url:
+                return response
+        logger.error(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
+        logger.error(f"发送 {response.status} {response.headers} {response.get_data().decode()}")
+    else:
+        logger.debug(f"请求 {request.url} {response.status}")
     return response
 
 class proxymgr:
     def __init__(self) -> None:
-        pass
+        genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+        genv.set("CACHED_QRCODE_DATA",{})
+        genv.set("pending_login_info",None)
+        
 
     def check_port(self):
         with os.popen('netstat -ano | findstr ":443"') as r:
@@ -355,38 +485,33 @@ class proxymgr:
             if len(info) > 4:
                 if info[1].find(":443") != -1:
                     t_pid = info[4]
-                    logger.warning(
-                        "警告 :",
-                        psutil.Process(int(t_pid)).exe(),
-                        f"(pid={t_pid})",
-                        "已经占用了443端口，是否强行终止该程序？ (y/n)",
-                    )
-                    user_op = input()
-                    if user_op == "y":
+                    try:
+                        readable_exe_name=psutil.Process(int(t_pid)).exe()
+                    except:
+                        readable_exe_name="未知程序"
+                        logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
+                        return True
+                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
+                    input()
+                    if t_pid=='4':
+                        subprocess.check_call(
+                            ['net','stop','http','/y'],
+                            shell=True
+                            )
+                    else:
                         subprocess.check_call(
                             ["taskkill", "/f", "/im", t_pid],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            shell=True,
+                            shell=True
                         )
-                    elif user_op == "n":
-                        logger.info("程序结束 (原因 : 用户手动取消).")
-                        sys.exit()
-                    else:
-                        logger.warning(
-                            "程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项)."
-                        )
-                        sys.exit()
+                    gevent.sleep(2)
                     break
 
     def run(self):
-        from dnsmgr import SecureDNS,SimulatedDNS
+        from dnsmgr import DNSResolver
 
-        resolver,fallbackResolver = SecureDNS(),SimulatedDNS()
-        try:
-            target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-        except:
-            target = fallbackResolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        resolver = DNSResolver()
+        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        logger.info(target)
         
         # result check
         try:
@@ -395,28 +520,34 @@ class proxymgr:
                 or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
-                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
                 )
                 target = "42.186.193.21"
         except:
             logger.warning(
-                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
 
         genv.set("URI_REMOTEIP", f"https://{target}")
-
-        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
-            self.check_port()
-            server = pywsgi.WSGIServer(
+        self.check_port()
+        #创建一个空日志
+        import logging
+        web_logger=logging.getLogger("web")
+        web_logger.setLevel(logging.WARN)
+        server = pywsgi.WSGIServer(
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
                 keyfile=genv.get("FP_WEBKEY"),
                 application=app,
+                log=web_logger,
             )
-            logger.info("代理服务器启动成功! 您现在可以打开游戏了")
+        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
+            logger.info("拦截成功! 您现在可以打开游戏了")
+            logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
+            logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
             server.serve_forever()
             return True
         else:
-            logger.error("重定向目标地址失败！",stack_info=True,exc_info=True)
+            logger.error("检测拦截目标域名失败！请将程序加入杀毒软件白名单后重试。")
             return False

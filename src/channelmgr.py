@@ -18,12 +18,15 @@
 
 import os
 import json
+import random
 import time
 
 import requests
 
 from envmgr import genv
+from const import manual_login_channels
 from logutil import setup_logger
+
 
 class channel:
     def __init__(
@@ -35,6 +38,7 @@ class channel:
         create_time: int = int(time.time()),
         last_login_time: int = 0,
         name: str = "",
+        uuid: str = "",
     ) -> None:
         self.login_info = login_info
         self.user_info = user_info
@@ -48,8 +52,9 @@ class channel:
 
         self.create_time = create_time
         self.last_login_time = last_login_time
-        self.uuid = f"{login_info['login_channel']}-{login_info['code']}"
+        self.uuid = f"{login_info['login_channel']}-{login_info['code']}" if uuid == "" else uuid
         self.channel_name = login_info["login_channel"]
+        self.crossGames = True
         if name == "":
             self.name = self.uuid
         else:
@@ -65,10 +70,11 @@ class channel:
             create_time=data.get("create_time", int(time.time())),
             last_login_time=data.get("last_login_time", 0),
             name=data.get("name", ""),
+            uuid=data.get("uuid", ""),
         )
 
-    def get_uniSdk_data(self):
-        return  {
+    def get_uniSdk_data(self, game_id: str = ""):
+        return {
             "user_id": self.user_info["id"],
             "token": self.user_info["token"],
             "login_channel": self.ext_info["src_app_channel2"],
@@ -78,7 +84,7 @@ class channel:
             "jf_game_id": self.ext_info["src_jf_game_id"],
             "pay_channel": self.ext_info["src_pay_channel"],
             "extra_data": "",
-            "extra_unisdk_data":self.ext_info["extra_unisdk_data"],
+            "extra_unisdk_data": self.ext_info["extra_unisdk_data"],
             "gv": "157",
             "gvn": "1.5.80",
             "cv": "a1.5.0",
@@ -92,29 +98,47 @@ class channel:
             "name": self.name,
         }
 
-
+    def before_save(self):
+        pass
 class ChannelManager:
     def __init__(self):
-        self.logger = setup_logger(__name__)
+        self.logger = setup_logger()
         self.channels = []
+        from channelHandler.miChannelHandler import miChannel
+        from channelHandler.huaChannelHandler import huaweiChannel
+        from channelHandler.vivoChannelHandler import vivoChannel
+        from channelHandler.wechatChannelHandler import wechatChannel
+
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
                 try:
                     data = json.load(file)
-                    self.logger.info("解析渠道服登录信息成功！")
                     for item in data:
                         if "login_info" in item.keys():
-                            channel_name=item["login_info"]["login_channel"]
+                            channel_name = item["login_info"]["login_channel"]
                             if channel_name == "xiaomi_app":
-                                from channelHandler.miChannelHandler import miChannel
-                                tmpChannel:miChannel=miChannel.from_dict(item)
-                                if tmpChannel.is_session_valid():
-                                    self.channels.append(tmpChannel)
-                                else:
-                                    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+
+                                tmpChannel: miChannel = miChannel.from_dict(item)
+                                # if tmpChannel.is_token_valid():
+                                self.channels.append(tmpChannel)
+                                # else:
+                                #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name == "huawei":
+                                tmpChannel: huaweiChannel = huaweiChannel.from_dict(item)
+                                # if tmpChannel.is_token_valid():
+                                self.channels.append(tmpChannel)
+                                # else:
+                                #    self.logger.error(f"渠道服登录信息失效: {tmpChannel.name}")
+                            elif channel_name =="nearme_vivo":
+                                tmpChannel: vivoChannel = vivoChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
+                            elif channel_name == "myapp" and item["uuid"].startswith("wx-"):
+                                tmpChannel:wechatChannel=wechatChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
+                    self.logger.exception(f"读取渠道服登录信息失败。已经清空渠道服信息。")
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
                         json.dump([], f)
         else:
@@ -124,18 +148,26 @@ class ChannelManager:
 
     def save_records(self):
         with open(genv.get("FP_CHANNEL_RECORD"), "w") as file:
-            data = [channel.__dict__ for channel in self.channels]
+            for i in self.channels:
+                i.before_save()
+            oldData = [channel.__dict__.copy() for channel in self.channels]
+            data = oldData.copy()
             for channel_data in data:
-                #删除所有json不能储存的内容
-                for key in list(channel_data.keys()):
-                    if isinstance(channel_data[key], bytes):
-                        del channel_data[key]
+                to_be_deleted = []
+                for key in channel_data.keys():
+                    mini_data = {"data": channel_data[key]}
+                    try:
+                        json.dumps(mini_data)
+                    except:
+                        to_be_deleted.append(key)
+                for key in to_be_deleted:
+                    del channel_data[key]
             json.dump(data, file)
         self.logger.info("渠道服登录信息已更新")
 
-    def list_channels(self):
+    def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data() for channel in self.channels],
+            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )
@@ -147,8 +179,51 @@ class ChannelManager:
             exchange_info["ext_info"] if "ext_info" in exchange_info.keys() else {},
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
+        if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp":
+            self.logger.error(f"不支持扫码的渠道服: {login_info['login_channel']}")
+            return False
+        if login_info["login_channel"] == "myapp":
+            self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
         self.channels.append(tmp_channel)
         self.save_records()
+
+    def manual_import(self, channle_name: str, game_id: str):
+        tmpData = {
+            "code": str(random.randint(100000, 999999)),
+            "src_client_type": 1,
+            "login_channel": channle_name,
+            "src_client_country_code": "CN",
+        }
+        if channle_name == "xiaomi_app":
+            from channelHandler.miChannelHandler import miChannel
+
+            tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
+        if channle_name == "huawei":
+            from channelHandler.huaChannelHandler import huaweiChannel
+
+            tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
+        if channle_name == "nearme_vivo":
+            from channelHandler.vivoChannelHandler import vivoChannel
+
+            tmp_channel: vivoChannel = vivoChannel(tmpData,game_id=game_id)
+
+        if channle_name == "myapp":
+            from channelHandler.wechatChannelHandler import wechatChannel
+            tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
+            tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
+
+        try:
+            tmp_channel.request_user_login()
+            if tmp_channel.is_token_valid():
+                self.channels.append(tmp_channel)
+                self.save_records()
+                return True
+            else:
+                self.logger.error(f"手动导入失败: {tmp_channel.name}")
+                return False
+        except:
+            self.logger.exception(f"手动导入失败: {tmp_channel.name}")
+            return False
 
     def login(self, uuid: str):
         for channel in self.channels:
@@ -181,20 +256,34 @@ class ChannelManager:
                 return data
         return None
 
-    def simulate_confirm(self, channel:channel, scanner_uuid: str, game_id: str):
-        channel_data=channel.get_uniSdk_data()
-        channel_data["uuid"]=scanner_uuid
-        channel_data["game_id"]=game_id
-        body="&".join([f"{k}={v}" for k, v in channel_data.items()])
-        r=requests.post("https://service.mkey.163.com/mpay/api/qrcode/confirm_login", data=body, headers={"Content-Type": "application/x-www-form-urlencoded"},verify=False)
+    def query_channel(self, uuid: str):
+        for channel in self.channels:
+            if channel.uuid == uuid:
+                return channel
+        return None
+
+    def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
+        channel_data = channel.get_uniSdk_data(game_id)
+        if not channel_data:
+            genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+            return False
+        channel_data["uuid"] = scanner_uuid
+        channel_data["game_id"] = game_id
+        body = "&".join([f"{k}={v}" for k, v in channel_data.items()])
+        r = requests.post(
+            "https://service.mkey.163.com/mpay/api/qrcode/confirm_login",
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            verify=False,
+        )
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
             channel.last_login_time = int(time.time())
+            self.save_records()
             return r.json()
         else:
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             return False
-
 
     def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
         for channel in self.channels:
@@ -210,8 +299,12 @@ class ChannelManager:
                     "cv": "a1.5.0",
                 }
                 try:
+                    if scanner_uuid=="Kinich":
+                        return channel.get_uniSdk_data()
                     r = requests.get(
-                        "https://service.mkey.163.com/mpay/api/qrcode/scan", params=data,verify=False
+                        "https://service.mkey.163.com/mpay/api/qrcode/scan",
+                        params=data,
+                        verify=False,
                     )
                     self.logger.info(f"模拟扫码请求: {r.json()}")
                     if r.status_code == 200:
@@ -220,7 +313,7 @@ class ChannelManager:
                         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                         return False
                 except:
-                    self.logger.error(f"模拟扫码请求失败", stack_info=True, exc_info=True)
+                    self.logger.exception("模拟扫码请求失败")
                     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                     return False
         return None

@@ -1,0 +1,21 @@
+### IdentityV Login Helper v5.2.4-stable CHANGELOG
+
+
+## Improvement 🚀
+[·] 小米渠道服登录适用于其他游戏的准备工作
+[·] 使用Py38打包Win7版本
+[·] 修复了Win7下的 **UTC** , **找不到XX** 错误
+
+## In Progress 🚧
+[·] 华为渠道服支持。
+
+## Known Bugs 💀
+[·] 华为渠道服、Vivo渠道、九游、应用宝微信渠道容易过期
+[·] 账号风控页面白屏的情况，需要手动打开TLS 1.2解决。
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.7版
+    * Windows 10/11 用户请下载Py3.12版

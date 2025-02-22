@@ -26,13 +26,13 @@ FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
 class hostmgr:
     def __init__(self) -> None:
-        self.logger=setup_logger(__name__)
+        self.logger=setup_logger()
         if (os.path.isfile(FN_HOSTS) == False):
             self.logger.warning(f"Hosts文件不存在，尝试创建中...")
             try:
                 open(FN_HOSTS, 'w').close()
             except:
-                self.logger.error(f"Hosts文件创建失败",stack_info=True)
+                self.logger.exception(f"Hosts文件创建失败！")
                 sys.exit()
         elif not os.access(FN_HOSTS, os.W_OK):
             self.logger.warning(f"Hosts文件不可写，请检查{FN_HOSTS}是否被设置了只读权限！")
@@ -41,9 +41,13 @@ class hostmgr:
             try:
                 m_host = Hosts()
                 hostsOkay = m_host.exists(['localhost'])
-            except (UnicodeDecodeError, ValueError) as e:
-                self.logger.warning(f"Hosts文件编码异常，请手动删除{FN_HOSTS}，或将其移动到其他目录下！")
-                input("按任意键继续")
+                self.logger.debug(hostsOkay)
+            except:
+                self.logger.warning(f"Hosts文件编码异常，正在尝试删除{FN_HOSTS}。")
+                os.remove(FN_HOSTS)
+                open(FN_HOSTS, 'w').close()
+                input("按任意键退出。")
+                sys.exit(1)
 
     def add(self, dnsname, ip) :
         m_host = Hosts()
@@ -51,8 +55,7 @@ class hostmgr:
         try:
             m_host.write()
         except:
-            print(f"请手动将{dnsname}指向{ip}。即在hosts文件{FN_HOSTS}中添加一行：{ip} {dnsname}")
-            self.logger.error(f"写Hosts文件失败",stack_info=True)
+            self.logger.error(f"写Hosts文件失败，请参考常见问题解决方案。")
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)

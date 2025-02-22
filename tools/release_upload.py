@@ -4,6 +4,7 @@ import os.path
 import json
 import traceback
 from requests_toolbelt.multipart import encoder
+
 #读取环境变量
 secret_upload_pre_url=os.getenv("UPLOAD_PRE_URL")
 secret_upload_url=os.getenv("UPLOAD_URL")
@@ -40,25 +41,46 @@ def uploadFile(filePath):
         sys.exit(1)
         res="" 
     return res
+
 def uploadAllFilesAndGetMarkDown(fileList):
     data={}
     for i in fileList:
+        if i.endswith(".sha256"):
+            continue
         data[i]=uploadFile(i)
     #write markdown
     res=""
     for i in data:
-        res+=(f"附件：{i} 下载地址：({data[i]})\n")
+        res+=(f"[点我下载{i}](https://j.keygen.eu.org/#{data[i]})\n")
     return res
 def getLatestRelease():
     headers={"Authorization":"token "+github_token}
     r=requests.get("https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest",headers=headers)
     return r.json()
+
 def downloadToPath(url, path):
     r=requests.get(url)
     with open(path, "wb") as f:
         f.write(r.content)
     return path
-def releaseToGitee(releaseData):
+
+def upload_asset(file_path, release_id):
+    #https://gitee.com/api/v5/repos/{owner}/{repo}/releases/{release_id}/attach_files
+    url=f"https://gitee.com/api/v5/repos/{os.getenv('GITEE_ROPE')}/releases/{release_id}/attach_files"
+    mulitpart_encoder = encoder.MultipartEncoder(
+        fields={
+            'access_token': os.getenv('GITEE_TOKEN'),
+            'file': (os.path.split(file_path)[1], open(file_path, 'rb'), 'application/octet-stream')
+        }
+    )
+    headers = {
+        "content-type": mulitpart_encoder.content_type
+    }
+    r = requests.post(url, data=mulitpart_encoder, headers=headers)
+    return r.json()
+
+
+def releaseToGitee(releaseData,fileList=[]):
     url=f"https://gitee.com/api/v5/repos/{os.getenv("GITEE_ROPE")}/releases"
     data={
         "access_token": os.getenv("GITEE_TOKEN"),
@@ -67,7 +89,39 @@ def releaseToGitee(releaseData):
         "body": releaseData["body"],
         "target_commitish": releaseData["target_commitish"]
     }
-    return requests.post(url, data=data).text
+    giteeData=requests.post(url, data=data).json()
+    giteeReleaseId=str(giteeData["id"])
+    for i in fileList:
+        upload_asset(i, giteeReleaseId)
+    
+def updateCloudRes():
+    #get now cloud res
+    url="https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json"
+    headers={"Authorization":"token "+github_token}
+    r=requests.get(url,headers=headers)
+    fileInfo=r.json()
+    sha=fileInfo["sha"]
+    import base64
+    import json
+    content=base64.b64decode(fileInfo["content"]).decode()
+    data=json.loads(content)
+    #update cloud res
+    releaseData=getLatestRelease()
+    data["version"]=releaseData["tag_name"]
+    import time
+    data["lastModified"]=int(time.time())
+    data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
+    data["detail"]=releaseData["body"]
+    commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
+    dataStr=json.dumps(data)
+    dataStr=base64.b64encode(dataStr.encode()).decode()
+    data={
+        "message":commitMessage,
+        "content":dataStr,
+        "sha":sha
+    }
+    r=requests.put(url,headers=headers,json=data)
+    print(r.json())
 
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
@@ -81,10 +135,10 @@ if __name__=='__main__':
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        releaseData["body"]+=('\n**注意**，点击链接后在"即将跳转到外部网站"处**手动复制网址**并**粘贴到地址栏访问**，否则会出现无法下载的错误！\n'+uploadAllFilesAndGetMarkDown(fileList))
+        releaseData["body"]+=('\n\n### 下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
-        releaseToGitee(releaseData)
+        releaseToGitee(releaseData,fileList)
     except:
         traceback.print_exc()
         traceback.print_stack()
-        sys.exit(1)
+    updateCloudRes()
