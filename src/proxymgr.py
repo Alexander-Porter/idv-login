@@ -253,7 +253,7 @@ def handle_create_login():
         genv.set("pending_login_info",None)
         #auto login start
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
-                logger.info(f"即将自动登录{genv.get(f'auto-{request.args['game_id']}', '')}，六秒后开始扫码")
+                logger.info(f"即将自动登录，六秒后开始扫码")
                 uuid=genv.get(f"auto-{request.args['game_id']}")
                 genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
                 gevent.spawn_later(
@@ -478,33 +478,43 @@ class proxymgr:
         
 
     def check_port(self):
-        with os.popen('netstat -ano | findstr ":443"') as r:
-            r = r.read().split("\n")
-        for cur in r:
-            info = [i for i in cur.split(" ") if i != ""]
-            if len(info) > 4:
-                if info[1].find(":443") != -1:
-                    t_pid = info[4]
-                    try:
-                        readable_exe_name=psutil.Process(int(t_pid)).exe()
-                    except:
-                        readable_exe_name="未知程序"
-                        logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                        return True
-                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
-                    input()
-                    if t_pid=='4':
-                        subprocess.check_call(
-                            ['net','stop','http','/y'],
-                            shell=True
+        def is_port_in_use(port, host="127.0.0.1"):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind((host, port))
+                    return False  # 端口未被占用
+                except socket.error:
+                    return True  # 端口被占用
+        if is_port_in_use(443):
+            with os.popen('netstat -ano | findstr ":443"') as netstat_output:
+                netstat_output = netstat_output.read().split("\n")
+            for cur in netstat_output:
+                info = [i for i in cur.split(" ") if i != ""]
+                if len(info) > 4:
+                    if info[1].find(":443") != -1:
+                        t_pid = info[4]
+                        try:
+                            readable_exe_name = psutil.Process(int(t_pid)).exe()
+                        except psutil.AccessDenied:
+                            readable_exe_name = "权限不足"
+                            logger.warning(
+                                f"读取进程{t_pid}的可执行文件名失败！权限不足。"
                             )
-                    else:
-                        subprocess.check_call(
-                            ["taskkill", "/f", "/im", t_pid],
-                            shell=True
+                            return
+                        logger.warning(
+                            f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
                         )
-                    gevent.sleep(2)
-                    break
+                        input()
+                        if t_pid == "4":
+                            subprocess.check_call(
+                                ["net", "stop", "http", "/y"], shell=True
+                            )
+                        else:
+                            subprocess.check_call(
+                                ["taskkill", "/f", "/pid", t_pid], shell=True
+                            )
+                        gevent.sleep(3)
+                        break
 
     def run(self):
         from dnsmgr import DNSResolver
