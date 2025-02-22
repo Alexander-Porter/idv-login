@@ -48,7 +48,7 @@ def buildSAUTH(login_channel, app_channel,uid,session,game_id,sdk_version,custom
         "sdk_version": sdk_version,
         "is_unisdk_guest": 0,
         "ip": ip,
-        "aim_info": '{"tz":"+0800","tzid":"Asia\/Shanghai","aim":"'+ip+'","country":"CN"}',
+        "aim_info": '{"tz":"+0800","tzid":"Asia/Shanghai","aim":"'+ip+'","country":"CN"}',
         "source_app_channel": app_channel,
         "source_platform": "ad",
         "client_login_sn": "".join(random.choices((string.hexdigits), k=16)),
