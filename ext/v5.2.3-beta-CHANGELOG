@@ -1,0 +1,20 @@
+### IdentityV Login Helper v5.2.3-beta CHANGELOG
+
+***注意，这是一个Beta版本***
+
+## Improvement 🚀
+[·] 小米渠道服支持
+[·] 增加了一个Config支持
+
+## In Progress 🚧
+[·] 华为渠道服支持。
+
+## Known Bugs 💀
+[·] 华为渠道服、Vivo渠道容易过期
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.7版
+    * Windows 10/11 用户请下载Py3.12版

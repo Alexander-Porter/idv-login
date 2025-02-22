@@ -1,0 +1,56 @@
+name: Sync Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  sync_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Get latest release
+        id: latest_release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            console.log(release.data);
+            return release.data;
+
+
+
+      - name: Download release assets to a local Dir
+        id: download_assets
+        env:
+          release_data: ${{(steps.latest_release.outputs.result)}}
+        run: |
+          mkdir -p tmps
+          
+      
+      - name: Release to Gitee and update cloudRes
+        id: release
+        env:
+          UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}
+          UPLOAD_URL: ${{ secrets.SECRET_UPLOAD_URL}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
+          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+        run: |
+          pip install requests_toolbelt
+          pip install requests
+          python tools/release_upload.py tmp

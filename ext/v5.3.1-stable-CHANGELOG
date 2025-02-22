@@ -1,0 +1,20 @@
+### IdentityV Login Helper v5.3.1-stable CHANGELOG
+
+
+## Improvement 🚀
+[·] 修改渠道服登录界面的CDN
+[·] 修复依赖问题
+
+## In Progress 🚧
+[·] VIVO渠道服支持。
+
+## Known Bugs 💀
+[·] Vivo渠道、九游、应用宝微信渠道容易过期
+[·] 账号风控页面白屏的情况，需要手动打开TLS 1.2解决。
+
+## Others 🧰
+[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请**标明出处**并遵守`GPLv3`协议！**
+
+## Tips
+    * Windows 7 用户请下载Py3.8版
+    * Windows 10/11 用户请下载Py3.12版
