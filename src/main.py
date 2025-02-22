@@ -147,7 +147,7 @@ def initialize():
     m_cloudres.update_cache_if_needed()
     genv.set("CLOUD_RES",m_cloudres)
     genv.set("CLOUD_VERSION",m_cloudres.get_version())
-
+    genv.set("CLOUD_ANNO",m_cloudres.get_announcement())
 
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
@@ -218,7 +218,9 @@ def welcome():
     print(" - it under the terms of the GNU General Public License as published by")
     print(" - the Free Software Foundation, either version 3 of the License, or")
     print(" - (at your option) any later version.")
-
+def handle_announcement():
+    if genv.get("CLOUD_ANNO")!="":
+        print(f"【公告】{genv.get('CLOUD_ANNO')}")
 def cloudBuildInfo():
     try:
         from buildinfo import BUILD_INFO,VERSION
@@ -247,6 +249,7 @@ if __name__ == "__main__":
         initialize()
         welcome()
         handle_update()
+        handle_announcement()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):

@@ -71,7 +71,8 @@ class CloudRes:
 
     def get_version(self):
         return self.local_data.get('version', genv.get('VERSION'))
-    
+    def get_announcement(self):
+        return self.local_data.get('announcement', '')
     def get_downloadUrl(self):
         return self.local_data.get('downloadUrl', '')
     
