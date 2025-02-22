@@ -15,13 +15,14 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
+
 import pywintypes
 import sys
 
 
 from gevent import monkey
 monkey.patch_all()
-
+import socket
 import os
 import sys
 import ctypes
@@ -46,7 +47,27 @@ m_cloudres=None
 
 import winreg as reg
 
+def get_computer_name():
+    try:
+        # 获取计算机名
+        computer_name = socket.gethostname()
+        # 确保计算机名编码为 UTF-8
+        computer_name_utf8 = computer_name.encode('utf-8').decode('utf-8')
+        return computer_name_utf8
+    except Exception as e:
+        logger.exception(f"获取计算机名时发生异常: {e}")
+        return None
 
+def get_current_username():
+    try:
+        # 获取当前用户名
+        username = os.getlogin()
+        # 确保用户名编码为 UTF-8
+        username_utf8 = username.encode('utf-8').decode('utf-8')
+        return username_utf8
+    except Exception as e:
+        logger.exception(f"获取当前用户名时发生异常: {e}")
+        return None
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
@@ -178,6 +199,15 @@ def initialize():
         url=genv.get("CLOUD_RES").get_guideUrl()
         webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
+    user_name = get_current_username()
+    computer_name = get_computer_name()
+    if computer_name is not None and not all(ord(char) < 128 for char in computer_name):
+        logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")
+        logger.error("如果程序出错，请将计算机名修改为纯英文后重试！具体请参见常见问题解决文档。")
+
+    if user_name is not None and not all(ord(char) < 128 for char in user_name):
+        logger.warning(f"用户名包含非ASCII字符: {user_name}，如中文，可能导致华为、小米、VIVO渠道服登录异常！")
+        logger.warning("如有相关需求，请将用户名修改为纯英文后重试！具体请参见常见问题解决文档。")
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
