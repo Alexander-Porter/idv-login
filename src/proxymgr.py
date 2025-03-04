@@ -229,6 +229,17 @@ def handle_login(game_id, device_id, user_id):
     except:
         return proxy(request)
 
+@app.route("/mpay/api/qrcode/image", methods=["GET"])
+def handle_qrcode_image():
+    try:
+        resp=proxy(request)
+        if genv.get("CLOUD_RES").get_risk_wm()!="":
+            from riskWmUtils import wm
+            resp.set_data(wm(resp.get_data(),genv.get("CLOUD_RES").get_risk_wm()))
+            return resp
+        return resp
+    except:
+        return proxy(request)
 
 @app.route("/mpay/games/pc_config", methods=["GET"])
 def handle_pc_config():
