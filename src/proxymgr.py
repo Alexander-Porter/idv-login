@@ -19,12 +19,13 @@
 
 import logging
 import sys
+import time
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 import gevent
 from envmgr import genv
 from logutil import setup_logger
-
+from gamemgr import Game, GameManager
 import socket
 import requests
 import json
@@ -35,6 +36,7 @@ import subprocess
 
 
 app = Flask(__name__)
+game_helper = GameManager()
 logger=setup_logger()
 
 
@@ -380,6 +382,145 @@ def _switch_auto_close_state():
             "error": str(e)
         })
 
+@app.route("/_idv-login/get-game-auto-start", methods=["GET"])
+def _get_game_auto_start():
+    """查询指定游戏的自动启动状态和路径"""
+    try:
+        game_id = request.args["game_id"]
+        auto_start_info = game_helper.get_game_auto_start(game_id)
+        return jsonify({
+            "success": True,
+            "enabled": auto_start_info["enabled"],
+            "path": auto_start_info["path"],
+            "game_id": game_id
+        })
+    except Exception as e:
+        logger.exception(f"查询游戏 {game_id} 的自动启动状态失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+@app.route("/_idv-login/set-game-auto-start", methods=["GET"])
+def _set_game_auto_start():
+    """设置指定游戏的自动启动状态和路径"""
+    try:
+        game_id = request.args["game_id"]
+        enabled = request.args.get("enabled") == 'true'
+
+        game_path = ""
+ 
+        if enabled:
+            # 使用Qt代替tkinter
+            from PyQt5.QtWidgets import QApplication, QFileDialog
+            import sys
+            
+            # 创建一个临时的QApplication实例
+            app = QApplication.instance()
+            if app is None:
+                app = QApplication(sys.argv)
+            
+            # 导入Qt命名空间    
+            from PyQt5.QtCore import Qt
+                
+            # 显示文件选择对话框
+            desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+            file_dialog = QFileDialog()
+            file_dialog.setFileMode(QFileDialog.ExistingFile)
+            file_dialog.setNameFilter("可执行文件 (*.exe);;快捷方式 (*.lnk);;所有文件 (*.*)")
+            file_dialog.setWindowTitle("选择游戏启动程序")
+            file_dialog.setDirectory(desktop_path)
+            file_dialog.setWindowFlags(file_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
+            if file_dialog.exec_():
+                selected_files = file_dialog.selectedFiles()
+                if selected_files:
+                    game_path = selected_files[0]
+            
+            # 如果用户没有选择任何文件，则返回错误
+            if not game_path:
+                return jsonify({
+                    "success": False,
+                    "error": "用户取消选择游戏路径"
+                })
+            #获取纯文件名，不含路径和后缀
+            name=os.path.splitext(os.path.basename(game_path))[0]
+            
+            # 如果是快捷方式，解析目标路径
+            if game_path.lower().endswith(".lnk"):
+                import win32com.client
+                shell = win32com.client.Dispatch("WScript.Shell")
+                shortcut = shell.CreateShortcut(game_path)
+                game_path = shortcut.Targetpath
+        else:
+            if game_helper.get_game(game_id):
+                name=game_helper.get_game(game_id).name
+            else:
+                name=""
+        game_helper.set_game_auto_start(game_id, enabled)
+        game_helper.set_game_path(game_id, game_path)
+        game_helper.rename_game(game_id,name)
+        return jsonify({
+            "success": True,
+            "enabled": enabled,
+            "path": game_path,
+            "game_id": game_id
+        })
+    except Exception as e:
+        logger.exception(f"设置游戏 {game_id} 的自动启动状态失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+@app.route("/_idv-login/start-game", methods=["GET"])
+def _start_game():
+    """启动指定游戏"""
+    try:
+        game_id = request.args["game_id"]
+
+        game_path = game_helper.get_game_auto_start(game_id)["path"]
+
+        if not game_path:
+            return jsonify({
+                "success": False,
+                "error": "游戏路径未设置"
+            })
+
+
+        game: Game = game_helper.get_game(game_id)
+        if game:
+            game.start()
+            game.last_used_time = int(time.time())
+            game_helper._save_games()
+
+
+        return jsonify({
+            "success": True,
+            "game_id": game_id
+        })
+    except Exception as e:
+        logger.exception(f"启动游戏 {game_id} 失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+@app.route("/_idv-login/list-games", methods=["GET"])
+def _list_games():
+    """列出所有游戏"""
+    try:
+        games = game_helper.list_games()
+        return jsonify({
+            "success": True,
+            "games": games
+        })
+    except Exception as e:
+        logger.exception(f"列出游戏失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
 @app.route("/_idv-login/defaultChannel", methods=["GET"])
 def get_default():
     uuid=genv.get(f"auto-{request.args['game_id']}","")
@@ -569,6 +710,11 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+            if game_helper.list_auto_start_games():
+                should_start_text="\n".join([i.name for i in game_helper.list_auto_start_games()])
+                logger.info(f"检测到有游戏设置了自动启动，游戏列表{should_start_text}")
+                for i in game_helper.list_auto_start_games():
+                    i.start()
             server.serve_forever()
             return True
         else:
