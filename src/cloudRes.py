@@ -71,8 +71,10 @@ class CloudRes:
 
     def get_version(self):
         return self.local_data.get('version', genv.get('VERSION'))
+
     def get_announcement(self):
         return self.local_data.get('announcement', '')
+
     def get_downloadUrl(self):
         return self.local_data.get('downloadUrl', '')
     
@@ -81,3 +83,6 @@ class CloudRes:
     
     def get_detail(self):
         return self.local_data.get('detail', '')
+    
+    def get_risk_wm(self):
+        return self.local_data.get('risk_wm', '')
