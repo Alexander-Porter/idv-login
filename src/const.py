@@ -151,8 +151,8 @@ html = r"""<!DOCTYPE html>
                         <div class="mb-3">
                             <label for="channelSelect" class="form-label">渠道选择:</label>
                             <div class="d-flex align-items-center">
-                                <select id="channelSelect" class="form-select me-2" style="width: 60%; flex: 0 0 auto;"></select>
-                                <button onclick="manual()" class="btn btn-primary" style="white-space: nowrap; flex-shrink: 0;">
+                                <select id="channelSelect" class="form-select me-2" style="width: 80%; flex: 0 0 auto;"></select>
+                                <button onclick="manual()" class="btn btn-primary">
                                     <i class="bi bi-person-plus me-1"></i>手动登录
                                 </button>
                             </div>
@@ -165,6 +165,17 @@ html = r"""<!DOCTYPE html>
                                     <i class="bi bi-x-circle me-1"></i>清除自动登录
                                 </button>
                             </div>
+                        </div>
+                        <!-- 添加登录延迟设置 -->
+                        <div class="mt-3">
+                            <h5 class="section-title">自动登录延迟设置</h5>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="loginDelayInput" style="width: 80%; flex: 0 0 auto;" class="form-control me-2" min="0" max="30" placeholder="延迟秒数">
+                                <button onclick="saveLoginDelay()" class="btn btn-outline-primary">
+                                    <i class="bi bi-save me-1"></i>保存
+                                </button>
+                            </div>
+                            <small class="form-text text-muted mt-1">二维码显示后<span id="currentDelay">加载中...</span> 秒会自动登录默认账号。</small>
                         </div>
                     </div>
                 </div>
@@ -182,7 +193,7 @@ html = r"""<!DOCTYPE html>
                         </button>
                         
                         <div class="mt-3">
-                            <h5 class="section-title">游戏自动启动</h5>
+                            <h5 class="section-title">游戏自动启动设置</h5>
                             <div class="d-flex align-items-center mb-2">
                                 <span>状态：</span>
                                 <span class="ms-2 badge" id="autoStartStatus">加载中...</span>
@@ -191,13 +202,13 @@ html = r"""<!DOCTYPE html>
                             </div>
                             <div class="btn-group w-100">
                                 <button id="setAutoStartBtn" onclick="setAutoStart(true)" class="btn btn-outline-success">
-                                    <i class="bi bi-plus-circle me-1"></i>设置启动
+                                    <i class="bi bi-plus-circle me-1"></i>设置游戏路径
                                 </button>
                                 <button id="disableAutoStartBtn" onclick="setAutoStart(false)" class="btn btn-outline-danger">
-                                    <i class="bi bi-dash-circle me-1"></i>禁用启动
+                                    <i class="bi bi-dash-circle me-1"></i>禁用自启
                                 </button>
                                 <button id="startGameBtn" onclick="startGame()" class="btn btn-primary">
-                                    <i class="bi bi-play-fill me-1"></i>立即启动
+                                    <i class="bi bi-play-fill me-1"></i>立即启动游戏
                                 </button>
                             </div>
                         </div>
@@ -234,7 +245,7 @@ html = r"""<!DOCTYPE html>
                     </table>
                 </div>
                 <div id="noAccounts" class="alert alert-secondary text-center" style="display:none;">
-                    <i class="bi bi-info-circle me-2"></i> 暂无账号记录，请通过手动登录添加账号
+                    <i class="bi bi-info-circle me-2"></i> 暂无账号记录，请通过手动登录或用游戏客户端扫码添加账号
                 </div>
             </div>
         </div>
@@ -415,6 +426,77 @@ html = r"""<!DOCTYPE html>
                             button: "确定",
                         });
                     }
+                });
+        }
+
+        // 登录延迟相关函数
+        function loadLoginDelay() {
+            const game_id = getQueryVariable("game_id");
+            if (!game_id) return;
+            
+            fetch(`/_idv-login/get-login-delay?game_id=${game_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentDelay').textContent = data.delay;
+                    document.getElementById('loginDelayInput').value = data.delay;
+                })
+                .catch(err => {
+                    console.error('获取登录延迟失败:', err);
+                    document.getElementById('currentDelay').textContent = '获取失败';
+                });
+        }
+
+        function saveLoginDelay() {
+            const game_id = getQueryVariable("game_id");
+            const delay = document.getElementById('loginDelayInput').value;
+            
+            if (!game_id) {
+                swal({
+                    title: "错误",
+                    text: "未找到游戏ID",
+                    icon: "error",
+                    button: "确定",
+                });
+                return;
+            }
+            
+            if (delay === "" || isNaN(delay) || delay < 0) {
+                swal({
+                    title: "输入错误",
+                    text: "请输入有效的延迟时间（秒）",
+                    icon: "warning",
+                    button: "确定",
+                });
+                return;
+            }
+            
+            fetch(`/_idv-login/set-login-delay?game_id=${game_id}&delay=${delay}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        swal({
+                            title: "设置成功",
+                            text: `登录延迟已设置为 ${delay} 秒`,
+                            icon: "success",
+                            button: "确定",
+                        });
+                        document.getElementById('currentDelay').textContent = delay;
+                    } else {
+                        swal({
+                            title: "设置失败",
+                            text: data.error || "未知错误",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(err => {
+                    swal({
+                        title: "请求失败",
+                        text: "保存延迟设置时发生错误",
+                        icon: "error",
+                        button: "确定",
+                    });
                 });
         }
 
@@ -621,6 +703,9 @@ html = r"""<!DOCTYPE html>
             
             // 如果有game_id，加载该游戏的账号和设置
             if (game_id) {
+                // 加载登录延迟设置
+                loadLoginDelay();
+                
                 fetch('/_idv-login/list?game_id=' + game_id)
                     .then(response => response.json())
                     .then(data => {
