@@ -34,6 +34,7 @@ class Game:
         path: str = "",
         should_auto_start: bool = False,
         auto_close_after_login: bool = False,
+        login_delay: int = 6,
         last_used_time: int = 0
     ) -> None:
         self.game_id = game_id
@@ -41,6 +42,7 @@ class Game:
         self.path = path
         self.should_auto_start = should_auto_start
         self.auto_close_after_login = auto_close_after_login
+        self.login_delay = login_delay
         self.last_used_time = last_used_time or int(time.time())
         self.logger = setup_logger()
 
@@ -294,3 +296,23 @@ class GameManager:
     def list_auto_start_games(self) -> List[Game]:
         """列出所有设置为自动启动的游戏"""
         return [game for game in self.games.values() if game.should_auto_start]
+    
+    def set_login_delay(self, game_id: str, delay: int) -> bool:
+        """设置自动登录延迟时间"""
+        if not game_id:
+            return False
+            
+        game = self.get_game(game_id)
+        if game:
+            game.login_delay = delay
+            game.last_used_time = int(time.time())
+            self._save_games()
+            return True
+        return False
+    
+    def get_login_delay(self, game_id: str) -> int:
+        """获取自动关闭延迟时间"""
+        game = self.get_game(game_id)
+        if game:
+            return game.login_delay
+        return 6

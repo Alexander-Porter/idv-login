@@ -266,11 +266,12 @@ def handle_create_login():
         genv.set("pending_login_info",None)
         #auto login start
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
-                logger.info(f"即将自动登录，六秒后开始扫码")
+                delay=game_helper.get_login_delay(request.args["game_id"])
+                logger.info(f"即将自动登录，{delay}秒后开始扫码")
                 uuid=genv.get(f"auto-{request.args['game_id']}")
                 genv.set("CHANNEL_ACCOUNT_SELECTED",uuid)
                 gevent.spawn_later(
-                    6,
+                    delay,
                     genv.get("CHANNELS_HELPER").simulate_scan,
                     uuid,
                     data["uuid"],
@@ -281,6 +282,8 @@ def handle_create_login():
         return jsonify(new_config)
     except:
         return proxy(request)
+
+
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
@@ -360,7 +363,7 @@ def _get_auto_close_state():
     """查询指定游戏的自动关闭状态"""
     try:
         game_id = request.args["game_id"]
-        current_state = genv.get(f"auto-close-{game_id}", False)
+        current_state = game_helper.get_auto_close_setting(game_id)
         return jsonify({
             "success": True,
             "state": current_state,
@@ -378,9 +381,9 @@ def _switch_auto_close_state():
     """切换指定游戏的自动关闭状态"""
     try:
         game_id = request.args["game_id"]
-        current_state = genv.get(f"auto-close-{game_id}", False)
+        current_state = game_helper.get_auto_close_setting(game_id)
         new_state = not current_state
-        genv.set(f"auto-close-{game_id}", new_state, True)
+        game_helper.set_auto_close_setting(game_id, new_state)
         return jsonify({
             "success": True,
             "state": new_state,
@@ -439,9 +442,12 @@ def _set_game_auto_start():
             file_dialog = QFileDialog()
             file_dialog.setFileMode(QFileDialog.ExistingFile)
             file_dialog.setNameFilter("可执行文件 (*.exe);;快捷方式 (*.lnk);;所有文件 (*.*)")
-            file_dialog.setWindowTitle("选择游戏启动程序")
+            file_dialog.setWindowTitle("选择游戏启动程序或快捷方式")
             file_dialog.setDirectory(desktop_path)
             file_dialog.setWindowFlags(file_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
+            file_dialog.setWindowModality(Qt.ApplicationModal)
+            file_dialog.setWindowState(Qt.WindowActive)
+            file_dialog.setWindowFlag(Qt.WindowStaysOnTopHint)
             if file_dialog.exec_():
                 selected_files = file_dialog.selectedFiles()
                 if selected_files:
@@ -543,6 +549,25 @@ def get_default():
     else:
         return jsonify({"uuid":uuid})
 
+@app.route("/_idv-login/get-login-delay", methods=["GET"])
+def get_login_delay():
+    return jsonify({
+        "delay": game_helper.get_login_delay(request.args["game_id"])
+    })
+
+@app.route("/_idv-login/set-login-delay", methods=["GET"])
+def set_login_delay():
+    try:
+        game_helper.set_login_delay(request.args["game_id"], int(request.args["delay"]))
+        return jsonify({
+            "success": True
+        })
+    except Exception as e:
+        logger.exception(f"设置游戏 {request.args['game_id']} 的登录延迟失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
 
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
@@ -572,7 +597,7 @@ def handle_token_exchange():
             logger.error(f"解析上传数据失败: {e}")
             return resp
         game_id = form_data.get("game_id", "")
-        if resp.status_code==200 and genv.get(f"auto-close-{game_id}", False):
+        if resp.status_code==200 and game_helper.get_auto_close_setting(game_id):
             logger.info("检测到登录已完成请求，即将自动关闭程序...")
             # 使用 gevent 延迟退出，确保响应能够正常返回
             gevent.spawn_later(3, sys.exit, 0)
@@ -598,7 +623,6 @@ def handle_data_upload():
     """处理数据上传请求"""
     # 先正常转发请求
     resp = proxy(request)
-    
     try:
         # 尝试读取 form 数据
         form_data = request.form.to_dict()
@@ -608,7 +632,7 @@ def handle_data_upload():
         return resp
     # 请求完成后检查是否需要自动关闭
     game_id = form_data.get("game_id", "")
-    if genv.get(f"auto-close-{game_id}", False):
+    if game_helper.get_auto_close_setting(game_id):
         logger.info("检测到登录已完成请求，即将自动关闭程序...")
         # 使用 gevent 延迟退出，确保响应能够正常返回
         gevent.spawn_later(3, sys.exit, 0)

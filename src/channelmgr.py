@@ -184,7 +184,21 @@ class ChannelManager:
             return False
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
-        self.channels.append(tmp_channel)
+        #寻找是否有重复的self.user_info["id"]
+        to_be_deleted = []
+        name=tmp_channel.user_info["id"]
+        for i_channel in self.channels:
+            if i_channel.user_info["id"] == name:
+                to_be_deleted.append(i_channel)
+        #按self.last_login_time排序，取最近一次登录过的账号的名字和uuid给新账号
+        if len(to_be_deleted) > 0:
+            to_be_deleted = sorted(to_be_deleted, key=lambda x: x.last_login_time, reverse=True)
+            tmp_channel.name = to_be_deleted[0].name
+            tmp_channel.uuid = to_be_deleted[0].uuid
+            for i in to_be_deleted:
+                self.channels.remove(i)
+            self.logger.warning(f"发现账号{name}有{len(to_be_deleted)}条重复记录，已删除重复账号，并自动继承最近一次登录的账号名和uuid。")
+        self.channels.append(tmp_channel)  
         self.save_records()
 
     def manual_import(self, channle_name: str, game_id: str):
@@ -215,6 +229,7 @@ class ChannelManager:
         try:
             tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():
+                tmp_channel.last_login_time = int(time.time())
                 self.channels.append(tmp_channel)
                 self.save_records()
                 return True
