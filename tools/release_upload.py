@@ -127,15 +127,15 @@ if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
     os.mkdir(sys.argv[1])
     releaseData=getLatestRelease()
-    for i in releaseData["assets"]:
-        downloadToPath(i["browser_download_url"],os.path.join(sys.argv[1],i["name"]))
+    #for i in releaseData["assets"]:
+    #    downloadToPath(i["browser_download_url"],os.path.join(sys.argv[1],i["name"]))
     targetDir=sys.argv[1]
     fileList=[]
     for root, dirs, files in os.walk(targetDir):
         for file in files:
             fileList.append(os.path.join(root, file))
     try:
-        releaseData["body"]+=('\n\n### 下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
+        #releaseData["body"]+=('\n\n### 下载地址\n'+uploadAllFilesAndGetMarkDown(fileList))
         print(json.dumps(releaseData))
         releaseToGitee(releaseData,fileList)
     except:
