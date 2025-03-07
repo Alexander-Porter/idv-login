@@ -12,7 +12,7 @@ def wm(image_bytes,text):
     try:
         font = ImageFont.truetype("msyh.ttc", font_size)
     except IOError:
-        text='If you are not the owner of this device\n presenting this image.\n Do NOT Scan! Do NOT Scan! Do NOT Scan!'
+        text='If you are not the owner of this device\n presenting this QR Code.\n Do NOT Scan! Do NOT Scan! Do NOT Scan!'
         font = ImageFont.load_default()
     
     draw = ImageDraw.Draw(watermark)
