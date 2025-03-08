@@ -865,7 +865,7 @@ html = r"""<!DOCTYPE html>
             
             swal({
                 title: "正在处理",
-                text: "正在执行手动登录，请稍候...",
+                text: "正在执行手动登录，请稍候...如果在此界面停留过久，请参考教程文档->常见问题解决方案问题18",
                 icon: "info",
                 buttons: false,
                 closeOnClickOutside: false,
