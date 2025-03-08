@@ -86,3 +86,7 @@ class CloudRes:
     
     def get_risk_wm(self):
         return self.local_data.get('risk_wm', '')
+    
+    def get_login_page(self):
+        import base64
+        return base64.b64decode(self.local_data.get('login_base64_page', '')).decode()
