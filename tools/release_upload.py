@@ -110,6 +110,11 @@ def updateCloudRes():
     data["version"]=releaseData["tag_name"]
     import time
     data["lastModified"]=int(time.time())
+    #获取src/const.py中的html字段
+    html=""
+    exec(open("src/const.py").read())
+    print(html)
+    data["login_base64_page"]=base64.b64encode(html.encode()).decode()
     data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
     data["detail"]=releaseData["body"]
     commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
@@ -131,6 +136,7 @@ if __name__=='__main__':
     #    downloadToPath(i["browser_download_url"],os.path.join(sys.argv[1],i["name"]))
     targetDir=sys.argv[1]
     fileList=[]
+
     for root, dirs, files in os.walk(targetDir):
         for file in files:
             fileList.append(os.path.join(root, file))
