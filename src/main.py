@@ -191,7 +191,7 @@ def initialize():
     from PyQt5.QtNetwork import QNetworkProxyFactory
     genv.set("APP",QApplication([]))
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
-    QNetworkProxyFactory.setUseSystemConfiguration(False);
+    QNetworkProxyFactory.setUseSystemConfiguration(False)
 
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):

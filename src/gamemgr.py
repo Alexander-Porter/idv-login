@@ -54,7 +54,8 @@ class Game:
             path=data.get("path", ""),
             should_auto_start=data.get("should_auto_start", False),
             auto_close_after_login=data.get("auto_close_after_login", True),
-            last_used_time=data.get("last_used_time", int(time.time()))
+            last_used_time=data.get("last_used_time", int(time.time())),
+            login_delay=data.get("login_delay", 6)
         )
 
     def to_dict(self) -> dict:
@@ -64,7 +65,8 @@ class Game:
             "path": self.path,
             "should_auto_start": self.should_auto_start,
             "auto_close_after_login": self.auto_close_after_login,
-            "last_used_time": self.last_used_time
+            "last_used_time": self.last_used_time,
+            "login_delay": self.login_delay
         }
 
     def get_non_sensitive_data(self) -> dict:
