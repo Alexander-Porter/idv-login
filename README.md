@@ -64,7 +64,7 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 * 在文件资源管理器里输入`%windir%\System32\drivers\etc`并回车，删除`hosts`文件，即可解除工具对网易登录的劫持。
 
 ### 网易第五人格PC端下载
-* 大陆 [下载游戏](https://adl.netease.com/d/g/id5/c/gw?type=pc)
+* 大陆 [下载游戏](https://adl.netease.com/d/g/id5/c/gbpc)
 * 海外 [下载游戏](https://h55na.gdl.easebar.com/identityv_setup_release_oversea_0112.exe)
 
 
