@@ -3,7 +3,7 @@
 ![GitHub License](https://img.shields.io/github/license/Alexander-Porter/idv-login)
 ![GitHub Release](https://img.shields.io/github/v/release/Alexander-Porter/idv-login)
 ![Gitea Last Commit](https://img.shields.io/github/commits-since/Alexander-Porter/idv-login/latest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Alexander-Porter/idv-login/build-stable.yaml)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Alexander-Porter/idv-login/pack.yaml)
 
 
 项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
