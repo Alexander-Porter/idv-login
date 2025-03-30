@@ -80,8 +80,7 @@ pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version
 以下渠道由于Token过期较快，需要本工具存储渠道服的session（而不是扫码时能接触到的Token）进行刷新。涉及模拟手机端SDK的行为。
 | 渠道 | 描述 |
 |------|------|
-| 应用宝(微信) | Token过期很快，难度较大 |
-| 九游 | Token过期很快，难度?? |
+| 九游 | Token过期很快，难度高 |
 
 一个渠道服登录实现的类模板在[这里](src/channelHandler/miChannelHandler.py)。
 
