@@ -2,13 +2,15 @@ name: Build Beta
 
 on:
   workflow_dispatch:
-  
+
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8",  "3.12"]
+        os: [windows-latest, macos-latest]
+        python-version: ["3.8", "3.12"]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,32 +26,72 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Insert build info
+      # 插入构建信息（Windows）
+      - name: Insert build info (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           $buildInfo = 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"'
           $versionInfo = 'VERSION="${{github.ref_name}}"'
           $buildInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8
           $versionInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8 -Append
-        shell: pwsh
 
-          
+      # 插入构建信息（macOS）
+      - name: Insert build info (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          echo 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"' > src/buildinfo.py
+          echo 'VERSION="${{github.ref_name}}"' >> src/buildinfo.py
+
       - name: Build with PyInstaller
-        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt
+        run: |
+          NAME="idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            NAME="${NAME}-mac"
+          else
+            NAME="${NAME}.exe"
+          fi
+          pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
+        shell: bash
 
+      - name: Test Run (macOS only)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Testing macOS build..."
+          chmod +x "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
+          sudo ./dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac || true
 
-      - name: Calcaulate Client checksum
-        run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+      # SHA256 校验（Windows）
+      - name: Calculate checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $file = "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          Get-FileHash $file |
+            Select-Object -ExpandProperty Hash |
+            Out-File -Encoding ascii "$file.sha256"
+
+      # SHA256 校验（macOS）
+      - name: Calculate checksum (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          file="dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
+          shasum -a 256 "$file" | cut -d ' ' -f1 > "$file.sha256"
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x86_64-${{ matrix.python-version }}
+          name: ${{ runner.os }}-${{ matrix.python-version }}
           path: dist/
+
       - name: Release body
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ext/${{github.ref_name}}-CHANGELOG
+
   release:
     needs: [build]
     runs-on: ubuntu-latest
@@ -66,4 +108,5 @@ jobs:
         with:
           files: |
             **/*.exe
+            **/*-mac
             **/*.sha256

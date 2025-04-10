@@ -7,7 +7,6 @@ pycryptodome
 pyperclip
 Requests
 requests_toolbelt
-pywin32
 dnspython
 PyQt5
 PyQtWebEngine
