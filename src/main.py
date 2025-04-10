@@ -16,7 +16,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-import pywintypes
 import sys
 
 
@@ -45,7 +44,6 @@ m_hostmgr = None
 m_proxy = None
 m_cloudres=None
 
-import winreg as reg
 
 def get_computer_name():
     try:
@@ -112,13 +110,14 @@ def ctrl_handler(ctrl_type):
 
 def initialize():
     # if we don't have enough privileges, relaunch as administrator
-    if ctypes.windll.shell32.IsUserAnAdmin() == 0:
-        #解决含空格的目录
-        argvs=[f'"{i}"' for i in sys.argv]
-        ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, " ".join(argvs), script_dir , 1
-        )
-        sys.exit()
+    if sys.platform=='win32':
+        if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+            #解决含空格的目录
+            argvs=[f'"{i}"' for i in sys.argv]
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, " ".join(argvs), script_dir , 1
+            )
+            sys.exit()
 
     #全局变量声明
     global m_certmgr, m_hostmgr, m_proxy, m_cloudres
@@ -236,8 +235,10 @@ if __name__ == "__main__":
     handle_ctrl = HandlerRoutine(ctrl_handler)
     kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
-
-    genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
+    if sys.platform=='win32':
+        genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
+    else:
+        genv.set("FP_WORKDIR", ".")
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))

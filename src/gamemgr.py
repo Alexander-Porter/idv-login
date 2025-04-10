@@ -158,7 +158,7 @@ class Game:
                     startupinfo=startupinfo
                 )
         else:
-            subprocess.Popen([game_path])
+            pass
 
 
 class GameManager:
