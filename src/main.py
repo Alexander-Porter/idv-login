@@ -230,11 +230,12 @@ def cloudBuildInfo():
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
 if __name__ == "__main__":
-    kernel32 = ctypes.WinDLL("kernel32")
-    HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
-    handle_ctrl = HandlerRoutine(ctrl_handler)
-    kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
-    kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
+    if sys.platform=='win32':
+        kernel32 = ctypes.WinDLL("kernel32")
+        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
+        handle_ctrl = HandlerRoutine(ctrl_handler)
+        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     if sys.platform=='win32':
         genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     else:
