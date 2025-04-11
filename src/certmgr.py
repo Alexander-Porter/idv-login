@@ -113,28 +113,20 @@ class certmgr:
             .sign(ca_key, hashes.SHA256())
         )
 
-    def import_to_root(self, fn) -> bool:
+    def import_to_root(self, cert_path):
         try:
-            subprocess.check_call(
-                ["certutil", "-addstore", "Root", fn],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                shell=True,
-            )
-        except Exception as e:
-            self.logger.exception(
-                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息："
-            )
-            # 读取certutil的输出到日志
-            subprocess.check_call(
-                ["certutil", "-addstore", "-f", "Root", fn],
-                stderr=subprocess.STDOUT,
-                stdout=subprocess.STDOUT,
-                shell=True,
-            )
-            return False
-        else:
+            if sys.platform == "win32":
+                subprocess.check_call(
+                    ['certutil', '-addstore', 'Root', cert_path]
+                )
+            else:
+                subprocess.check_call(
+                    ['sudo', 'security', 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_path]
+                )
             return True
+        except subprocess.CalledProcessError as e:
+            self.logger.error("导入CA证书失败。请关闭杀毒软件后重试。报错信息：", exc_info=True)
+            return False
 
     def export_key(self, fn, key):
         try:
