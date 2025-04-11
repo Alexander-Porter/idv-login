@@ -180,7 +180,9 @@ class ChannelManager:
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
         if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp":
-            self.logger.error(f"不支持扫码的渠道服: {login_info['login_channel']}")
+            self.logger.error(f"不支持扫码的渠道服: {login_info['login_channel']}。请尝试手动登录，已打开教程。")
+            import webbrowser
+            webbrowser.open("https://www.yuque.com/keygen/kg2r5k/fey3i1pi6k9fgz86")
             return False
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
