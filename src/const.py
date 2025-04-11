@@ -252,6 +252,12 @@ html = r"""<!DOCTYPE html>
         
         <footer class="mt-4 text-center text-muted">
             <p class="small">IDV-LOGIN渠道服账号管理界面 &copy; 2025</p>
+            <p class="small">
+                <a href="https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3" target="_blank" class="text-decoration-none">官方教程</a>
+            </p>
+            <p class="small">
+                <a href="https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu" target="_blank" class="text-decoration-none">出现问题？</a>
+            </p>
         </footer>
     </div>
 
