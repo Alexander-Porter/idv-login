@@ -55,12 +55,6 @@ jobs:
           pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
         shell: bash
 
-      - name: Test Run (macOS only)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Testing macOS build..."
-          chmod +x "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
-          sudo ./dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac || true
 
       # SHA256 校验（Windows）
       - name: Calculate checksum (Windows)
