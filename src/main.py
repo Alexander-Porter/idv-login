@@ -71,6 +71,22 @@ def handle_exit():
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
     print("再见!")
 
+def setup_signal_handlers():
+    import signal
+    
+    def signal_handler(sig, frame):
+        print(f"捕获到信号 {sig}，正在执行清理...")
+        handle_exit()
+        # 对于 SIGINT 和 SIGTERM，需要在清理后退出
+        if sig in (signal.SIGINT, signal.SIGTERM):
+            sys.exit(0)
+    
+    # 捕获常见的终止信号
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # kill 命令
+    signal.signal(signal.SIGHUP, signal_handler)   # 终端关闭
+    
+    print("已设置 Mac 系统信号处理器")
 def handle_update():
     ignoredVersions=genv.get("ignoredVersions",[])
     if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
@@ -118,7 +134,11 @@ def initialize():
                 None, "runas", sys.executable, " ".join(argvs), script_dir , 1
             )
             sys.exit()
-
+    else:
+        #check if we have root privileges
+        if os.geteuid() != 0:
+            print("sudo required.")
+            sys.exit(1)
     #全局变量声明
     global m_certmgr, m_hostmgr, m_proxy, m_cloudres
 
@@ -236,10 +256,10 @@ if __name__ == "__main__":
         handle_ctrl = HandlerRoutine(ctrl_handler)
         kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
-    if sys.platform=='win32':
         genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     else:
-        genv.set("FP_WORKDIR", ".")
+        setup_signal_handlers()
+        genv.set("FP_WORKDIR", "./idv-login")
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
