@@ -61,7 +61,14 @@ class CloudRes:
             if item.get('game_id') == shortGameId:
                 return item
         return None
-    
+    def get_all_by_game_id(self,shortGameId):
+        data=self.local_data.get('data', [])
+        result = []
+        for item in data:
+            if item.get('game_id') == shortGameId:
+                result.append(item)
+        return result
+
     def get_by_game_id_and_key(self,shortGameId,key):
         data=self.local_data.get('data', [])
         for item in data:

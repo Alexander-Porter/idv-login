@@ -23,6 +23,7 @@ import time
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 import gevent
+from channelHandler.channelUtils import getShortGameId
 from envmgr import genv
 from logutil import setup_logger
 from gamemgr import Game, GameManager
@@ -287,7 +288,15 @@ def handle_create_login():
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
-    return jsonify(const.manual_login_channels)
+    try:
+        game_id=request.args["game_id"]
+        if game_id:
+            data=genv.get("CLOUD_RES").get_all_by_game_id(getShortGameId(game_id))
+            return jsonify(data)
+        else:
+            return jsonify(const.manual_login_channels)
+    finally:
+        return jsonify(const.manual_login_channels)
 
 @app.route("/_idv-login/list", methods=["GET"])
 def _list_channels():
