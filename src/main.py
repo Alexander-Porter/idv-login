@@ -261,13 +261,27 @@ if __name__ == "__main__":
         kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
         genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-    else:
+    elif sys.platform=='darwin':
         setup_signal_handlers()
-        genv.set("FP_WORKDIR", "./idv-login")
+        # 使用macOS标准的用户应用数据目录
+        mac_app_support = os.path.expanduser("~/Library/Application Support")
+        genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
+    # 确保工作目录存在，使用makedirs可以创建多级目录
     if not os.path.exists(genv.get("FP_WORKDIR")):
-        os.mkdir(genv.get("FP_WORKDIR"))
-    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
-    print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
+        try:
+            os.makedirs(genv.get("FP_WORKDIR"), exist_ok=True)
+        except Exception as e:
+            print(f"创建工作目录失败: {e}")
+            # 如果无法创建标准目录，则尝试使用当前目录
+            genv.set("FP_WORKDIR", os.path.join(os.getcwd(), "idv-login"))
+            os.makedirs(genv.get("FP_WORKDIR"), exist_ok=True)
+    
+    # 切换到工作目录
+    try:
+        os.chdir(genv.get("FP_WORKDIR"))
+        print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
+    except Exception as e:
+        print(f"切换到工作目录失败: {e}")
     from logutil import setup_logger
     logger=setup_logger()
     try:
