@@ -76,6 +76,10 @@ def handle_update():
     if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
+    #check if is macOs
+    if sys.platform == "darwin" and not ("mac" in genv.get("VERSION","v5.4.0").lower()):
+        print("【在线更新】该MacOS版本暂时不需要更新。")
+        return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
