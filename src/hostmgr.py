@@ -22,12 +22,12 @@ from logutil import setup_logger
 import os
 import sys
 
-FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
+FN_HOSTS = Hosts.determine_hosts_path()
 
 class hostmgr:
     def __init__(self) -> None:
         self.logger=setup_logger()
-        if (os.path.isfile(FN_HOSTS) == False and sys.platform.startswith('win')):
+        if (os.path.isfile(FN_HOSTS) == False):
             self.logger.warning(f"Hosts文件不存在，尝试创建中...")
             try:
                 open(FN_HOSTS, 'w').close()
