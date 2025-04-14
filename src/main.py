@@ -266,6 +266,8 @@ if __name__ == "__main__":
         # 使用macOS标准的用户应用数据目录
         mac_app_support = os.path.expanduser("~/Library/Application Support")
         genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
+        #设置programdata环境变量为工作目录
+        os.environ["PROGRAMDATA"] = mac_app_support
     # 确保工作目录存在，使用makedirs可以创建多级目录
     if not os.path.exists(genv.get("FP_WORKDIR")):
         try:
