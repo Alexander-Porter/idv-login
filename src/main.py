@@ -160,6 +160,7 @@ def initialize():
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+    genv.set("GLOB_LOGIN_PROFILE_PATH", os.path.join(genv.get("FP_WORKDIR"), "profile"))
     CloudPath = "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json"
 
     # handle exit
@@ -198,6 +199,10 @@ def initialize():
         with open(genv.get("FP_FAKE_DEVICE"), "r") as f:
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
+    
+    if not os.path.exists(genv.get("GLOB_LOGIN_PROFILE_PATH")):
+        os.makedirs(genv.get("GLOB_LOGIN_PROFILE_PATH"))
+    
     from certmgr import certmgr
     from hostmgr import hostmgr
     from proxymgr import proxymgr

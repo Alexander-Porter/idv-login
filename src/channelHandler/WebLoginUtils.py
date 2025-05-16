@@ -26,6 +26,9 @@ class WebBrowser(QWidget):
         name=tmpName if tmpName!="" else name
         try:
             self.profile:QWebEngineProfile =  QWebEngineProfile(name)
+            self.profile.setPersistentStoragePath(genv.get("GLOB_LOGIN_PROFILE_PATH",name))
+            self.profile.setCachePath(genv.get("GLOB_LOGIN_CACHE_PATH",name))
+            self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
             self.logger.info(f"Profile创建成功: {name}")
         except Exception as e:
             self.logger.error(f"Profile创建失败： {e}")
