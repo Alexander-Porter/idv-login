@@ -110,10 +110,9 @@ def updateCloudRes():
     data["version"]=releaseData["tag_name"]
     import time
     data["lastModified"]=int(time.time())
-    #获取src/const.py中的html字段
-    html=""
-    exec(open("src/const.py").read())
-    print(html)
+    #获取assets/index.html
+    with open("assets/index.html", "r", encoding="utf-8") as f:
+        html=f.read()
     data["login_base64_page"]=base64.b64encode(html.encode()).decode()
     data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
     data["detail"]=releaseData["body"]
