@@ -23,7 +23,7 @@ jobs:
 
       - name: Set up Python Embedded
         run: |
-          Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py
+          Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
           .\python-embed\python.exe -m pip install --upgrade pip
         shell: pwsh
