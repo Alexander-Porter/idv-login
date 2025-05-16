@@ -77,9 +77,7 @@ def setup_signal_handlers():
     def signal_handler(sig, frame):
         print(f"捕获到信号 {sig}，正在执行清理...")
         handle_exit()
-        # 对于 SIGINT 和 SIGTERM，需要在清理后退出
-        if sig in (signal.SIGINT, signal.SIGTERM):
-            sys.exit(0)
+        sys.exit(0)
     
     # 捕获常见的终止信号
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
@@ -92,18 +90,14 @@ def handle_update():
     if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
-    #check if is macOs
-    if sys.platform == "darwin" and not ("m" in genv.get("VERSION","v5.4.0").lower()):
-        print("【在线更新】该MacOS版本暂时不需要更新。")
-        return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
     elif not genv.get("CLOUD_VERSION") in ignoredVersions:
-        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}。")
+        print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
         details=genv.get("CLOUD_RES").get_detail()
         print(f"{details}")
-        print("[*]直接按回车：跳转至新版本下载页面。输入P再回车：暂时不更新。输入N再回车：永久跳过此版本。")
+        print("[*]选项：直接按回车：跳转至新版本下载页面。输入P再回车：暂时不更新。输入N再回车：永久跳过此版本。")
         choice=input("[*]请选择：")
         if choice.lower()=="p":
             return
@@ -233,9 +227,6 @@ def initialize():
         logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")
         logger.error("如果程序出错，请将计算机名修改为纯英文后重试！具体请参见常见问题解决文档。")
 
-    if user_name is not None and not all(ord(char) < 128 for char in user_name):
-        logger.warning(f"用户名包含非ASCII字符: {user_name}，如中文，可能导致华为、小米、VIVO渠道服登录异常！")
-        logger.warning("如有相关需求，请参见《常见问题解决文档》问题18。")
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
