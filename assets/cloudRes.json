@@ -3,11 +3,6 @@
     "version": "v5.4.3.2-stable",
     "detail": "### IdentityV Login Helper v5.4.3.2-stable CHANGELOG\r\n\r\n## Improvement 🚀\r\n[·] 更新了渠道服管理界面的UI\r\n    [·] 现在可以自己设定自动登录前的等待时间\r\n    [·] 支持批量删除渠道服账号记录\r\n    [·] 修改了扫码导入账号的逻辑，现在账号记录过期后重扫会直接替换原有记录，而不是生成一个新记录\r\n    [·] (beta)新增自动启动游戏功能，在渠道服管理界面设置游戏路径后即可让该游戏随工具启动\r\n    [·] 现在可以在渠道服管理界面切换管理不同游戏的账号，并启动对应的游戏客户端\r\n\r\n## In Progress 🚧\r\n[·] 九游、4399、一号玩家渠道服支持。\r\n\r\n## Known Bugs 💀\r\n[·] 部分地区小米渠道登录会失败，请自行解决网络问题。\r\n\r\n## Others 🧰\r\n[·] **本工具完全免费开源，严禁将此工具用于任何商业行为！二次开发及传播请**标明出处**并遵守`GPLv3`协议！**\r\n\r\n\r\n\r\n[下载前必看](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)\r\n[2025/3/21更新]解决了OPPO等渠道服扫码时【登录授权码非法】的问题。这个版本是V5.4.3.1版本的bug修复版本，如果您不是这个版本的用户，根据按键提示无视即可。\r\n## Tips\r\n请按下方提示，按键决定是否更新↓",
     "downloadUrl": "https://gitee.com/opguess/idv-login/releases/tag/v5.4.3.2-stable",
-	"downloadInfo":[
-		{"platform":"Windows","url":"https://gitee.com/opguess/idv-login/releases/tag/v5.4.3.2-stable"},
-		{"platform":"Linux","url":"https://gitee.com/opguess/idv-login/releases/tag/v5.4.3.2-stable"},
-		{"platform":"MacOS","url":"https://gitee.com/opguess/idv-login/releases/tag/v5.4.3.2-stable"}
-	],
     "guideUrl": "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3",
     "risk_wm": "",
     "announcement": "由于第五人格更新了Chrome内核版本，4.5版本无法通过账号风险检查，已经弃用。请更新到最新版本。",
