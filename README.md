@@ -18,7 +18,7 @@
     如果``sha256``不同，那么您下载的文件是不安全的，可能存在盗号风险，请检查您的网络环境并重新在**官方仓库**下载文件。
 2. 您可以使用 ``Windows Powershell`` 的 ``Get-FileHash`` 命令来获取文件的``sha256``值，例如，计算v5.0.0-beta版本的`sha256`可以使用以下命令：
     ```bash
-    PS D:\> Get-FileHash idv-login-v5.0.0-beta.zip
+    PS D:\> Get-FileHash idv-login-v5.0.0-beta.exe
     
     Algorithm       Hash
     ---------       ----
