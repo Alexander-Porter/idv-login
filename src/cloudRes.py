@@ -28,10 +28,20 @@ class CloudRes:
             return None
 
     def load_local_cache(self):
-        if os.path.exists(self.cache_file):
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse cache file: {e}")
+            return {}
+        except IOError as e:
+            logger.error(f"Failed to read cache file: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"Unexpected error while loading cache file: {e}")
+            return {}
 
     def update_cache_if_needed(self):
         cloud_data = self.fetch_json_from_url()
