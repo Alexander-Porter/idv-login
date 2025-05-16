@@ -19,6 +19,7 @@
 import subprocess
 import sys
 import datetime
+import os  # Added import
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
@@ -36,6 +37,25 @@ class certmgr:
     def __init__(self) -> None:
         self.logger = setup_logger()
         pass
+
+    def is_certificate_expired(self, cert_path: str) -> bool:
+        if not os.path.exists(cert_path):
+            self.logger.info(f"证书文件 {cert_path} 不存在，将进行创建。")
+            return False  # Not expired because it will be (re)created
+        try:
+            with open(cert_path, "rb") as f:
+                cert_data = f.read()
+            cert = x509.load_pem_x509_certificate(cert_data)
+            # Use timezone-aware datetime for comparison
+            if datetime.datetime.now(datetime.timezone.utc) > cert.not_valid_after_utc:
+                self.logger.warning(f"证书 {cert_path} 已于 {cert.not_valid_after_utc} 过期。")
+                return True
+            else:
+                self.logger.info(f"证书 {cert_path} 有效期至 {cert.not_valid_after_utc}。")
+                return False
+        except Exception as e:
+            self.logger.error(f"检查证书 {cert_path} 有效期失败: {e}", exc_info=True)
+            return True  # Treat as expired if an error occurs during check
 
     def generate_private_key(self, bits: int):
         return rsa.generate_private_key(public_exponent=65537, key_size=bits)
@@ -61,9 +81,9 @@ class certmgr:
             .issuer_name(issuer)
             .public_key(privatekey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3))
             .not_valid_after(
-                datetime.datetime.now() + datetime.timedelta(days=360)
+                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=360)
             )
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=None),
@@ -102,9 +122,9 @@ class certmgr:
             .issuer_name(ca_cert.subject)
             .public_key(csr.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))#avoid using UTC
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(days=3))#avoid using UTC
             .not_valid_after(
-                datetime.datetime.now() + datetime.timedelta(days=360)#for chrome 
+                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=360)#for chrome
             )
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),

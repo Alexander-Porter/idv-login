@@ -93,7 +93,7 @@ def handle_update():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
     #check if is macOs
-    if sys.platform == "darwin" and not ("mac" in genv.get("VERSION","v5.4.0").lower()):
+    if sys.platform == "darwin" and not ("m" in genv.get("VERSION","v5.4.0").lower()):
         print("【在线更新】该MacOS版本暂时不需要更新。")
         return
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
@@ -115,7 +115,7 @@ def handle_update():
             url=genv.get("CLOUD_RES").get_downloadUrl()
             import webbrowser
             webbrowser.open(url)
-            input("【更新方法】按照页面上的指引下载新的.exe文件即可。")
+            input("【更新方法】按照页面上的指引下载文件即可。")
             sys.exit(0)
     else:
         print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，但已被用户永久跳过。")
@@ -292,9 +292,28 @@ if __name__ == "__main__":
         welcome()
         handle_update()
         handle_announcement()
-        if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
-            os.path.exists(genv.get("FP_WEBKEY")) == False
-        ):
+
+        # 检查证书是否过期
+        web_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_WEBCERT"))
+        ca_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_CACERT"))
+
+        if web_cert_expired or ca_cert_expired:
+            logger.info("一个或多个证书已过期或不存在，正在重新生成...")
+            # 删除旧证书文件（如果存在）
+            if os.path.exists(genv.get("FP_WEBCERT")):
+                os.remove(genv.get("FP_WEBCERT"))
+                logger.info(f"已删除旧的网站证书: {genv.get('FP_WEBCERT')}")
+            if os.path.exists(genv.get("FP_WEBKEY")):
+                os.remove(genv.get("FP_WEBKEY"))
+                logger.info(f"已删除旧的网站密钥: {genv.get('FP_WEBKEY')}")
+            if os.path.exists(genv.get("FP_CACERT")):
+                os.remove(genv.get("FP_CACERT"))
+                logger.info(f"已删除旧的CA证书: {genv.get('FP_CACERT')}")
+
+        if (os.path.exists(genv.get("FP_WEBCERT")) == False) or \
+           (os.path.exists(genv.get("FP_WEBKEY")) == False) or \
+           (os.path.exists(genv.get("FP_CACERT")) == False) or \
+           web_cert_expired or ca_cert_expired: # 添加过期检查条件
             logger.info("正在生成必要的证书文件...")
 
             ca_key = m_certmgr.generate_private_key(bits=2048)
