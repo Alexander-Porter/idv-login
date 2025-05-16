@@ -5,6 +5,10 @@ on:
     types:
       - published
   workflow_dispatch:
+  push:
+    paths:
+      - 'assets/anno'
+      - 'src/const.py'
 
 jobs:
   sync_release:

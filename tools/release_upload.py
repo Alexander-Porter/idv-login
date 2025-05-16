@@ -117,6 +117,10 @@ def updateCloudRes():
     data["login_base64_page"]=base64.b64encode(html.encode()).decode()
     data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
     data["detail"]=releaseData["body"]
+    #读取assets/anno文件，得到公告
+    with open("assets/anno", "r", encoding="utf-8") as f:
+        anno=f.read()
+    data["announcement"]=anno
     commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
     dataStr=json.dumps(data)
     dataStr=base64.b64encode(dataStr.encode()).decode()
