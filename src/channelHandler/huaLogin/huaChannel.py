@@ -306,5 +306,5 @@ class HuaweiLogin:
         body["extraBody"] = f'json={{"appId":"{str(self.channelConfig["app_id"])}"}}'
         body["accessToken"]=self.accessToken
 
-        response = requests.post(url, headers=headers, data=body,verify=False)
+        response = requests.post(url, headers=headers, data=body)
         return response.json()

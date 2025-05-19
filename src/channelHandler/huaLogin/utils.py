@@ -1,10 +1,4 @@
-import json
-import os
-import random
-import string
-import time
 from Crypto.Cipher import AES
-import binascii
 import requests
 import base64
 import hashlib
@@ -52,7 +46,7 @@ def exchange_code_for_token(client_id, code, code_verifier, redirect_uri):
     }
 
     # 发送POST请求获取Token
-    response = requests.post(token_url, headers=headers, data=data,verify=False)
+    response = requests.post(token_url, headers=headers, data=data)
     return response.json()
 
 def get_access_token(client_id, client_secret, refresh_token):
@@ -70,6 +64,6 @@ def get_access_token(client_id, client_secret, refresh_token):
         "refresh_token": refresh_token
     }
     
-    response = requests.post(token_url, headers=headers, data=data,verify=False)
+    response = requests.post(token_url, headers=headers, data=data)
     
     return response.json()

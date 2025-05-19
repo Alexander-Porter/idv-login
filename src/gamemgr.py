@@ -87,7 +87,6 @@ class Game:
             # 规范化路径
             game_path = os.path.normpath(game_path)
             game_dir = os.path.dirname(game_path)
-            game_exe = os.path.basename(game_path)
             
             # 设置进程的工作目录为游戏所在目录
             startupinfo = subprocess.STARTUPINFO()
