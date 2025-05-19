@@ -8,3 +8,4 @@ main.dist/
 main.build/
 src/buildinfo.py
 .vscode/
+src/python/
