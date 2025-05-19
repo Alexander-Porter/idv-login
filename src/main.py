@@ -332,6 +332,7 @@ if __name__ == "__main__":
 
         logger.info("正在重定向目标地址到本机...")
         try:
+            raise Exception("手动定向")
             if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
                 logger.info("识别到手动定向!")
                 logger.info(
@@ -343,12 +344,14 @@ if __name__ == "__main__":
         except:
             from backupvermgr import BackupVersionMgr
             logger.warning("正在尝试备用方案")
+            #获取当前进程的pid
+            pid = os.getpid()
             try:
                 backupVerMgr=BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
                 genv.set("backupVerMgr",backupVerMgr)
                 if genv.get("backupVer",False) or backupVerMgr.setup_environment():
                     genv.set("backupVer",True,True)
-                    if backupVerMgr.start_mitmproxy_redirect():
+                    if backupVerMgr.start_mitmproxy_redirect(pid):
                         genv.set("USING_BACKUP_VER",True,False)
                         logger.info("手动定向成功!")
                     else:

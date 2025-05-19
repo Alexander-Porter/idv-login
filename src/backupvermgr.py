@@ -260,7 +260,7 @@ class BackupVersionMgr:
             logger.error(f"初始化mitmproxy证书时出错: {e}")
             return False
     
-    def start_mitmproxy_redirect(self):
+    def start_mitmproxy_redirect(self,pid=None):
         """启动mitmproxy并重定向流量"""
         if self.mitm_proxy_process and self.mitm_proxy_process.poll() is None:
             logger.info("mitmproxy已经在运行中")
@@ -293,7 +293,7 @@ def running():
                 self.mitm_proxy_process = subprocess.Popen(
                     [
                         self.mitm_proxy_exe,
-                        "--mode", "local",
+                        "--mode", f"local:!{pid}",
                         "-s", script_path
                     ],
                     stdout=f_log,
