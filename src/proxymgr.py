@@ -34,7 +34,37 @@ import os
 import psutil
 import const
 import subprocess
+import socket
+import requests
 
+def is_ipv4(s):
+    # Feel free to improve this: https://stackoverflow.com/questions/11827961/checking-for-ip-addresses
+    return ':' not in s
+
+dns_cache = {}
+
+def add_custom_dns(domain, port, ip):
+    key = (domain, port)
+    # Strange parameters explained at:
+    # https://docs.python.org/2/library/socket.html#socket.getaddrinfo
+    # Values were taken from the output of `socket.getaddrinfo(...)`
+    if is_ipv4(ip):
+        value = (socket.AddressFamily.AF_INET, 0, 0, '', (ip, port))
+    else: # ipv6
+        value = (socket.AddressFamily.AF_INET6, 0, 0, '', (ip, port, 0, 0))
+    dns_cache[key] = [value]
+
+# Inspired by: https://stackoverflow.com/a/15065711/868533
+prv_getaddrinfo = socket.getaddrinfo
+def new_getaddrinfo(*args):
+    # Uncomment to see what calls to `getaddrinfo` look like.
+    # print(args)
+    try:
+        return dns_cache[args[:2]] # hostname and port
+    except KeyError:
+        return prv_getaddrinfo(*args)
+
+socket.getaddrinfo = new_getaddrinfo
 
 app = Flask(__name__)
 game_helper = GameManager()
@@ -100,12 +130,11 @@ def requestGetAsCv(request, cv):
         query["cv"] = cv
     resp = g_req.request(
         method=request.method,
-        url=genv.get("URI_REMOTEIP") + request.path,
+        url=request.url,
         params=query,
         headers=request.headers,
         cookies=request.cookies,
-        allow_redirects=False,
-        verify=False,
+        allow_redirects=False
     )
     excluded_headers = [
         "content-encoding",
@@ -127,13 +156,12 @@ def proxy(request):
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
-        url=genv.get("URI_REMOTEIP") + request.path,
+        url=request.url,
         params=query,
         headers=request.headers,
         data=new_body,
         cookies=request.cookies,
-        allow_redirects=False,
-        verify=False,
+        allow_redirects=False
     )
     app.logger.info(resp.url)
     # 构造代理响应
@@ -170,13 +198,12 @@ def requestPostAsCv(request, cv):
     app.logger.info(new_body)
     resp = g_req.request(
         method=request.method,
-        url=genv.get("URI_REMOTEIP") + request.path,
+        url=request.url,
         params=query,
         data=new_body,
         headers=request.headers,
         cookies=request.cookies,
-        allow_redirects=False,
-        verify=False,
+        allow_redirects=False
     )
     excluded_headers = [
         "content-encoding",
@@ -743,7 +770,6 @@ class proxymgr:
                 "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
-
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
         #创建一个空日志
@@ -761,6 +787,7 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+            add_custom_dns(genv.get("DOMAIN_TARGET"), 443, target)
             if game_helper.list_auto_start_games():
                 should_start_text="\n".join([i.name for i in game_helper.list_auto_start_games()])
                 logger.info(f"检测到有游戏设置了自动启动，游戏列表{should_start_text}")

@@ -294,7 +294,6 @@ class ChannelManager:
             "https://service.mkey.163.com/mpay/api/qrcode/confirm_login",
             data=body,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
-            verify=False,
         )
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
@@ -324,7 +323,6 @@ class ChannelManager:
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
                         params=data,
-                        verify=False,
                     )
                     self.logger.info(f"模拟扫码请求: {r.json()}")
                     if r.status_code == 200:
