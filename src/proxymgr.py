@@ -128,9 +128,12 @@ def requestGetAsCv(request, cv):
     query = request.args.copy()
     if cv:
         query["cv"] = cv
+    url = request.base_url
+    if request.host == "localhost":
+        url = url.replace("localhost", "service.mkey.163.com")
     resp = g_req.request(
         method=request.method,
-        url=request.base_url,
+        url=url,
         params=query,
         headers=request.headers,
         cookies=request.cookies,
@@ -153,10 +156,13 @@ def requestGetAsCv(request, cv):
 def proxy(request):
     query = request.args.copy()
     new_body = request.get_data(as_text=True)
+    url = request.base_url
+    if request.host == "localhost":
+        url = url.replace("localhost", "service.mkey.163.com")
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
-        url=request.base_url,
+        url=url,
         params=query,
         headers=request.headers,
         data=new_body,
@@ -196,9 +202,12 @@ def requestPostAsCv(request, cv):
         new_body = "&".join([f"{k}={v}" for k, v in new_body.items()])
 
     app.logger.info(new_body)
+    url = request.base_url
+    if request.host == "localhost":
+        url = url.replace("localhost", "service.mkey.163.com")
     resp = g_req.request(
         method=request.method,
-        url=request.base_url,
+        url=url,
         params=query,
         data=new_body,
         headers=request.headers,
@@ -787,6 +796,7 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+            #劫持dns，使得Hosts文件被忽略
             add_custom_dns(genv.get("DOMAIN_TARGET"), 443, target)
             if game_helper.list_auto_start_games():
                 should_start_text="\n".join([i.name for i in game_helper.list_auto_start_games()])
