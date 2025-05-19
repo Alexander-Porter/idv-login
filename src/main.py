@@ -331,14 +331,32 @@ if __name__ == "__main__":
             logger.info("初始化成功!")
 
         logger.info("正在重定向目标地址到本机...")
-        if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
-            logger.info("识别到手动定向!")
-            logger.info(
-                f"请确保已经将 {genv.get('DOMAIN_TARGET')} 和 localhost 指向 127.0.0.1"
-            )
-        else:
-            m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
-            m_hostmgr.add("localhost", "127.0.0.1")
+        try:      
+            if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
+                logger.info("识别到手动定向!")
+                logger.info(
+                    f"请确保已经将 {genv.get('DOMAIN_TARGET')} 和 localhost 指向 127.0.0.1"
+                )
+            else:
+                m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+                m_hostmgr.add("localhost", "127.0.0.1")
+        except:
+            from backupvermgr import BackupVersionMgr
+            logger.warning("正在尝试备用方案")
+            try:
+                backupVerMgr=BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
+                if genv.get("backupVer",False) or backupVerMgr.setup_environment():
+                    genv.set("backupVer",True,True)
+                    if backupVerMgr.start_mitmproxy_redirect():
+                        genv.set("USING_BACKUP_DNS",True,False)
+                        logger.info("手动定向成功!")
+                    else:
+                        logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+                else:
+                    logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+            except:
+                logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+
 
         logger.info("正在启动代理服务器...")
         m_proxy.run()
