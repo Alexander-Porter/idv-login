@@ -69,6 +69,8 @@ def get_current_username():
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
+    if genv.get("USING_BACKUP_VER",False):
+        genv.get("backupVerMgr").stop_mitmproxy()
     print("再见!")
 
 def setup_signal_handlers():
@@ -345,10 +347,11 @@ if __name__ == "__main__":
             logger.warning("正在尝试备用方案")
             try:
                 backupVerMgr=BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
+                genv.set("backupVerMgr",backupVerMgr)
                 if genv.get("backupVer",False) or backupVerMgr.setup_environment():
                     genv.set("backupVer",True,True)
                     if backupVerMgr.start_mitmproxy_redirect():
-                        genv.set("USING_BACKUP_DNS",True,False)
+                        genv.set("USING_BACKUP_VER",True,False)
                         logger.info("手动定向成功!")
                     else:
                         logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
