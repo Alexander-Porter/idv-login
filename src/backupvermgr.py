@@ -33,7 +33,14 @@ class BackupVersionMgr:
             "tsinghua": "https://pypi.tuna.tsinghua.edu.cn/simple",
             "aliyun": "https://mirrors.aliyun.com/pypi/simple",
             "ustc": "https://pypi.mirrors.ustc.edu.cn/simple",
-            "hust": "https://mirrors.hust.edu.cn/pypi/simple"
+            "hust": "https://mirrors.hust.edu.cn/pypi/simple",
+            "official": "https://pypi.python.org/simple"
+        }
+        
+        # get-pip.py 镜像源
+        self.get_pip_sources = {
+            "official": "https://bootstrap.pypa.io/get-pip.py",
+            "gitee": "https://gitee.com/opguess/idv-login/raw/main/assets/get-pip.py"
         }
     
     def test_url_speed(self, url):
@@ -145,11 +152,10 @@ class BackupVersionMgr:
             with open(pth_file, 'w') as f:
                 f.write(content)
         
-        # 下载get-pip.py
-        get_pip_url = "https://bootstrap.pypa.io/get-pip.py"
+        # 选择最快的 get-pip.py 源
+        fastest_get_pip = self.find_fastest_source(self.get_pip_sources)
         get_pip_path = os.path.join(self.python_dir, "get-pip.py")
-        
-        if not self.download_file(get_pip_url, get_pip_path):
+        if not self.download_file(fastest_get_pip, get_pip_path):
             logger.error("无法下载get-pip.py")
             return False
         
