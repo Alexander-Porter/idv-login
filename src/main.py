@@ -157,13 +157,13 @@ def initialize():
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
     genv.set("GLOB_LOGIN_PROFILE_PATH", os.path.join(genv.get("FP_WORKDIR"), "profile"))
-    CloudPath = "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json"
+    CloudPaths = ["https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json","https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/assets/cloudRes.json"]
 
     # handle exit
     atexit.register(handle_exit)
 
     from cloudRes import CloudRes
-    m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
+    m_cloudres=CloudRes(CloudPaths,genv.get('FP_WORKDIR'))
     m_cloudres.update_cache_if_needed()
     genv.set("CLOUD_RES",m_cloudres)
     genv.set("CLOUD_VERSION",m_cloudres.get_version())
@@ -332,8 +332,6 @@ if __name__ == "__main__":
 
         logger.info("正在重定向目标地址到本机...")
         try:
-            raise Exception("测试异常")
-                  
             if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
                 logger.info("识别到手动定向!")
                 logger.info(

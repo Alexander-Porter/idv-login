@@ -9,8 +9,8 @@ from logutil import setup_logger
 logger = setup_logger()
 
 class CloudRes:
-    def __init__(self, url, cache_dir):
-        self.url = url
+    def __init__(self, urls, cache_dir):
+        self.urls = urls
         self.cache_dir = cache_dir
         self.cache_file = os.path.join(cache_dir, 'cache.json')
         self.local_data = self.load_local_cache()
@@ -18,16 +18,19 @@ class CloudRes:
         self.session.trust_env = False
 
     def fetch_json_from_url(self):
-        try:
-            response = self.session.get(self.url, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch JSON from URL: {e}")
-            return None
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON received: {e}")
-            return None
+        for url in self.urls:
+            try:
+                response = self.session.get(url, timeout=10)
+                response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
+                return response.json()
+            except requests.RequestException as e:
+                logger.error(f"Failed to fetch JSON from URL {url}: {e}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON received from URL {url}: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error while fetching JSON from URL {url}: {e}")
+        logger.error("Failed to fetch JSON from all provided URLs.")
+        return None
 
     def load_local_cache(self):
         try:
