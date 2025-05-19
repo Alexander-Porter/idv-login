@@ -24,6 +24,7 @@ import sys
 
 FN_HOSTS = Hosts.determine_hosts_path()
 
+
 class hostmgr:
     def __init__(self) -> None:
         self.logger=setup_logger()
@@ -33,10 +34,10 @@ class hostmgr:
                 open(FN_HOSTS, 'w').close()
             except:
                 self.logger.exception(f"Hosts文件创建失败！")
-                sys.exit()
+                raise Exception()
         elif not os.access(FN_HOSTS, os.W_OK):
             self.logger.warning(f"Hosts文件不可写，请检查{FN_HOSTS}是否被设置了只读权限！")
-            input("按任意键继续")
+            raise Exception()
         else:
             try:
                 m_host = Hosts()
@@ -56,6 +57,7 @@ class hostmgr:
             m_host.write()
         except:
             self.logger.error(f"写Hosts文件失败，请参考常见问题解决方案。")
+            raise Exception()
     def remove(self, dnsname) :
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)
@@ -63,4 +65,4 @@ class hostmgr:
     
     def isExist(self, dnsname)->bool :
         m_host = Hosts()
-        return m_host.exists(names=[dnsname])
+        m_host.exists(names=[dnsname])
