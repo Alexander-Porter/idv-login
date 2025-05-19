@@ -14,10 +14,12 @@ class CloudRes:
         self.cache_dir = cache_dir
         self.cache_file = os.path.join(cache_dir, 'cache.json')
         self.local_data = self.load_local_cache()
+        self.session = requests.Session()
+        self.session.trust_env = False
 
     def fetch_json_from_url(self):
         try:
-            response = requests.get(self.url,proxies={})
+            response = self.session.get(self.url, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
