@@ -130,7 +130,7 @@ def requestGetAsCv(request, cv):
         query["cv"] = cv
     resp = g_req.request(
         method=request.method,
-        url=request.url,
+        url=request.base_url,
         params=query,
         headers=request.headers,
         cookies=request.cookies,
@@ -156,7 +156,7 @@ def proxy(request):
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
-        url=request.url,
+        url=request.base_url,
         params=query,
         headers=request.headers,
         data=new_body,
@@ -198,7 +198,7 @@ def requestPostAsCv(request, cv):
     app.logger.info(new_body)
     resp = g_req.request(
         method=request.method,
-        url=request.url,
+        url=request.base_url,
         params=query,
         data=new_body,
         headers=request.headers,
