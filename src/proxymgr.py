@@ -757,7 +757,7 @@ class proxymgr:
                 application=app,
                 log=web_logger,
             )
-        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
+        if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1" or genv.get("USING_BACKUP_VER", False):
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
