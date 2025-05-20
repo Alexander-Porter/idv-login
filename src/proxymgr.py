@@ -130,7 +130,7 @@ def requestGetAsCv(request, cv):
         query["cv"] = cv
     url = request.base_url
     if request.host == "localhost":
-        url = url.replace("localhost", "service.mkey.163.com")
+        url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     resp = g_req.request(
         method=request.method,
         url=url,
@@ -158,7 +158,7 @@ def proxy(request):
     new_body = request.get_data(as_text=True)
     url = request.base_url
     if request.host == "localhost":
-        url = url.replace("localhost", "service.mkey.163.com")
+        url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
@@ -204,7 +204,7 @@ def requestPostAsCv(request, cv):
     app.logger.info(new_body)
     url = request.base_url
     if request.host == "localhost":
-        url = url.replace("localhost", "service.mkey.163.com")
+        url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     resp = g_req.request(
         method=request.method,
         url=url,
@@ -319,8 +319,6 @@ def handle_create_login():
         return jsonify(new_config)
     except:
         return proxy(request)
-
-
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():

@@ -200,11 +200,10 @@ def initialize():
         os.makedirs(genv.get("GLOB_LOGIN_PROFILE_PATH"))
     
     from certmgr import certmgr
-    from hostmgr import hostmgr
     from proxymgr import proxymgr
     from channelmgr import ChannelManager
     m_certmgr = certmgr()
-    m_hostmgr = hostmgr()
+    
     m_proxy = proxymgr()
     # 关于线程安全：谁？
     genv.set("CHANNELS_HELPER", ChannelManager())
@@ -332,7 +331,9 @@ if __name__ == "__main__":
 
         logger.info("正在重定向目标地址到本机...")
         try:
-            raise Exception("手动定向")
+            from hostmgr import hostmgr
+            m_hostmgr = hostmgr()
+
             if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
                 logger.info("识别到手动定向!")
                 logger.info(
