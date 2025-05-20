@@ -139,9 +139,18 @@ class certmgr:
                 subprocess.check_call(
                     ['certutil', '-addstore', 'Root', cert_path]
                 )
-            else:
+            elif sys.platform == "darwin":
+                # macOS
                 subprocess.check_call(
                     ['sudo', 'security', 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_path]
+                )
+            elif sys.platform.startswith("linux"):
+                # Linux
+                subprocess.check_call(
+                    ['sudo', 'cp', cert_path, '/usr/local/share/ca-certificates/']
+                )
+                subprocess.check_call(
+                    ['sudo', 'update-ca-certificates']
                 )
             return True
         except subprocess.CalledProcessError as e:

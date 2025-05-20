@@ -56,16 +56,6 @@ def get_computer_name():
         logger.exception(f"获取计算机名时发生异常: {e}")
         return None
 
-def get_current_username():
-    try:
-        # 获取当前用户名
-        username = os.getlogin()
-        # 确保用户名编码为 UTF-8
-        username_utf8 = username.encode('utf-8').decode('utf-8')
-        return username_utf8
-    except Exception as e:
-        logger.exception(f"获取当前用户名时发生异常: {e}")
-        return None
 def handle_exit():
     logger.info("程序关闭，正在清理 hosts ！")
     m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
@@ -264,6 +254,13 @@ if __name__ == "__main__":
         genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
         #设置programdata环境变量为工作目录
         os.environ["PROGRAMDATA"] = mac_app_support
+    elif sys.platform=='linux':
+        setup_signal_handlers()
+        # 使用Linux标准的用户应用数据目录
+        home = os.path.expanduser("~")
+        genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
+        #设置programdata环境变量为工作目录
+        os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
     # 确保工作目录存在，使用makedirs可以创建多级目录
     if not os.path.exists(genv.get("FP_WORKDIR")):
         try:
@@ -354,13 +351,13 @@ if __name__ == "__main__":
                     genv.set("backupVer",True,True)
                     if backupVerMgr.start_mitmproxy_redirect(pid):
                         genv.set("USING_BACKUP_VER",True,False)
-                        logger.info("手动定向成功!")
+                        logger.info("备用方案成功!")
                     else:
-                        logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+                        logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
                 else:
-                    logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+                    logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
             except:
-                logger.error("手动定向失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
+                logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
 
 
         logger.info("正在启动代理服务器...")

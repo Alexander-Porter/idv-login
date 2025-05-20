@@ -17,7 +17,6 @@
  """
 
 
-import logging
 import sys
 import time
 from flask import Flask, request, Response, jsonify
@@ -618,7 +617,6 @@ def _handle_switch_page():
         cloudRes = genv.get("CLOUD_RES")
         if cloudRes.get_login_page() == "":
             return Response(const.html)
-        #logger.info(f"正在加载登录页面: {cloudRes.get_login_page()}")
         return Response(cloudRes.get_login_page())
     except Exception as e:
         return Response(const.html)
