@@ -197,9 +197,74 @@ class BackupVersionMgr:
             logger.error(f"设置pip镜像时出错: {e}")
             return False
     
-    def install_mitmproxy(self):
-        """安装mitmproxy"""
+    def _check_package_installed(self, package_name):
+        """检查指定包是否已安装"""
         try:
+            result = subprocess.run(
+                [self.pip_exe, "show", package_name],
+                capture_output=True,
+                text=True
+            )
+            return result.returncode == 0
+        except Exception as e:
+            logger.error(f"检查包 {package_name} 是否安装时出错: {e}")
+            return False
+    
+    def install_setuptools(self):
+        """安装 setuptools 和 wheel（如果尚未安装）"""
+        try:
+            packages_to_install = []
+            
+            # 检查 setuptools 是否已安装
+            if not self._check_package_installed("setuptools"):
+                packages_to_install.append("setuptools")
+                logger.info("setuptools 未安装，将进行安装")
+            else:
+                logger.info("setuptools 已存在")
+            
+            # 检查 wheel 是否已安装
+            if not self._check_package_installed("wheel"):
+                packages_to_install.append("wheel")
+                logger.info("wheel 未安装，将进行安装")
+            else:
+                logger.info("wheel 已存在")
+            
+            # 如果没有需要安装的包，直接返回成功
+            if not packages_to_install:
+                logger.info("setuptools 和 wheel 都已安装，跳过安装步骤")
+                return True
+            
+            # 安装需要的包
+            logger.info(f"开始安装: {', '.join(packages_to_install)}")
+            result = subprocess.run(
+                [self.pip_exe, "install"] + packages_to_install,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"安装 {', '.join(packages_to_install)} 失败: {result.stderr}")
+                return False
+                
+            logger.info(f"{', '.join(packages_to_install)} 安装成功")
+            return True
+        except Exception as e:
+            logger.error(f"安装 setuptools 时出错: {e}")
+            return False
+    
+    def install_mitmproxy(self):
+        """安装mitmproxy（如果尚未安装）"""
+        try:
+            # 首先检查mitmproxy是否已安装
+            if self._check_package_installed("mitmproxy"):
+                logger.info("mitmproxy 已存在")
+                # 进一步检查可执行文件是否存在
+                if os.path.exists(self.mitm_proxy_exe):
+                    logger.info("mitmproxy 可执行文件已存在，跳过安装步骤")
+                    return True
+                else:
+                    logger.warning("mitmproxy 包已安装但可执行文件不存在，将重新安装")
+            
             logger.info("开始安装mitmproxy")
             result = subprocess.run(
                 [self.pip_exe, "install", "mitmproxy"],
@@ -260,7 +325,7 @@ class BackupVersionMgr:
             logger.error(f"初始化mitmproxy证书时出错: {e}")
             return False
     
-    def start_mitmproxy_redirect(self,pid=None):
+    def start_mitmproxy_redirect(self, pid=None):
         """启动mitmproxy并重定向流量"""
         if self.mitm_proxy_process and self.mitm_proxy_process.poll() is None:
             logger.info("mitmproxy已经在运行中")
@@ -332,68 +397,130 @@ def running():
                 except:
                     pass
         return False
-    
-    def install_setuptools(self):
-        """安装 setuptools"""
+
+    def _detect_current_executable_path(self):
+        """检测当前可执行文件或脚本的路径"""
         try:
-            logger.info("开始安装 setuptools")
-            result = subprocess.run(
-                [self.pip_exe, "install", "setuptools", "wheel"],
-                capture_output=True,
-                text=True
-            )
-            
-            if result.returncode != 0:
-                logger.error(f"安装 setuptools 失败: {result.stderr}")
+            if getattr(sys, 'frozen', False):
+                # 如果是PyInstaller打包的执行文件
+                exe_path = sys.executable
+                logger.debug(f"检测到PyInstaller打包环境，可执行文件路径: {exe_path}")
+                return exe_path, True  # 返回路径和是否为exe的标志
+            else:
+                # 如果是Python脚本
+                script_path = os.path.abspath(sys.argv[0])
+                logger.debug(f"检测到Python脚本环境，脚本路径: {script_path}")
+                return script_path, False  # 返回路径和是否为exe的标志
+        except Exception as e:
+            logger.error(f"检测可执行文件路径时出错: {e}")
+            return None, False
+    
+    def _create_mitm_shortcut(self):
+        """在当前程序位置创建启动备用模式的快捷方式"""
+        try:
+            # 检测当前可执行文件路径
+            current_path, is_exe = self._detect_current_executable_path()
+            if not current_path:
+                logger.error("无法检测当前程序路径")
                 return False
-                
-            logger.info("setuptools 安装成功")
+            
+            # 确定快捷方式的位置（与当前程序同目录）
+            current_dir = os.path.dirname(current_path)
+            shortcut_path = os.path.join(current_dir, "idv-login 启动备用模式.lnk")
+            
+            # 如果快捷方式已存在，先删除
+            if os.path.exists(shortcut_path):
+                os.remove(shortcut_path)
+                logger.debug(f"已删除旧的快捷方式: {shortcut_path}")
+            
+            # 使用COM接口创建快捷方式
+            import win32com.client
+            
+            shell = win32com.client.Dispatch("WScript.Shell")
+            shortcut = shell.CreateShortCut(shortcut_path)
+            
+            if is_exe:
+                # 如果是exe文件，直接指向exe并添加--mitm参数
+                shortcut.Targetpath = current_path
+                shortcut.Arguments = "--mitm"
+                shortcut.WorkingDirectory = current_dir
+            else:
+                # 如果是Python脚本，指向Python解释器，脚本作为参数
+                shortcut.Targetpath = sys.executable
+                shortcut.Arguments = f'"{current_path}" --mitm'
+                shortcut.WorkingDirectory = current_dir
+            
+            shortcut.Description = "第五人格登陆助手 - 备用模式"
+            shortcut.IconLocation = current_path + ",0"  # 使用程序本身的图标
+            
+            shortcut.save()
             return True
         except Exception as e:
-            logger.error(f"安装 setuptools 时出错: {e}")
+            logger.error(f"创建快捷方式时出错: {e}")
             return False
     
     def setup_environment(self):
         """设置完整的环境"""
-        success = True
+        logger.info("开始设置备用版本环境...")
+        
         try:
-            # 步骤1: 安装便携版Python
+            # 步骤1: 检查并安装便携版Python
             if not os.path.exists(self.python_exe):
-                success = success and self.install_portable_python()
+                logger.info("便携版Python不存在，开始安装...")
+                if not self.install_portable_python():
+                    logger.error("便携版Python安装失败")
+                    return False
+                logger.info("便携版Python安装成功")
             else:
-                logger.info("便携版Python已存在")
+                logger.info("便携版Python已存在，跳过安装")
             
-            # 步骤2: 设置pip镜像
-            if success:
-                success = success and self.setup_pip_mirror()
+            # 步骤2: 设置pip镜像源
+            logger.info("设置pip镜像源...")
+            if not self.setup_pip_mirror():
+                logger.error("pip镜像源设置失败")
+                return False
             
-            # 步骤3: 安装setuptools
-            if success:
-                success = success and self.install_setuptools()
+            # 步骤3: 检查并安装setuptools和wheel
+            logger.info("检查setuptools和wheel...")
+            if not self.install_setuptools():
+                logger.error("setuptools安装失败")
+                return False
 
-            # 步骤4: 安装mitmproxy
-            if success and not os.path.exists(self.mitm_proxy_exe):
-                success = success and self.install_mitmproxy()
+            # 步骤4: 检查并安装mitmproxy
+            if not os.path.exists(self.mitm_proxy_exe):
+                logger.info("mitmproxy可执行文件不存在，开始安装...")
+                if not self.install_mitmproxy():
+                    logger.error("mitmproxy安装失败")
+                    return False
+                logger.info("mitmproxy安装成功")
             else:
-                logger.info("mitmproxy已存在")
-            
+                logger.info("mitmproxy已存在，跳过安装")
+                
             # 步骤5: 初始化mitmproxy证书
-            if success:
-                success = success and self.init_mitmproxy_cert()
+            logger.info("初始化mitmproxy证书...")
+            if not self.init_mitmproxy_cert():
+                logger.warning("mitmproxy证书初始化失败")
+                return False
             
-            return success
-        except:
-            logger.exception("Error: setup")
+            # 步骤6: 在Windows系统上创建备用模式快捷方式
+            if platform.system().lower() == 'windows':
+                logger.info("正在创建备用模式快捷方式...")
+                try:
+                    if self._create_mitm_shortcut():
+                        logger.info("备用模式快捷方式创建成功")
+                    else:
+                        logger.warning("快捷方式创建失败，但不影响主要功能")
+                except Exception as e:
+                    logger.warning(f"创建快捷方式时发生异常: {e}，但不影响主要功能")
+            
+            logger.info("备用版本环境设置完成！")
+            return True
+            
+        except Exception as e:
+            logger.exception(f"设置环境时发生未处理的异常: {e}")
             return False
 if __name__ == "__main__":
     mgr = BackupVersionMgr()
     if not mgr.setup_environment():
         logger.error("环境设置失败")
         sys.exit(1)
-
-    # 启动mitmproxy
-    if not mgr.start_mitmproxy_redirect():
-        logger.error("启动mitmproxy重定向失败")
-        sys.exit(1)
-    
-    logger.info("环境设置完成，mitmproxy已启动")
