@@ -7,6 +7,7 @@ from PyQt5.QtCore import QUrl, QTimer
 from PyQt5.QtCore import pyqtSlot
 from envmgr import genv
 from logutil import setup_logger
+import os
 class WebBrowser(QWidget):
     class WebEngineView(QWebEngineView):
         def createWindow(self, QWebEnginePage_WebWindowType):
@@ -26,8 +27,10 @@ class WebBrowser(QWidget):
         name=tmpName if tmpName!="" else name
         try:
             self.profile:QWebEngineProfile =  QWebEngineProfile(name)
-            self.profile.setPersistentStoragePath(genv.get("GLOB_LOGIN_PROFILE_PATH",name))
-            self.profile.setCachePath(genv.get("GLOB_LOGIN_CACHE_PATH",name))
+            profile_base_path = genv.get("GLOB_LOGIN_PROFILE_PATH", name)
+            cache_base_path = genv.get("GLOB_LOGIN_CACHE_PATH", name)
+            self.profile.setPersistentStoragePath(os.path.join(profile_base_path, tmpName))
+            self.profile.setCachePath(os.path.join(cache_base_path, tmpName))
             self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
             self.logger.info(f"Profile创建成功: {name}")
         except Exception as e:

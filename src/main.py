@@ -147,6 +147,7 @@ def initialize():
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
     genv.set("GLOB_LOGIN_PROFILE_PATH", os.path.join(genv.get("FP_WORKDIR"), "profile"))
+    genv.set("GLOB_LOGIN_CACHE_PATH", os.path.join(genv.get("FP_WORKDIR"), "cache"))
     CloudPaths = ["https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json","https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/assets/cloudRes.json"]
 
     # handle exit
