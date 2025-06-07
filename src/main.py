@@ -17,6 +17,7 @@
  """
 
 import sys
+import argparse
 
 
 from gevent import monkey
@@ -36,13 +37,15 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
 
 from envmgr import genv
+from logutil import setup_logger # Moved import to top for consistency
 
 
-
+# Global variable declarations
 m_certmgr = None
-m_hostmgr = None
+m_hostmgr = None 
 m_proxy = None
 m_cloudres=None
+logger = None # Will be initialized in __main__
 
 
 def get_computer_name():
@@ -57,10 +60,27 @@ def get_computer_name():
         return None
 
 def handle_exit():
-    logger.info("程序关闭，正在清理 hosts ！")
-    m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
-    if genv.get("USING_BACKUP_VER",False):
-        genv.get("backupVerMgr").stop_mitmproxy()
+    # Assuming logger is initialized by the time this is called via atexit or signal
+    if logger:
+        logger.info("程序关闭，正在清理！")
+    else:
+        print("程序关闭，正在清理！ (logger 未初始化)")
+
+    if not genv.get("USING_BACKUP_VER", False) and m_hostmgr: # m_hostmgr is global
+        if logger: logger.info("正在清理 hosts...")
+        else: print("正在清理 hosts...")
+        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
+    
+    if genv.get("USING_BACKUP_VER", False):
+        backup_mgr = genv.get("backupVerMgr")
+        if backup_mgr:
+            if logger: logger.info("正在停止 mitmproxy...")
+            else: print("正在停止 mitmproxy...")
+            backup_mgr.stop_mitmproxy()
+        elif logger: # Should not happen if USING_BACKUP_VER is true and logic is correct
+            logger.warning("USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
+        else:
+            print("WARN: USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
     print("再见!")
 
 def setup_signal_handlers():
@@ -240,7 +260,9 @@ def cloudBuildInfo():
     except:
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
-if __name__ == "__main__":
+
+def setup_platform_specific():
+    """设置平台特定的配置，包括信号处理器和工作目录"""
     if sys.platform=='win32':
         kernel32 = ctypes.WinDLL("kernel32")
         HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
@@ -262,6 +284,10 @@ if __name__ == "__main__":
         genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
         #设置programdata环境变量为工作目录
         os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
+
+
+def setup_work_directory():
+    """设置和创建工作目录"""
     # 确保工作目录存在，使用makedirs可以创建多级目录
     if not os.path.exists(genv.get("FP_WORKDIR")):
         try:
@@ -278,96 +304,221 @@ if __name__ == "__main__":
         print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     except Exception as e:
         print(f"切换到工作目录失败: {e}")
-    from logutil import setup_logger
-    logger=setup_logger()
+
+
+def parse_command_line_args():
+    """解析命令行参数"""
+    arg_parser = argparse.ArgumentParser(description="第五人格登陆助手")
+    arg_parser.add_argument('--mitm', action='store_true', help='直接使用备用模式 (mitmproxy)')
+    return arg_parser.parse_args()
+
+
+def cleanup_expired_certificates():
+    """清理过期的证书文件"""
+    # 检查证书是否过期
+    web_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_WEBCERT"))
+    ca_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_CACERT"))
+
+    if web_cert_expired or ca_cert_expired:
+        logger.info("一个或多个证书已过期或不存在，正在重新生成...")
+        # 删除旧证书文件（如果存在）
+        cert_files = [
+            (genv.get("FP_WEBCERT"), "网站证书"),
+            (genv.get("FP_WEBKEY"), "网站密钥"),
+            (genv.get("FP_CACERT"), "CA证书")
+        ]
+        
+        for cert_path, cert_name in cert_files:
+            if os.path.exists(cert_path):
+                os.remove(cert_path)
+                logger.info(f"已删除旧的{cert_name}: {cert_path}")
+    
+    return web_cert_expired, ca_cert_expired
+
+
+def generate_certificates_if_needed():
+    """检查并生成必要的证书文件"""
+    web_cert_expired, ca_cert_expired = cleanup_expired_certificates()
+    
+    if (os.path.exists(genv.get("FP_WEBCERT")) == False) or \
+       (os.path.exists(genv.get("FP_WEBKEY")) == False) or \
+       (os.path.exists(genv.get("FP_CACERT")) == False) or \
+       web_cert_expired or ca_cert_expired: # 添加过期检查条件
+        logger.info("正在生成必要的证书文件...")
+
+        ca_key = m_certmgr.generate_private_key(bits=2048)
+        ca_cert = m_certmgr.generate_ca(ca_key)
+        m_certmgr.export_cert(genv.get("FP_CACERT"), ca_cert)
+
+        srv_key = m_certmgr.generate_private_key(bits=2048)
+        srv_cert = m_certmgr.generate_cert(
+            [genv.get("DOMAIN_TARGET"), "localhost"], srv_key, ca_cert, ca_key
+        )
+
+        if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
+            logger.error("导入CA证书失败!")
+            if sys.platform == 'win32': # Keep platform-specific behavior
+                os.system("pause")
+            else:
+                input("导入CA证书失败，请按回车键退出。")
+            sys.exit(-1)
+
+        m_certmgr.export_cert(genv.get("FP_WEBCERT"), srv_cert)
+        m_certmgr.export_key(genv.get("FP_WEBKEY"), srv_key)
+        logger.info("证书初始化成功!")
+
+
+def setup_backup_version_manager():
+    """初始化备用版本管理器"""
+    from backupvermgr import BackupVersionMgr
+    backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
+    backupVerMgr_instance._create_mitm_shortcut()
+    return backupVerMgr_instance
+
+
+def start_mitm_mode(backupVerMgr_instance):
+    """启动MITM代理模式"""
+    logger.warning("正在启动备用方案 (mitmproxy)...")
+    pid = os.getpid()
+    try:
+        genv.set("backupVerMgr", backupVerMgr_instance)
+        if backupVerMgr_instance.setup_environment(): 
+            if backupVerMgr_instance.start_mitmproxy_redirect(pid):
+                genv.set("USING_BACKUP_VER", True, False) # Mark as actively using MITM
+                logger.info("备用方案 (mitmproxy) 启动成功!")
+                return True
+            else:
+                logger.error("备用方案 (mitmproxy) 启动失败。程序将继续，但可能无法正常工作。")
+        else:
+            logger.error("备用方案 (mitmproxy) 环境设置失败。程序将继续，但可能无法正常工作。")
+    except Exception as e_mitm:
+        logger.exception(f"启动备用方案 (mitmproxy) 时发生错误: {e_mitm}")
+        logger.error("备用方案 (mitmproxy) 启动时发生异常。程序将继续，但可能无法正常工作。")
+    return False
+
+
+def setup_host_manager():
+    """设置Host管理器进行域名重定向"""
+    global m_hostmgr
+    logger.info("正在重定向目标地址到本机 (hosts 文件修改)...")
+    try:
+        from hostmgr import hostmgr 
+        # m_hostmgr is a global variable, assign the instance to it.
+        m_hostmgr = hostmgr() 
+
+        if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
+            logger.info("识别到手动定向!")
+            logger.info(
+                f"请确保已经将 {genv.get('DOMAIN_TARGET')} 和 localhost 指向 127.0.0.1"
+            )
+        else:
+            m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+            m_hostmgr.add("localhost", "127.0.0.1")
+        return True
+    except Exception as e_hostmgr:
+        logger.warning(f"Host管理器初始化失败 ({e_hostmgr})，正在尝试备用方案 (mitmproxy)...")
+        return False
+
+
+def fallback_to_mitm():
+    """当Host管理器失败时，回退到MITM模式"""
+    from backupvermgr import BackupVersionMgr
+    pid = os.getpid()
+    try:
+        backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
+        genv.set("backupVerMgr", backupVerMgr_instance) # Store for cleanup
+        # Check if backupVer was already true (e.g. from config) or if env setup is ok
+        if genv.get("backupVer", False) or backupVerMgr_instance.setup_environment():
+            genv.set("backupVer", True, True) # Mark intention/attempt
+            if backupVerMgr_instance.start_mitmproxy_redirect(pid):
+                genv.set("USING_BACKUP_VER", True, False) # Mark as actively using MITM
+                logger.info("备用方案 (mitmproxy) 启动成功!")
+            else:
+                logger.error("备用方案 (mitmproxy) 启动失败。")
+        else:
+            logger.error("备用方案 (mitmproxy) 环境设置失败。")
+    except Exception as e_mitm_fallback:
+        logger.exception(f"尝试备用方案 (mitmproxy) 时发生错误: {e_mitm_fallback}")
+        logger.error("备用方案 (mitmproxy) 尝试时发生异常。")
+
+
+def setup_network_proxy(force_mitm_mode):
+    """设置网络代理（Host管理器或MITM模式）"""
+    backupVerMgr_instance = setup_backup_version_manager()
+    
+    if force_mitm_mode:
+        logger.info("命令行参数指定使用备用模式。")
+        genv.set("backupVer", True, True)
+        start_mitm_mode(backupVerMgr_instance)
+    else:
+        # Standard host modification logic
+        if not setup_host_manager():
+            # Fallback to MITM (original logic)
+            fallback_to_mitm()
+
+
+def handle_error_and_exit(e):
+    """处理异常并退出程序"""
+    if logger: # Check if logger was initialized
+        logger.exception(
+            f"发生未处理的异常:{e}.反馈时请发送日志！\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
+        )
+    else:
+        print(f"发生未处理的异常:{e}. 日志记录器未初始化。")
+        # Try to provide workdir info if genv is available
+        workdir_path = genv.get('FP_WORKDIR', '未知') if 'genv' in locals() else '未知'
+        print(f"工作目录（可能）: {workdir_path}")
+
+    # Original logic to open explorer, with safeguards
+    try:
+        log_file_path = os.path.join(genv.get("FP_WORKDIR"), "log.txt")
+        if sys.platform == 'win32' and os.path.exists(log_file_path):
+            # Ensure the path is quoted for explorer if it contains spaces
+            os.system(f'explorer /select,"{log_file_path}"')
+        input_message = "发生错误。如果可能，已尝试打开日志文件所在目录。按回车键退出。"
+    except Exception: # Fallback if genv or FP_WORKDIR is not set
+        input_message = "发生严重错误，无法获取日志路径。按回车键退出。"
+
+    input(input_message)
+
+
+def main():
+    """主函数入口"""
+    global logger
+    
+    # 平台特定设置
+    setup_platform_specific()
+    
+    # 设置工作目录
+    setup_work_directory()
+
+    # Initialize logger (assign to global logger variable)
+    logger = setup_logger() 
+
+    # 解析命令行参数
+    cli_args = parse_command_line_args()
+    force_mitm_mode = cli_args.mitm
+
     try:
         cloudBuildInfo()
-        initialize()
+        initialize() # This sets up atexit(handle_exit) among other things
         welcome()
         handle_update()
         handle_announcement()
-        # 检查证书是否过期
-        web_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_WEBCERT"))
-        ca_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_CACERT"))
+        
+        # 证书管理
+        generate_certificates_if_needed()
 
-        if web_cert_expired or ca_cert_expired:
-            logger.info("一个或多个证书已过期或不存在，正在重新生成...")
-            # 删除旧证书文件（如果存在）
-            if os.path.exists(genv.get("FP_WEBCERT")):
-                os.remove(genv.get("FP_WEBCERT"))
-                logger.info(f"已删除旧的网站证书: {genv.get('FP_WEBCERT')}")
-            if os.path.exists(genv.get("FP_WEBKEY")):
-                os.remove(genv.get("FP_WEBKEY"))
-                logger.info(f"已删除旧的网站密钥: {genv.get('FP_WEBKEY')}")
-            if os.path.exists(genv.get("FP_CACERT")):
-                os.remove(genv.get("FP_CACERT"))
-                logger.info(f"已删除旧的CA证书: {genv.get('FP_CACERT')}")
-
-        if (os.path.exists(genv.get("FP_WEBCERT")) == False) or \
-           (os.path.exists(genv.get("FP_WEBKEY")) == False) or \
-           (os.path.exists(genv.get("FP_CACERT")) == False) or \
-           web_cert_expired or ca_cert_expired: # 添加过期检查条件
-            logger.info("正在生成必要的证书文件...")
-
-            ca_key = m_certmgr.generate_private_key(bits=2048)
-            ca_cert = m_certmgr.generate_ca(ca_key)
-            m_certmgr.export_cert(genv.get("FP_CACERT"), ca_cert)
-
-            srv_key = m_certmgr.generate_private_key(bits=2048)
-            srv_cert = m_certmgr.generate_cert(
-                [genv.get("DOMAIN_TARGET"), "localhost"], srv_key, ca_cert, ca_key
-            )
-
-            if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
-                logger.error("导入CA证书失败!")
-                os.system("pause")
-                sys.exit(-1)
-
-            m_certmgr.export_cert(genv.get("FP_WEBCERT"), srv_cert)
-            m_certmgr.export_key(genv.get("FP_WEBKEY"), srv_key)
-            logger.info("初始化成功!")
-
-        logger.info("正在重定向目标地址到本机...")
-        try:
-            from hostmgr import hostmgr
-            m_hostmgr = hostmgr()
-
-            if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
-                logger.info("识别到手动定向!")
-                logger.info(
-                    f"请确保已经将 {genv.get('DOMAIN_TARGET')} 和 localhost 指向 127.0.0.1"
-                )
-            else:
-                m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
-                m_hostmgr.add("localhost", "127.0.0.1")
-        except:
-            from backupvermgr import BackupVersionMgr
-            logger.warning("正在尝试备用方案")
-            #获取当前进程的pid
-            pid = os.getpid()
-            try:
-                backupVerMgr=BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
-                genv.set("backupVerMgr",backupVerMgr)
-                if genv.get("backupVer",False) or backupVerMgr.setup_environment():
-                    genv.set("backupVer",True,True)
-                    if backupVerMgr.start_mitmproxy_redirect(pid):
-                        genv.set("USING_BACKUP_VER",True,False)
-                        logger.info("备用方案成功!")
-                    else:
-                        logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
-                else:
-                    logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
-            except:
-                logger.error("备用方案失败，请考虑修复Hosts文件，请参阅常见问题解决文档。")
-
-
+        # 网络代理设置
+        setup_network_proxy(force_mitm_mode)
+        
+        # Start proxy server (m_proxy is global, initialized in initialize())
         logger.info("正在启动代理服务器...")
         m_proxy.run()
 
     except Exception as e:
-        logger.exception(
-            f"发生未处理的异常:{e}.反馈时请发送日志！\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
-        )
-        file = os.path.realpath("log.txt")
-        os.system(f'explorer /select, {file}')
-        input("已经为您打开程序工作目录，拦截退出事件.")
+        handle_error_and_exit(e)
+
+
+if __name__ == "__main__":
+    main()
