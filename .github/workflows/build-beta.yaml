@@ -2,6 +2,9 @@ name: Build Beta
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'src/**'
 
 jobs:
   build:
