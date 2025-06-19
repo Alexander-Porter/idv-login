@@ -203,10 +203,26 @@ def initialize():
     # if we don't have enough privileges, relaunch as administrator
     if sys.platform=='win32':
         if ctypes.windll.shell32.IsUserAnAdmin() == 0:
-            #解决含空格的目录
-            argvs=[f'"{i}"' for i in sys.argv]
+            # 获取正确的可执行文件路径
+            if getattr(sys, 'frozen', False):
+                # 如果是PyInstaller打包的exe文件，使用sys.argv[0]
+                executable = sys.argv[0]
+            else:
+                # 如果是Python脚本，使用sys.executable
+                executable = sys.executable
+            
+            # 解决含空格的目录，准备命令行参数
+            # 对于exe文件，不需要包含sys.argv[0]在参数中
+            if getattr(sys, 'frozen', False):
+                # exe文件：只传递从argv[1]开始的参数
+                args = sys.argv[1:] if len(sys.argv) > 1 else []
+                argvs = [f'"{arg}"' for arg in args]
+            else:
+                # Python脚本：需要传递完整的argv
+                argvs = [f'"{i}"' for i in sys.argv]
+            
             ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, " ".join(argvs), script_dir , 1
+                None, "runas", executable, " ".join(argvs), script_dir, 1
             )
             sys.exit()
     else:
