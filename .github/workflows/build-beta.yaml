@@ -29,9 +29,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-          if [ "${{ runner.os }}" = "Windows" ]; then
-                pip install pywin32
-                fi
+      - name: Install pywin32 (Windows)
+        if: runner.os == 'Windows'
+        run: pip install pywin32
+
       # 插入构建信息（Windows）
       - name: Insert build info (Windows)
         if: runner.os == 'Windows'

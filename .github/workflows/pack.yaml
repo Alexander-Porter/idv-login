@@ -30,6 +30,10 @@ jobs:
       - name: Install dependencies
         run: |
           .\python-embed\python.exe -m pip install -r requirements.txt
+      
+      - name: Install pywin32 (Windows)
+        if: runner.os == 'Windows'
+        run: pip install pywin32
 
       - name: Insert build info
         run: |
