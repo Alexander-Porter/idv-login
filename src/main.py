@@ -512,7 +512,7 @@ def fallback_to_mitm():
         backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
         genv.set("backupVerMgr", backupVerMgr_instance) # Store for cleanup
         # Check if backupVer was already true (e.g. from config) or if env setup is ok
-        if genv.get("backupVer", False) or backupVerMgr_instance.setup_environment():
+        if genv.get("backupVer", False) and backupVerMgr_instance.setup_environment():
             genv.set("backupVer", True, True) # Mark intention/attempt
             if backupVerMgr_instance.start_mitmproxy_redirect(pid):
                 genv.set("USING_BACKUP_VER", True, False) # Mark as actively using MITM

@@ -65,7 +65,7 @@ class BackupVersionMgr:
             test_url = urllib.parse.urljoin(base_url, test_url_suffix)
             speed = self.test_url_speed(test_url)
             results[name] = speed
-            logger.info(f"源 {name} ({test_url}) 的响应时间: {speed:.4f}秒")
+            logger.debug(f"源 {name} ({test_url}) 的响应时间: {speed:.4f}秒")
         
         fastest = min(results.items(), key=lambda x: x[1])
         logger.info(f"最快的源是 {fastest[0]} 响应时间为 {fastest[1]:.4f}秒")
@@ -176,6 +176,14 @@ class BackupVersionMgr:
     
     def setup_pip_mirror(self):
         """设置pip镜像源"""
+        # 首先检查pip是否已安装
+        if not os.path.exists(self.pip_exe):
+            logger.warning("pip可执行文件不存在，尝试重新安装pip")
+            if not self._enable_pip_for_embedded_python():
+                logger.error("重新安装pip失败")
+                return False
+            logger.info("pip重新安装成功")
+        
         # 测试各个镜像的速度
         fastest_mirror = self.find_fastest_source(self.pip_mirrors)
         
@@ -220,18 +228,18 @@ class BackupVersionMgr:
                 packages_to_install.append("setuptools")
                 logger.info("setuptools 未安装，将进行安装")
             else:
-                logger.info("setuptools 已存在")
+                logger.debug("setuptools 已存在")
             
             # 检查 wheel 是否已安装
             if not self._check_package_installed("wheel"):
                 packages_to_install.append("wheel")
                 logger.info("wheel 未安装，将进行安装")
             else:
-                logger.info("wheel 已存在")
+                logger.debug("wheel 已存在")
             
             # 如果没有需要安装的包，直接返回成功
             if not packages_to_install:
-                logger.info("setuptools 和 wheel 都已安装，跳过安装步骤")
+                logger.debug("setuptools 和 wheel 都已安装，跳过安装步骤")
                 return True
             
             # 安装需要的包
