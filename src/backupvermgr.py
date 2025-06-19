@@ -432,7 +432,9 @@ def running():
             if os.path.exists(shortcut_path):
                 os.remove(shortcut_path)
                 logger.debug(f"已删除旧的快捷方式: {shortcut_path}")
-            
+            else:
+                logger.info(f"首次启动，创建备用版本快捷方式: {shortcut_path}")
+
             # 使用COM接口创建快捷方式
             import win32com.client
             
@@ -507,7 +509,7 @@ def running():
                 logger.info("正在创建备用模式快捷方式...")
                 try:
                     if self._create_mitm_shortcut():
-                        logger.info("备用模式快捷方式创建成功")
+                        pass
                     else:
                         logger.warning("快捷方式创建失败，但不影响主要功能")
                 except Exception as e:
