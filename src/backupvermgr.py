@@ -446,8 +446,7 @@ def running():
                 shortcut.Targetpath = current_path
                 shortcut.Arguments = "--mitm"
                 shortcut.WorkingDirectory = current_dir
-            else:
-                # 如果是Python脚本，指向Python解释器，脚本作为参数
+            else:                # 如果是Python脚本，指向Python解释器，脚本作为参数
                 shortcut.Targetpath = sys.executable
                 shortcut.Arguments = f'"{current_path}" --mitm'
                 shortcut.WorkingDirectory = current_dir
@@ -456,11 +455,47 @@ def running():
             shortcut.IconLocation = current_path + ",0"  # 使用程序本身的图标
             
             shortcut.save()
+            
+            # 设置快捷方式以管理员权限运行
+            if self._set_shortcut_admin_privileges(shortcut_path):
+                logger.debug("快捷方式已设置为以管理员权限运行")
+            else:
+                logger.warning("设置管理员权限失败，但快捷方式仍可正常使用")
             return True
         except Exception as e:
             logger.error(f"创建快捷方式时出错: {e}")
             return False
     
+    def _set_shortcut_admin_privileges(self, shortcut_path):
+        """设置快捷方式以管理员权限运行"""
+        try:
+            # 读取快捷方式文件的二进制数据
+            with open(shortcut_path, 'rb') as f:
+                data = bytearray(f.read())
+            
+            # 根据官方Microsoft文档，设置RunAsAdministrator标志位
+            # 需要修改字节21 (0x15)，设置bit 6 (0x20)为1
+            if len(data) > 0x15:
+                # 设置字节21的bit 6 (0x20)，这是RunAsAdministrator标志位
+                data[0x15] = data[0x15] | 0x20
+                
+                # 保存修改后的文件
+                with open(shortcut_path, 'wb') as f:
+                    f.write(data)
+                
+                logger.debug(f"成功设置快捷方式管理员权限: {shortcut_path}")
+                return True
+            else:
+                logger.warning("快捷方式文件格式异常，无法设置管理员权限")
+                return False
+                
+        except Exception as e:
+            logger.error(f"设置快捷方式管理员权限时出错: {e}")
+            # 尝试使用备用方法（通过PowerShell）
+            return False
+    
+
+
     def setup_environment(self):
         """设置完整的环境"""
         logger.info("开始设置备用版本环境...")
