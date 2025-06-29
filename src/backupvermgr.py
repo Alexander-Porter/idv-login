@@ -1,4 +1,5 @@
 from logutil import setup_logger
+from cert_utils import is_mitmproxy_certificate_installed, install_certificate_to_store
 import os
 import subprocess
 import requests
@@ -186,8 +187,7 @@ class BackupVersionMgr:
         
         # 测试各个镜像的速度
         fastest_mirror = self.find_fastest_source(self.pip_mirrors)
-        
-        # 设置pip镜像
+          # 设置pip镜像
         try:
             result = subprocess.run(
                 [self.pip_exe, "config", "set", "global.index-url", fastest_mirror],
@@ -293,6 +293,11 @@ class BackupVersionMgr:
     def init_mitmproxy_cert(self):
         """初始化mitmproxy证书"""
         try:
+            # 首先检查证书是否已经安装在系统根证书存储中
+            if is_mitmproxy_certificate_installed():
+                logger.info("mitmproxy证书已安装在系统根证书存储中，跳过安装")
+                return True
+            
             # 运行一次mitmproxy以生成证书
             logger.info("运行mitmproxy以生成证书")
             
@@ -309,26 +314,26 @@ class BackupVersionMgr:
             # 终止进程
             process.terminate()
             
-            # 安装证书
+            # 检查证书文件是否生成
             cert_path = os.path.expanduser("~/.mitmproxy/mitmproxy-ca-cert.cer")
             if not os.path.exists(cert_path):
                 logger.error(f"证书文件不存在: {cert_path}")
                 return False
             
-            # 使用certutil安装证书
-            logger.info("使用certutil安装证书")
-            result = subprocess.run(
-                ["certutil", "-addstore", "ROOT", cert_path],
-                capture_output=True,
-                text=True
-            )
+            # 再次检查证书是否已安装（可能在生成过程中已安装）
+            if is_mitmproxy_certificate_installed():
+                logger.info("mitmproxy证书已存在于系统根证书存储中")
+                return True
             
-            if result.returncode != 0:
-                logger.error(f"安装证书失败: {result.stderr}")
+            # 使用cert_utils安装证书
+            logger.info("使用certutil安装证书到系统根证书存储")
+            if install_certificate_to_store(cert_path, "ROOT"):
+                logger.info("mitmproxy证书安装成功")
+                return True
+            else:
+                logger.error("mitmproxy证书安装失败")
                 return False
                 
-            logger.info("mitmproxy证书安装成功")
-            return True
         except Exception as e:
             logger.error(f"初始化mitmproxy证书时出错: {e}")
             return False
@@ -564,6 +569,7 @@ def running():
         except Exception as e:
             logger.exception(f"设置环境时发生未处理的异常: {e}")
             return False
+
 if __name__ == "__main__":
     mgr = BackupVersionMgr()
     if not mgr.setup_environment():

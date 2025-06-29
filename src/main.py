@@ -106,6 +106,7 @@ def _check_and_copy_pyqt5_files():
     """
     try:
         meipass = getattr(sys, '_MEIPASS', None)
+        
         if not meipass:
             return
         
@@ -115,45 +116,27 @@ def _check_and_copy_pyqt5_files():
         if has_non_ascii:
             logger.info(f"检测到_MEIPASS路径包含非ASCII字符: {meipass}")
             logger.info("正在复制PyQt5文件到程序目录...")
-            
-            # 获取程序exe所在的目录
             exe_dir = os.path.dirname(sys.executable)
+            if not all(ord(char) < 128 for char in exe_dir):
+                logger.error(f"程序exe目录包含非ASCII字符: {exe_dir}")
+                input("程序exe目录包含非ASCII字符，可能导致程序异常。请将程序移动到仅包含英文路径的目录后重试，具体请参看《常见问题解决方案》问题十八。按回车键退出。")
+                sys.exit(1)
+
             
-            # 定义需要复制的PyQt5目录路径
-            pyqt5_bin_source = os.path.join(meipass, "PyQt5", "Qt5", "bin")
-            pyqt5_resources_source = os.path.join(meipass, "PyQt5", "Qt5", "resources")
-            
-            # 定义目标路径
-            pyqt5_bin_target = os.path.join(exe_dir, "PyQt5", "Qt5", "bin")
-            pyqt5_resources_target = os.path.join(exe_dir, "PyQt5", "Qt5", "resources")
-            
-            # 创建目标目录
-            os.makedirs(pyqt5_bin_target, exist_ok=True)
-            os.makedirs(pyqt5_resources_target, exist_ok=True)
-            
-            # 复制bin目录下的所有文件
-            if os.path.exists(pyqt5_bin_source):
-                for file_path in glob.glob(os.path.join(pyqt5_bin_source, "*")):
-                    if os.path.isfile(file_path):
-                        target_path = os.path.join(pyqt5_bin_target, os.path.basename(file_path))
-                        if not os.path.exists(target_path):
-                            shutil.copy2(file_path, target_path)
-                            logger.debug(f"复制文件: {file_path} -> {target_path}")
-                logger.info(f"已复制PyQt5 bin文件到: {pyqt5_bin_target}")
-            else:
-                logger.warning(f"PyQt5 bin源目录不存在: {pyqt5_bin_source}")
-            
-            # 复制resources目录下的所有文件
-            if os.path.exists(pyqt5_resources_source):
-                for file_path in glob.glob(os.path.join(pyqt5_resources_source, "*")):
-                    if os.path.isfile(file_path):
-                        target_path = os.path.join(pyqt5_resources_target, os.path.basename(file_path))
-                        if not os.path.exists(target_path):
-                            shutil.copy2(file_path, target_path)
-                            logger.debug(f"复制文件: {file_path} -> {target_path}")
-                logger.info(f"已复制PyQt5 resources文件到: {pyqt5_resources_target}")
-            else:
-                logger.warning(f"PyQt5 resources源目录不存在: {pyqt5_resources_source}")
+            # 只复制Qt5目录下的bin和resources两个子文件夹到exe目录下的Qt5目录
+            qt5_source = os.path.join(meipass, "PyQt5", "Qt5")
+            qt5_target = os.path.join(exe_dir, "Qt5")
+
+            for subfolder in ["bin", "resources"]:
+                src = os.path.join(qt5_source, subfolder)
+                dst = os.path.join(qt5_target, subfolder)
+                if os.path.exists(src):
+                    if os.path.exists(dst):
+                        shutil.rmtree(dst)
+                    shutil.copytree(src, dst)
+                    logger.info(f"已复制Qt5子文件夹: {src} -> {dst}")
+                else:
+                    logger.warning(f"Qt5子文件夹不存在: {src}")
                 
             logger.info("PyQt5文件复制完成")
         else:
@@ -564,70 +547,6 @@ def handle_error_and_exit(e):
         input_message = "发生严重错误，无法获取日志路径。按回车键退出。"
 
     input(input_message)
-
-
-def _check_and_copy_pyqt5_files():
-    """
-    在frozen模式下检查_MEIPASS路径，如果包含非ASCII字符，
-    复制PyQt5相关文件到程序exe所在目录
-    """
-    try:
-        meipass = getattr(sys, '_MEIPASS', None)
-        if not meipass:
-            return
-        
-        # 检查_MEIPASS路径是否包含非ASCII字符
-        has_non_ascii = not all(ord(char) < 128 for char in meipass)
-        
-        if has_non_ascii:
-            logger.info(f"检测到_MEIPASS路径包含非ASCII字符: {meipass}")
-            logger.info("正在复制PyQt5文件到程序目录...")
-            
-            # 获取程序exe所在的目录
-            exe_dir = os.path.dirname(sys.executable)
-            
-            # 定义需要复制的PyQt5目录路径
-            pyqt5_bin_source = os.path.join(meipass, "PyQt5", "Qt5", "bin")
-            pyqt5_resources_source = os.path.join(meipass, "PyQt5", "Qt5", "resources")
-            
-            # 定义目标路径
-            pyqt5_bin_target = os.path.join(exe_dir, "PyQt5", "Qt5", "bin")
-            pyqt5_resources_target = os.path.join(exe_dir, "PyQt5", "Qt5", "resources")
-            
-            # 创建目标目录
-            os.makedirs(pyqt5_bin_target, exist_ok=True)
-            os.makedirs(pyqt5_resources_target, exist_ok=True)
-            
-            # 复制bin目录下的所有文件
-            if os.path.exists(pyqt5_bin_source):
-                for file_path in glob.glob(os.path.join(pyqt5_bin_source, "*")):
-                    if os.path.isfile(file_path):
-                        target_path = os.path.join(pyqt5_bin_target, os.path.basename(file_path))
-                        if not os.path.exists(target_path):
-                            shutil.copy2(file_path, target_path)
-                            logger.debug(f"复制文件: {file_path} -> {target_path}")
-                logger.info(f"已复制PyQt5 bin文件到: {pyqt5_bin_target}")
-            else:
-                logger.warning(f"PyQt5 bin源目录不存在: {pyqt5_bin_source}")
-            
-            # 复制resources目录下的所有文件
-            if os.path.exists(pyqt5_resources_source):
-                for file_path in glob.glob(os.path.join(pyqt5_resources_source, "*")):
-                    if os.path.isfile(file_path):
-                        target_path = os.path.join(pyqt5_resources_target, os.path.basename(file_path))
-                        if not os.path.exists(target_path):
-                            shutil.copy2(file_path, target_path)
-                            logger.debug(f"复制文件: {file_path} -> {target_path}")
-                logger.info(f"已复制PyQt5 resources文件到: {pyqt5_resources_target}")
-            else:
-                logger.warning(f"PyQt5 resources源目录不存在: {pyqt5_resources_source}")
-                
-            logger.info("PyQt5文件复制完成")
-        else:
-            logger.debug("_MEIPASS路径仅包含ASCII字符，无需复制PyQt5文件")
-            
-    except Exception as e:
-        logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
 
 
 def main():
