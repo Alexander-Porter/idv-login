@@ -35,7 +35,7 @@ class huaweiLoginResponse:
         self.openId = rawJson.get("openId")
         self.gameAuthSign = rawJson.get("gameAuthSign")
         self.playerId = rawJson.get("playerId")
-        self.ts = rawJson.get("ts")
+        self.ts = str(rawJson.get("ts"))
     
     def __str__(self) -> str:
         return f"playerLevel:{self.playerLevel},unionId:{self.unionId},openIdSign:{self.openIdSign},openId:{self.openId},gameAuthSign:{self.gameAuthSign},playerId:{self.playerId},ts:{self.ts}"
