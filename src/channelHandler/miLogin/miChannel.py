@@ -15,6 +15,7 @@ from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from channelHandler.WebLoginUtils import WebBrowser
+from ssl_utils import should_verify_ssl
 
 
 
@@ -121,6 +122,7 @@ class MiLogin:
             "http://account.migc.g.mi.com/migc-sdk-account/getLoginAppAccount_v2",
             data=utils.generate_unsign_request(params, AES_KEY),
             headers=headers,
+            verify=should_verify_ssl()
         )
         res = utils.decrypt_response(response.text, AES_KEY)
         if res["retCode"] == 200:
@@ -149,6 +151,7 @@ class MiLogin:
             "http://account.migc.g.mi.com/misdk/v2/oauth",
             params=utils.generate_unsign_request(params, AES_KEY),
             headers=headers,
+            verify=should_verify_ssl()
         )
         res = utils.decrypt_response(response.text, AES_KEY)
         if res["code"] == 0:
@@ -180,6 +183,7 @@ class MiLogin:
             "http://account.migc.g.mi.com/misdk/v2/oauth",
             params=utils.generate_unsign_request(params, AES_KEY),
             headers=headers,
+            verify=should_verify_ssl()
         )
         res = utils.decrypt_response(response.text, AES_KEY)
         if res["code"] == 0:

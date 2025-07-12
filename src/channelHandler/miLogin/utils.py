@@ -5,6 +5,7 @@ import requests
 from urllib.parse import urlencode
 from Crypto.Cipher import AES
 import base64
+from ssl_utils import should_verify_ssl
 
 
 def pad(data):
@@ -75,7 +76,7 @@ def post_request(url, params, miAppEntry, AES_KEY):
     data = generate_request(params, miAppEntry, AES_KEY)
     encoded_data = urlencode(data)
 
-    response = requests.post(url, headers=headers, data=encoded_data)
+    response = requests.post(url, headers=headers, data=encoded_data, verify=should_verify_ssl())
     return response.text
 
 

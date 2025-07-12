@@ -14,6 +14,7 @@ import pyperclip as cb
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 from channelHandler.WebLoginUtils import WebBrowser
 from PyQt5.QtWebEngineCore import (
     QWebEngineUrlRequestInterceptor,
@@ -36,7 +37,7 @@ class VivoBrowser(WebBrowser):
         u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
         self.logger.info(u)
         try:
-            r = requests.get(u, cookies=self.cookies)
+            r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
             self.result = r.json()
             return True
         except Exception as e:
@@ -84,7 +85,7 @@ class VivoLogin:
         header={
             "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.27"
         }
-        r = requests.post("https://joint.vivo.com.cn/h5/union/use",data=data,cookies=self.cookies,headers=header)
+        r = requests.post("https://joint.vivo.com.cn/h5/union/use",data=data,cookies=self.cookies,headers=header,verify=should_verify_ssl())
         try:
             resp=r.json()
             if resp.get("code") == 0:

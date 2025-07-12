@@ -35,6 +35,7 @@ import const
 import subprocess
 import socket
 import requests
+from ssl_utils import should_verify_ssl
 
 def is_ipv4(s):
     # Feel free to improve this: https://stackoverflow.com/questions/11827961/checking-for-ip-addresses
@@ -136,7 +137,8 @@ def requestGetAsCv(request, cv):
         params=query,
         headers=request.headers,
         cookies=request.cookies,
-        allow_redirects=False
+        allow_redirects=False,
+        verify=should_verify_ssl()
     )
     excluded_headers = [
         "content-encoding",
@@ -166,7 +168,8 @@ def proxy(request):
         headers=request.headers,
         data=new_body,
         cookies=request.cookies,
-        allow_redirects=False
+        allow_redirects=False,
+        verify=should_verify_ssl()
     )
     app.logger.info(resp.url)
     # 构造代理响应
@@ -211,7 +214,8 @@ def requestPostAsCv(request, cv):
         data=new_body,
         headers=request.headers,
         cookies=request.cookies,
-        allow_redirects=False
+        allow_redirects=False,
+        verify=should_verify_ssl()
     )
     excluded_headers = [
         "content-encoding",
@@ -764,7 +768,7 @@ class proxymgr:
         try:
             if (
                 target == None
-                or g_req.get(f"https://{target}", verify=False).status_code != 200
+                or g_req.get(f"https://{target}", verify=should_verify_ssl()).status_code != 200
             ):
                 logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"

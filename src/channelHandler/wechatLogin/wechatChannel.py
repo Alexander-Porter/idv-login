@@ -3,8 +3,10 @@ import os
 import time
 import requests
 import gevent
+import hmac
 
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 
 #1106682786 is offerid
 def sig_helper(magicValue="5C2F##3[6$^(68#%#D3E96;]35q#FB46",ts="1"):
@@ -34,7 +36,7 @@ class WechatLogin:
             "timestamp":ts
         }
         
-        r=requests.get(f"https://ysdk.qq.com/auth/wx_scan_code_login",params=qrcodeData)
+        r=requests.get(f"https://ysdk.qq.com/auth/wx_scan_code_login",params=qrcodeData,verify=should_verify_ssl())
         if not r.status_code==200 or not r.json()['ret']==0:
             self.logger.error(f"微信扫码请求创建失败: {r.text}")
             return None
@@ -44,7 +46,7 @@ class WechatLogin:
         rjson.pop("ret")
         #https://open.weixin.qq.com/connect/sdk/qrconnect
         r=requests.get(f"https://open.weixin.qq.com/connect/sdk/qrconnect",params=rjson,
-                       headers={"accept-encoding":"gzip",})
+                       headers={"accept-encoding":"gzip",},verify=should_verify_ssl())
         #use utf-8
         r.encoding="utf-8"
 
@@ -61,7 +63,7 @@ class WechatLogin:
 
 
         while True:
-            r=requests.get(f"https://long.open.weixin.qq.com/connect/l/qrconnect?f=json&uuid={uuid}")
+            r=requests.get(f"https://long.open.weixin.qq.com/connect/l/qrconnect?f=json&uuid={uuid}",verify=should_verify_ssl())
             print(r.text)
             if r.json().get("wx_code") != "":
                 self.logger.info(f"扫码成功{r.json().get('wx_code')}")
@@ -81,7 +83,7 @@ class WechatLogin:
             "appid":self.wx_appid,
             "timestamp":ts
         }
-        r=requests.get("https://ysdk.qq.com/auth/wx_verify_code",params=verifyData)
+        r=requests.get("https://ysdk.qq.com/auth/wx_verify_code",params=verifyData,verify=should_verify_ssl())
         self.logger.debug(f"扫码校验结果: {r.text}")
         if not r.status_code==200 or not r.json()['ret']==0:
             self.logger.error(f"扫码校验失败: {r.text}")

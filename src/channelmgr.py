@@ -26,6 +26,7 @@ import requests
 from envmgr import genv
 from const import manual_login_channels
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 
 
 class channel:
@@ -294,6 +295,7 @@ class ChannelManager:
             "https://service.mkey.163.com/mpay/api/qrcode/confirm_login",
             data=body,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
+            verify=should_verify_ssl()
         )
         self.logger.info(f"模拟确认请求返回: {r.json()}")
         if r.status_code == 200:
@@ -323,6 +325,7 @@ class ChannelManager:
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
                         params=data,
+                        verify=should_verify_ssl()
                     )
                     self.logger.info(f"模拟扫码请求: {r.json()}")
                     if r.status_code == 200:

@@ -3,6 +3,7 @@ import requests
 import base64
 import hashlib
 import uuid
+from ssl_utils import should_verify_ssl
 
 def generate_code_challenge(code_verifier):
     sha256 = hashlib.sha256()
@@ -46,7 +47,7 @@ def exchange_code_for_token(client_id, code, code_verifier, redirect_uri):
     }
 
     # 发送POST请求获取Token
-    response = requests.post(token_url, headers=headers, data=data)
+    response = requests.post(token_url, headers=headers, data=data, verify=should_verify_ssl())
     return response.json()
 
 def get_access_token(client_id, client_secret, refresh_token):
@@ -64,6 +65,6 @@ def get_access_token(client_id, client_secret, refresh_token):
         "refresh_token": refresh_token
     }
     
-    response = requests.post(token_url, headers=headers, data=data)
+    response = requests.post(token_url, headers=headers, data=data, verify=should_verify_ssl())
     
     return response.json()

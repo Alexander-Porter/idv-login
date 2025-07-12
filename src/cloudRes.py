@@ -5,6 +5,7 @@ from datetime import datetime
 from envmgr import genv
 from const import manual_login_channels
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 
 logger = setup_logger()
 
@@ -20,7 +21,7 @@ class CloudRes:
     def fetch_json_from_url(self):
         for url in self.urls:
             try:
-                response = self.session.get(url, timeout=10)
+                response = self.session.get(url, timeout=10, verify=should_verify_ssl())
                 response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
                 return response.json()
             except requests.RequestException as e:

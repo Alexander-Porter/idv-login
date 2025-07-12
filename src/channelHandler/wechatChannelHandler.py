@@ -25,6 +25,7 @@ import channelmgr
 
 from envmgr import genv
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.wechatLogin.wechatChannel import WechatLogin
 
@@ -122,7 +123,8 @@ class wechatChannel(channelmgr.channel):
             #https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID
             try:
                 r = requests.get(
-                    f"https://api.weixin.qq.com/sns/userinfo?access_token={self.session.atk}&openid={self.session.openid}"
+                    f"https://api.weixin.qq.com/sns/userinfo?access_token={self.session.atk}&openid={self.session.openid}",
+                    verify=should_verify_ssl()
                 )
                 r.encoding="utf-8"
                 self.name=r.json().get("nickname")
@@ -131,7 +133,8 @@ class wechatChannel(channelmgr.channel):
         else:
             self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
             r = requests.get(
-                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}"
+                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}",
+                verify=should_verify_ssl()
             )
             if not r.status_code == 200:
                 self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。{r.text}")
@@ -149,7 +152,8 @@ class wechatChannel(channelmgr.channel):
         #	/sns/auth
         if self.session != None and self.last_login_time+self.session.atk_expire > int(time.time()):
             r = requests.get(
-                    f"https://api.weixin.qq.com/sns/auth?access_token={self.session.atk}&openid={self.session.openid}"
+                    f"https://api.weixin.qq.com/sns/auth?access_token={self.session.atk}&openid={self.session.openid}",
+                    verify=should_verify_ssl()
                 )
             self.logger.debug(r.json())
             return r.json().get("errcode")==0

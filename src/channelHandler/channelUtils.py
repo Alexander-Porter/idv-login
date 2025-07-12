@@ -8,6 +8,7 @@ import requests
 import pyperclip as cb
 from envmgr import genv
 import gevent
+from ssl_utils import should_verify_ssl
 
 class CustomEncoder(json.JSONEncoder):
     def encode(self, obj):
@@ -18,7 +19,7 @@ class CustomEncoder(json.JSONEncoder):
 def _get_my_ip():
         #get my IP
     try:
-        return requests.get("https://who.nie.netease.com/").json.get("ip")
+        return requests.get("https://who.nie.netease.com/", verify=should_verify_ssl()).json.get("ip")
     except Exception as e:
         return "127.0.0.1"
 
@@ -72,7 +73,7 @@ def postSignedData(data,game_id,need_custom_encode=False):
     headers={"X-Client-Sign":calcSign(url,method,data,key),
              "Content-Type":"application/json",
              "User-Agent":"Dalvik/2.1.0 (Linux; U; Android 12; M2102K1AC Build/V417IR)",}
-    r=requests.post(url,data=data,headers=headers)
+    r=requests.post(url,data=data,headers=headers,verify=should_verify_ssl())
     return r.json()
 
 def getShortGameId(game_id):

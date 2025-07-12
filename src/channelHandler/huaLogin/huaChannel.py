@@ -13,6 +13,7 @@ import webbrowser
 import pyperclip as cb
 from envmgr import genv
 from logutil import setup_logger
+from ssl_utils import should_verify_ssl
 from faker import Faker
 #from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY
 from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,COMMON_PARAMS
@@ -306,5 +307,5 @@ class HuaweiLogin:
         body["extraBody"] = f'json={{"appId":"{str(self.channelConfig["app_id"])}"}}'
         body["accessToken"]=self.accessToken
 
-        response = requests.post(url, headers=headers, data=body)
+        response = requests.post(url, headers=headers, data=body, verify=should_verify_ssl())
         return response.json()
