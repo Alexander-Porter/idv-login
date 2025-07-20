@@ -113,3 +113,7 @@ class CloudRes:
     def get_login_page(self):
         import base64
         return base64.b64decode(self.local_data.get('login_base64_page', '')).decode()
+    
+    def get_platform_versions(self):
+        """获取平台版本信息"""
+        return self.local_data.get('platformVersions', {})

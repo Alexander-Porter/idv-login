@@ -5,6 +5,22 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      update_windows:
+        description: '是否更新Windows平台到此版本'
+        required: false
+        default: true
+        type: boolean
+      update_darwin:
+        description: '是否更新macOS平台到此版本'
+        required: false
+        default: true
+        type: boolean
+      update_linux:
+        description: '是否更新Linux平台到此版本'
+        required: false
+        default: true
+        type: boolean
   push:
     paths:
       - 'assets/anno'
@@ -54,6 +70,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+          UPDATE_WINDOWS: ${{ github.event.inputs.update_windows }}
+          UPDATE_DARWIN: ${{ github.event.inputs.update_darwin }}
+          UPDATE_LINUX: ${{ github.event.inputs.update_linux }}
         run: |
           pip install requests_toolbelt
           pip install requests

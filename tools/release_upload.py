@@ -120,6 +120,24 @@ def updateCloudRes():
     with open("assets/anno", "r", encoding="utf-8") as f:
         anno=f.read()
     data["announcement"]=anno
+    
+    # 根据环境变量决定是否更新各平台版本
+    current_platform_versions = data.get("platformVersions", {
+        "windows": releaseData["tag_name"],
+        "darwin": releaseData["tag_name"],
+        "linux": releaseData["tag_name"]
+    })
+    
+    # 根据布尔值环境变量决定是否更新各平台
+    if os.getenv("UPDATE_WINDOWS", "true").lower() == "true":
+        current_platform_versions["windows"] = releaseData["tag_name"]
+    if os.getenv("UPDATE_DARWIN", "true").lower() == "true":
+        current_platform_versions["darwin"] = releaseData["tag_name"]
+    if os.getenv("UPDATE_LINUX", "true").lower() == "true":
+        current_platform_versions["linux"] = releaseData["tag_name"]
+    
+    data["platformVersions"] = current_platform_versions
+    
     commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
     dataStr=json.dumps(data)
     dataStr=base64.b64encode(dataStr.encode()).decode()

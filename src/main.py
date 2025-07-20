@@ -40,6 +40,7 @@ sys.path.append(script_dir)
 
 from envmgr import genv
 from logutil import setup_logger # Moved import to top for consistency
+from update_manager import UpdateManager
 
 
 # Global variable declarations
@@ -146,34 +147,17 @@ def _check_and_copy_pyqt5_files():
         logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
 
 def handle_update():
-    ignoredVersions=genv.get("ignoredVersions",[])
-    if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
-        print("【在线更新】当前版本为开发版本，更新功能已关闭。")
-        return
-    if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
-        print("【在线更新】当前版本已是最新版本。")
-        return
-    elif not genv.get("CLOUD_VERSION") in ignoredVersions:
-        print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
-        details=genv.get("CLOUD_RES").get_detail()
-        print(f"{details}")
-        print("[*]选项：直接按回车：跳转至新版本下载页面。输入P再回车：暂时不更新。输入N再回车：永久跳过此版本。")
-        choice=input("[*]请选择：")
-        if choice.lower()=="p":
-            return
-        elif choice.lower()=="n":
-            ignoredVersions.append(genv.get("CLOUD_VERSION"))
-            genv.set("ignoredVersions",ignoredVersions,True)
-            return
+    """处理更新逻辑，使用新的UpdateManager模块"""
+    try:
+        cloud_res = genv.get("CLOUD_RES")
+        if cloud_res:
+            update_manager = UpdateManager(cloud_res)
+            update_manager.handle_update()
         else:
-            url=genv.get("CLOUD_RES").get_downloadUrl()
-            import webbrowser
-            webbrowser.open(url)
-            input("【更新方法】按照页面上的指引下载文件即可。")
-            sys.exit(0)
-    else:
-        print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，但已被用户永久跳过。")
-        return
+            print("【在线更新】无法获取云端资源信息")
+    except Exception as e:
+        logger.error(f"更新检查时发生错误: {e}")
+        print(f"【在线更新】更新检查时发生错误: {e}")
 
 def ctrl_handler(ctrl_type):
     if ctrl_type == 2:  # 对应CTRL_CLOSE_EVENT
