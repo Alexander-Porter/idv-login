@@ -17,10 +17,9 @@
  """
 
 
+import logging
 import sys
 import time
-from typing import Mapping
-from dns import query
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 import gevent
@@ -35,38 +34,7 @@ import os
 import psutil
 import const
 import subprocess
-import socket
-import requests
 
-
-def is_ipv4(s):
-    # Feel free to improve this: https://stackoverflow.com/questions/11827961/checking-for-ip-addresses
-    return ':' not in s
-
-dns_cache = {}
-
-def add_custom_dns(domain, port, ip):
-    key = (domain, port)
-    # Strange parameters explained at:
-    # https://docs.python.org/2/library/socket.html#socket.getaddrinfo
-    # Values were taken from the output of `socket.getaddrinfo(...)`
-    if is_ipv4(ip):
-        value = (socket.AddressFamily.AF_INET, 0, 0, '', (ip, port))
-    else: # ipv6
-        value = (socket.AddressFamily.AF_INET6, 0, 0, '', (ip, port, 0, 0))
-    dns_cache[key] = [value]
-
-# Inspired by: https://stackoverflow.com/a/15065711/868533
-prv_getaddrinfo = socket.getaddrinfo
-def new_getaddrinfo(*args):
-    # Uncomment to see what calls to `getaddrinfo` look like.
-    # print(args)
-    try:
-        return dns_cache[args[:2]] # hostname and port
-    except KeyError:
-        return prv_getaddrinfo(*args)
-
-socket.getaddrinfo = new_getaddrinfo
 
 app = Flask(__name__)
 game_helper = GameManager()
@@ -138,12 +106,12 @@ def requestGetAsCv(request, cv,body_mapping={}):
         url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     resp = g_req.request(
         method=request.method,
-        url=url,
+        url=genv.get("URI_REMOTEIP") + request.path,
         params=query,
         headers=request.headers,
         cookies=request.cookies,
         allow_redirects=False,
-        verify=True
+        verify=False,
     )
     excluded_headers = [
         "content-encoding",
@@ -163,19 +131,16 @@ def proxy(request,query={}):
     if query=={}:
         query = request.args.copy()
     new_body = request.get_data(as_text=True)
-    url = request.base_url
-    if request.host == "localhost":
-        url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     # 向目标服务发送代理请求
     resp = requests.request(
         method=request.method,
-        url=url,
+        url=genv.get("URI_REMOTEIP") + request.path,
         params=query,
         headers=request.headers,
         data=new_body,
         cookies=request.cookies,
         allow_redirects=False,
-        verify=True
+        verify=False,
     )
     app.logger.info(resp.url)
     # 构造代理响应
@@ -215,18 +180,15 @@ def requestPostAsCv(request, cv,body_mapping={}):
         new_body = "&".join([f"{k}={v}" for k, v in new_body.items()])
 
     app.logger.info(new_body)
-    url = request.base_url
-    if request.host == "localhost":
-        url = url.replace("localhost", genv.get("DOMAIN_TARGET"))
     resp = g_req.request(
         method=request.method,
-        url=url,
+        url=genv.get("URI_REMOTEIP") + request.path,
         params=query,
         data=new_body,
         headers=request.headers,
         cookies=request.cookies,
         allow_redirects=False,
-        verify=True
+        verify=False,
     )
     excluded_headers = [
         "content-encoding",
@@ -245,7 +207,7 @@ def requestPostAsCv(request, cv,body_mapping={}):
 @app.route("/mpay/games/<game_id>/login_methods", methods=["GET"])
 def handle_login_methods(game_id):
     try:
-        resp: Response = requestGetAsCv(request, "a5.10.0")
+        resp: Response = requestGetAsCv(request, "i4.7.0")
         new_login_methods = resp.get_json()
         new_login_methods["entrance"] = [(loginMethod)]
         new_login_methods["select_platform"] = True
@@ -264,7 +226,7 @@ def handle_login_methods(game_id):
 @app.route("/mpay/games/<game_id>/devices/<device_id>/users", methods=["POST"])
 def handle_first_login(game_id=None, device_id=None):
     try:
-        return requestPostAsCv(request, "a5.10.0")
+        return requestPostAsCv(request, "i4.7.0")
     except:
         return proxy(request)
 
@@ -285,7 +247,7 @@ def handle_login(game_id, device_id, user_id):
             "_cloud_extra_base64": "e30=",
             "sc": "1"
         }
-        resp: Response = requestGetAsCv(request, "a5.10.0",mapping)
+        resp: Response = requestGetAsCv(request, "i4.7.0",mapping)
 
         new_devices = resp.get_json()
         new_devices["user"]["pc_ext_info"] = pcInfo
@@ -309,7 +271,7 @@ def handle_qrcode_image():
 @app.route("/mpay/games/pc_config", methods=["GET"])
 def handle_pc_config():
     try:
-        resp: Response = requestGetAsCv(request, "a5.10.0")
+        resp: Response = requestGetAsCv(request, "i4.7.0")
         new_config = resp.get_json()
         new_config["game"]["config"]["cv_review_status"] = 1
         new_config["game"]["config"]["web_token_persist"]=True
@@ -330,7 +292,7 @@ def handle_create_login():
         query["qrcode_channel_type"] = "3"
         query["gv"] = "251881013"
         query["gvn"] = "2025.0707.1013" 
-        query["cv"] = "a5.10.0"
+        query["cv"] = "i4.7.0"
         query["sv"] = "35"
         query["app_type"] = "games"
         query["app_mode"] = "2"
@@ -363,6 +325,8 @@ def handle_create_login():
         return jsonify(new_config)
     except:
         return proxy(request)
+
+
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
@@ -662,6 +626,7 @@ def _handle_switch_page():
         cloudRes = genv.get("CLOUD_RES")
         if cloudRes.get_login_page() == "":
             return Response(const.html)
+        #logger.info(f"正在加载登录页面: {cloudRes.get_login_page()}")
         return Response(cloudRes.get_login_page())
     except Exception as e:
         return Response(const.html)
@@ -679,21 +644,9 @@ def handle_qrcode_query():
 
 @app.route("/mpay/api/users/login/qrcode/exchange_token", methods=['POST'])
 def handle_token_exchange():
-    mapping={
-        "opt_fields": "nickname,avatar,realname_status,mobile_bind_status,exit_popup_info,mask_related_mobile,related_login_status,detect_is_new_user",
-        "gv": "251881013",
-        "gvn": "2025.0707.1013", 
-        "sv": "35",
-        "app_type": "games",
-        "app_mode": "2",
-        "app_channel": "netease.wyzymnqsd_cps_dev",
-        "_cloud_extra_base64": "e30=",
-        "sc": "1"
-    }
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        resp=  requestPostAsCv(request,"a5.10.0",mapping)
-
+        resp=  proxy(request)
         try:
             # 尝试读取 form 数据
             form_data = request.form.to_dict()
@@ -709,8 +662,7 @@ def handle_token_exchange():
         return resp
     else:
         logger.info(f"捕获到渠道服登录Token.")
-        resp: Response = requestPostAsCv(request,"a5.10.0",mapping)
-
+        resp: Response = proxy(request)
         if resp.status_code == 200:
             if genv.get("pending_login_info"):
                 genv.get("CHANNELS_HELPER").import_from_scan(
@@ -748,19 +700,14 @@ def handle_data_upload():
 @app.route("/<path:path>", methods=["GET", "POST"])
 def globalProxy(path):
     if request.method == "GET":
-        return requestGetAsCv(request, "a5.10.0")
+        return requestGetAsCv(request, "i4.7.0")
     else:
-        return requestPostAsCv(request, "a5.10.0")
+        return requestPostAsCv(request, "i4.7.0")
 
 @app.after_request
 def after_request_func(response:Response):
-    # 如果是图片响应,直接返回
-    if response.mimetype and response.mimetype.startswith('image/'):
-        return response
-        
     #只log出现错误的请求
-    #debug only
-    if True or response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
+    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
         if response.status_code==404:
             if ".ico" in request.url:
                 return response
@@ -770,7 +717,7 @@ def after_request_func(response:Response):
         logger.debug(f"请求 {request.url} {response.status}")
     return response
 
-class proxymgr:
+class macProxyMgr:
     def __init__(self) -> None:
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
         genv.set("CACHED_QRCODE_DATA",{})
@@ -827,7 +774,7 @@ class proxymgr:
         try:
             if (
                 target == None
-                or g_req.get(f"https://{target}", verify=True).status_code != 200
+                or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
@@ -838,6 +785,7 @@ class proxymgr:
                 "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
+
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
         #创建一个空日志
@@ -855,8 +803,6 @@ class proxymgr:
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
             logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
-            #劫持dns，使得Hosts文件被忽略
-            add_custom_dns(genv.get("DOMAIN_TARGET"), 443, target)
             if game_helper.list_auto_start_games():
                 should_start_text="\n".join([i.name for i in game_helper.list_auto_start_games()])
                 logger.info(f"检测到有游戏设置了自动启动，游戏列表{should_start_text}")

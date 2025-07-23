@@ -85,19 +85,8 @@ def handle_exit():
             print("WARN: USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
     print("再见!")
 
-def setup_signal_handlers():
-    import signal
-    
-    def signal_handler(sig, frame):
-        print(f"捕获到信号 {sig}，正在执行清理...")
-        handle_exit()
-        sys.exit(0)
-      # 捕获常见的终止信号
-    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # kill 命令
-    signal.signal(signal.SIGHUP, signal_handler)   # 终端关闭
-    
-    print("已设置 Mac 系统信号处理器")
+
+
 
 def _check_and_copy_pyqt5_files():
     """
@@ -276,10 +265,13 @@ def initialize():
     
     from certmgr import certmgr
     from proxymgr import proxymgr
+    from macProxyMgr import macProxyMgr
     from channelmgr import ChannelManager
     m_certmgr = certmgr()
-    
-    m_proxy = proxymgr()    # 关于线程安全：谁？
+    if sys.platform=='darwin' or True:
+        m_proxy = macProxyMgr()
+    else:
+        m_proxy = proxymgr()
     genv.set("CHANNELS_HELPER", ChannelManager())
 
     # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
@@ -328,29 +320,7 @@ def cloudBuildInfo():
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
 
-def setup_platform_specific():
-    """设置平台特定的配置，包括信号处理器和工作目录"""
-    if sys.platform=='win32':
-        kernel32 = ctypes.WinDLL("kernel32")
-        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
-        handle_ctrl = HandlerRoutine(ctrl_handler)
-        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
-        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
-        genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-    elif sys.platform=='darwin':
-        setup_signal_handlers()
-        # 使用macOS标准的用户应用数据目录
-        mac_app_support = os.path.expanduser("~/Library/Application Support")
-        genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
-        #设置programdata环境变量为工作目录
-        os.environ["PROGRAMDATA"] = mac_app_support
-    elif sys.platform=='linux':
-        setup_signal_handlers()
-        # 使用Linux标准的用户应用数据目录
-        home = os.path.expanduser("~")
-        genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
-        #设置programdata环境变量为工作目录
-        os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
+
 
 
 def setup_work_directory():
@@ -548,13 +518,46 @@ def handle_error_and_exit(e):
 
     input(input_message)
 
-
+def setup_signal_handlers():
+    import signal
+    
+    def signal_handler(sig, frame):
+        print(f"捕获到信号 {sig}，正在执行清理...")
+        handle_exit()
+        sys.exit(0)
+    # 捕获常见的终止信号
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # kill 命令
+    if sys.platform!='win32':
+        signal.signal(signal.SIGHUP, signal_handler)   # 终端关闭
 def main():
+
+
     """主函数入口"""
     global logger
     
-    # 平台特定设置
-    setup_platform_specific()
+    if sys.platform=='win32':
+        #setup_signal_handlers()
+        kernel32 = ctypes.WinDLL("kernel32")
+        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
+        handle_ctrl = HandlerRoutine(ctrl_handler)
+        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
+        genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
+    elif sys.platform=='darwin':
+        setup_signal_handlers()
+        # 使用macOS标准的用户应用数据目录
+        mac_app_support = os.path.expanduser("~/Library/Application Support")
+        genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
+        #设置programdata环境变量为工作目录
+        os.environ["PROGRAMDATA"] = mac_app_support
+    elif sys.platform=='linux':
+        setup_signal_handlers()
+        # 使用Linux标准的用户应用数据目录
+        home = os.path.expanduser("~")
+        genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
+        #设置programdata环境变量为工作目录
+        os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
     
     # 设置工作目录
     setup_work_directory()
