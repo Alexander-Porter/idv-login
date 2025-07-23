@@ -431,6 +431,8 @@ def running():
     
     def _create_mitm_shortcut(self):
         """在当前程序位置创建启动备用模式的快捷方式"""
+        if sys.platform != 'win32':
+            return False
         try:
             # 检测当前可执行文件路径
             current_path, is_exe = self._detect_current_executable_path()
@@ -554,7 +556,7 @@ def running():
                 return False
             
             # 步骤6: 在Windows系统上创建备用模式快捷方式
-            if platform.system().lower() == 'windows':
+            if sys.platform == 'win32':
                 logger.info("正在创建备用模式快捷方式...")
                 try:
                     if self._create_mitm_shortcut():

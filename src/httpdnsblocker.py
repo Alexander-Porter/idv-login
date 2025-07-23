@@ -2,6 +2,7 @@ import subprocess
 import requests
 import base64
 import json
+import sys
 
 class HttpDNSBlocker:
     _instance = None
@@ -23,6 +24,8 @@ class HttpDNSBlocker:
         self.__initialized = True
         
     def block_ip(self, target_ip):
+        if sys.platform!='win32':
+            return False
         try:
             # Block outbound communication
             result = subprocess.run([
