@@ -83,6 +83,8 @@ def handle_exit():
             logger.warning("USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
         else:
             print("WARN: USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
+    from httpdnsblocker import HttpDNSBlocker
+    HttpDNSBlocker().unblock_all()
     print("再见!")
 
 
@@ -239,6 +241,8 @@ def initialize():
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
 
+
+
     if not os.path.exists(genv.get("FP_FAKE_DEVICE")):
         udid = "".join(random.choices(string.hexdigits, k=16))
         sdkDevice = {
@@ -268,12 +272,15 @@ def initialize():
     from macProxyMgr import macProxyMgr
     from channelmgr import ChannelManager
     m_certmgr = certmgr()
-    if sys.platform=='darwin' or True:
+    if sys.platform=='darwin':
         m_proxy = macProxyMgr()
     else:
         m_proxy = proxymgr()
     genv.set("CHANNELS_HELPER", ChannelManager())
-
+    #blocks httpdns ips
+    from httpdnsblocker import HttpDNSBlocker
+    HttpDNSBlocker().apply_blocking()
+    logger.info(f"封锁了{len(HttpDNSBlocker().blocked)}个HTTPDNS IP")
     # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
     if getattr(sys, 'frozen', False):
         _check_and_copy_pyqt5_files()

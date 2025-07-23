@@ -315,7 +315,7 @@ def handle_pc_config():
         new_config["game"]["config"]["web_token_persist"]=True
         new_config["game"]["config"]["mobile_related_login"]["guide_related_mobile"]=True
         new_config["game"]["config"]["mobile_related_login"]["force_related_login"]=True
-        new_config["game"]["config"]["login"]["login_style"]=2
+        new_config["game"]["config"]["login"]["login_style"]=1
         resp.set_data(json.dumps(new_config))
         return resp
     except:
@@ -759,11 +759,7 @@ def after_request_func(response:Response):
         return response
         
     #只log出现错误的请求
-    #debug only
-    if True or response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
-        if response.status_code==404:
-            if ".ico" in request.url:
-                return response
+    if response.status_code!=200 and response.status_code!=302 and response.status_code!=301 and response.status_code!=304:
         logger.error(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
         logger.error(f"发送 {response.status} {response.headers} {response.get_data().decode()}")
     else:
