@@ -16,7 +16,7 @@ class HttpDNSBlocker:
     def __init__(self) -> None:
         if self.__initialized:
             return
-        self.to_be_blocked = []
+        self.to_be_blocked = ["103.71.201.4","13.248.222.62","76.223.88.1"]
         self.blocked = []
         self.dns_url = "https://dns.update.netease.com/hdserver"
         self.timeout = 2  # 2 seconds timeout
@@ -108,3 +108,5 @@ class HttpDNSBlocker:
         for ip in self.blocked:
             self.unblock_ip(ip)
         self.blocked = []
+if __name__=='__main__':
+    HttpDNSBlocker().apply_blocking()
