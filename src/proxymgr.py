@@ -823,7 +823,7 @@ class proxymgr:
         try:
             if (
                 target == None
-                or g_req.get(f"https://{target}", verify=True).status_code != 200
+                or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
@@ -836,7 +836,6 @@ class proxymgr:
             target = "42.186.193.21"
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
-        #创建一个空日志
         import logging
         web_logger=logging.getLogger("web")
         web_logger.setLevel(logging.WARN)
