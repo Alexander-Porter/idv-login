@@ -10,13 +10,26 @@ from ssl_utils import should_verify_ssl
 logger = setup_logger()
 
 class CloudRes:
+    # 单例实例
+    _instance = None
+    # 初始化标记
+    _initialized = False
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self, urls, cache_dir):
-        self.urls = urls
-        self.cache_dir = cache_dir
-        self.cache_file = os.path.join(cache_dir, 'cache.json')
-        self.local_data = self.load_local_cache()
-        self.session = requests.Session()
-        self.session.trust_env = False
+        # 防止重复初始化
+        if not self._initialized:
+            self.urls = urls
+            self.cache_dir = cache_dir
+            self.cache_file = os.path.join(cache_dir, 'cache.json')
+            self.local_data = self.load_local_cache()
+            self.session = requests.Session()
+            self.session.trust_env = False
+            self._initialized = True
 
     def fetch_json_from_url(self):
         for url in self.urls:
@@ -113,3 +126,6 @@ class CloudRes:
     def get_login_page(self):
         import base64
         return base64.b64decode(self.local_data.get('login_base64_page', '')).decode()
+    
+    def get_shortcuts(self):
+        return self.local_data.get('shortcuts', [])

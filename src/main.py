@@ -299,6 +299,7 @@ def initialize():
         url=genv.get("CLOUD_RES").get_guideUrl()
         webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
+    setup_shortcuts()
     computer_name = get_computer_name()
     if computer_name is not None and not all(ord(char) < 128 for char in computer_name):
         logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")
@@ -419,6 +420,11 @@ def setup_backup_version_manager():
     backupVerMgr_instance._create_mitm_shortcut()
     return backupVerMgr_instance
 
+def setup_shortcuts():
+    """设置快捷方式"""
+    from shortcutmgr import ShortcutMgr
+    shortcutMgr_instance = ShortcutMgr()
+    shortcuts = shortcutMgr_instance.handle_shortcuts()
 
 def start_mitm_mode(backupVerMgr_instance):
     """启动MITM代理模式"""
