@@ -424,7 +424,7 @@ def setup_shortcuts():
     """设置快捷方式"""
     from shortcutmgr import ShortcutMgr
     shortcutMgr_instance = ShortcutMgr()
-    shortcuts = shortcutMgr_instance.handle_shortcuts()
+    shortcutMgr_instance.handle_shortcuts()
 
 def start_mitm_mode(backupVerMgr_instance):
     """启动MITM代理模式"""
