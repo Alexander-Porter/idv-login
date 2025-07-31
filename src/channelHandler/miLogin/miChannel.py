@@ -28,7 +28,7 @@ class MiBrowser(WebBrowser):
         self.isQQ=False
         
         # 添加手动登录按钮
-        self.manual_login_button = QPushButton("手动登录")
+        self.manual_login_button = QPushButton("登录界面白屏？")
         self.manual_login_button.clicked.connect(self.manual_login)
         self.toolBarLayout.addWidget(self.manual_login_button)
         
