@@ -10,6 +10,8 @@ from faker import Faker
 import random
 import webbrowser
 import pyperclip as cb
+from PyQt5.QtWidgets import QPushButton, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
+from PyQt5.QtCore import Qt
 
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
@@ -24,6 +26,16 @@ class MiBrowser(WebBrowser):
     def __init__(self):
         super().__init__("xiaomi_app",False)
         self.isQQ=False
+        
+        # 添加手动登录按钮
+        self.manual_login_button = QPushButton("手动登录")
+        self.manual_login_button.clicked.connect(self.manual_login)
+        self.toolBarLayout.addWidget(self.manual_login_button)
+        
+        # 添加QQ登录按钮
+        self.qq_login_button = QPushButton("QQ登录")
+        self.qq_login_button.clicked.connect(self.qq_login)
+        self.toolBarLayout.addWidget(self.qq_login_button)
 
     def verify(self, url: str) -> bool:
         if self.isQQ:
@@ -59,6 +71,51 @@ class MiBrowser(WebBrowser):
             self.set_url("https://openmobile.qq.com/oauth2.0/m_authorize?client_id=1106134065&scope=all&redirect_uri=auth://tauth.qq.com/&style=qr&response_type=token")
         if url.toString().startswith("https://game.xiaomi.com/") and "oauthcallback" not in url.toString():
             self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}")
+    
+    def manual_login(self):
+        """手动登录方法"""
+        login_url = f"http://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}"
+        from PyQt5 import QtCore
+        # 移除窗口置顶标志
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
+        # 使用webbrowser打开登录URL
+        webbrowser.open(login_url)
+        
+        # 创建对话框让用户粘贴URL
+        dialog = QDialog(self)
+        dialog.setWindowTitle("手动登录")
+        dialog.setModal(True)
+        dialog.resize(500, 200)
+        
+        layout = QVBoxLayout()
+        
+        label = QLabel("请在浏览器中完成登录，然后将登录完成后的URL粘贴到下方：")
+        layout.addWidget(label)
+        
+        url_input = QLineEdit()
+        url_input.setPlaceholderText("粘贴登录完成后的URL...例如http://game.xiaomi.com/oauthcallback/mioauth?code=123")
+        layout.addWidget(url_input)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.setLayout(layout)
+        dialog.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        if dialog.exec_() == QDialog.Accepted:
+            url = url_input.text().strip()
+            if url and self.verify(url):
+                if self.parseReslt(url):
+                    self.cleanup()
+            else:
+                self.logger.error("无效的URL或未包含登录信息")
+    
+    def qq_login(self):
+        """QQ登录方法"""
+        self.isQQ = True
+        self.logger.info(f"手动切换到小米渠道QQ登录")
+        self.set_url("https://openmobile.qq.com/oauth2.0/m_authorize?client_id=1106134065&scope=all&redirect_uri=auth://tauth.qq.com/&style=qr&response_type=token")
 
 def generate_fake_data():
     fake = Faker()
