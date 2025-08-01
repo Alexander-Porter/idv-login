@@ -21,7 +21,7 @@ import sys
 import time
 from typing import Mapping
 from dns import query
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, send_file
 from gevent import pywsgi
 import gevent
 from channelHandler.channelUtils import getShortGameId
@@ -655,6 +655,40 @@ def set_login_delay():
             "success": False,
             "error": str(e)
         })
+
+@app.route("/_idv-login/export-logs", methods=["GET"])
+def export_logs():
+    """导出日志文件，包含调试信息"""
+    try:
+        # 导入DebugMgr并导出调试信息到日志
+        from debugmgr import DebugMgr
+        if DebugMgr.is_windows():
+            logger.info("开始导出调试信息...")
+            DebugMgr.export_debug_info()
+            logger.info("调试信息导出完成")
+        else:
+            logger.warning("当前系统不是Windows，跳过调试信息导出")
+        
+        # 返回日志文件
+        log_file_path = "log.txt"
+        if os.path.exists(log_file_path):
+            return send_file(
+                log_file_path,
+                as_attachment=True,
+                download_name=f"idv-login-debug-{int(time.time())}.txt",
+                mimetype='text/plain'
+            )
+        else:
+            return jsonify({
+                "success": False,
+                "error": "日志文件不存在"
+            }), 404
+    except Exception as e:
+        logger.exception("导出日志失败")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
