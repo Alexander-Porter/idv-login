@@ -102,7 +102,7 @@ class MiBrowser(WebBrowser):
         layout.addWidget(button_box)
         
         dialog.setLayout(layout)
-        dialog.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        #dialog.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         if dialog.exec_() == QDialog.Accepted:
             url = url_input.text().strip()
             if url and self.verify(url):

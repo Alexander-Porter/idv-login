@@ -193,7 +193,7 @@ class huaweiChannel(channelmgr.channel):
                 "anonymous": "",
                 "get_access_token": "0",
                 "extra_data": self._get_extra_data(),
-                "timestamp": self.session.ts,
+                "timestamp": str(self.session.ts),
                 "realname": json.dumps({"realname_type": 0, "duration": 0}),
             },
         )
