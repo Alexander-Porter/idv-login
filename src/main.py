@@ -299,7 +299,10 @@ def initialize():
         url=genv.get("CLOUD_RES").get_guideUrl()
         webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
-    setup_shortcuts()
+    try:
+        setup_shortcuts()
+    except:
+        logger.error("创建快捷方式失败")
     computer_name = get_computer_name()
     if computer_name is not None and not all(ord(char) < 128 for char in computer_name):
         logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")

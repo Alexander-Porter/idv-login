@@ -65,7 +65,7 @@ class ShortcutMgr:
         shortcuts=self.get_shortcuts()
         for shortcut in shortcuts:
             entry=ShortcutEntry(shortcut['url'],shortcut['name'],shortcut['policy'])
-            if genv.get(f"shortcut_{entry.name}_{entry.url}",False) or entry.policy=="always":
+            if genv.get(f"shortcut_{entry.name}_{entry.url}",True) or entry.policy=="always":
                 if self.create_shortcut(entry.url,entry.name):
                     genv.set(f"shortcut_{entry.name}_{entry.url}",True,True)
     
