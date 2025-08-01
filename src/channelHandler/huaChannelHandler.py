@@ -157,22 +157,17 @@ class huaweiChannel(channelmgr.channel):
         self.logger.info(f"{getShortGameId(self.game_id)}")
         if getShortGameId(self.game_id)=='g37':
             self.logger.info(f"游戏{getShortGameId(self.game_id)}-需要HMS AccessToken, 二次登录中")
-            #self.logger.info(self.huaweiLogin.startPlay())
-            #if self.huaweiLogin.newHMSOAuth():
-            if True:
-                self.logger.info(self.session)
-                self.logger.info(self.huaweiLogin.accessToken)
-                ext={}
-                ext["playerLevel"]=str(self.session.playerLevel)
-                sdk={}
-                sdk["transtition_version"]=1
-                sdk["openId"]=self.session.openId
-                sdk["accessToken"]=self.huaweiLogin.accessToken
-                ext["sdk_info"]=sdk
-                return json.dumps(ext)
-            else:
-                self.logger.error(f"游戏{getShortGameId(self.game_id)}-HMS登录失败")
-                return ""
+            self.logger.info(self.session)
+            self.logger.info(self.huaweiLogin.accessToken)
+            ext={}
+            ext["playerLevel"]=str(self.session.playerLevel)
+            sdk={}
+            sdk["transtition_version"]=1
+            sdk["openId"]=self.session.openId
+            sdk["accessToken"]=self.huaweiLogin.accessToken
+            ext["sdk_info"]=sdk
+            return json.dumps(ext)
+
         else:
             return str(self.session.playerLevel)
 

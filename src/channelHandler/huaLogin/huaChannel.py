@@ -264,7 +264,6 @@ class HuaweiLogin:
     def standardCallback(self, url, cookies={}):
         client_id = str(self.channelConfig["app_id"])
         redirect_uri = hms_redirect_uri
-        scope = hms_scope
         code=""
         try:
             code = url.split("code=")[1]
