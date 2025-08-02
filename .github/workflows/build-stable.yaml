@@ -30,7 +30,7 @@ jobs:
 
       - name: Install pywin32 (Windows)
         if: runner.os == 'Windows'
-        run: pip install pywin32 winreg
+        run: pip install pywin32
   
       # 插入构建信息（Windows）
       - name: Insert build info (Windows)
