@@ -670,7 +670,8 @@ def export_logs():
             logger.warning("当前系统不是Windows，跳过调试信息导出")
         
         # 返回日志文件
-        log_file_path = "log.txt"
+        log_dir=genv.get('FP_WORKDIR')
+        log_file_path = os.path.join(log_dir, "log.txt")
         if os.path.exists(log_file_path):
             return send_file(
                 log_file_path,
