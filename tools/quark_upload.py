@@ -186,6 +186,8 @@ def up_part(pre_data, mime_type, part_number, part_data):
     upload_url = pre_data['upload_url']
     if upload_url.startswith('https://'):
         upload_url = upload_url[8:]  # 移除 https://
+    if upload_url.startswith('http://'):
+        upload_url = upload_url[7:]  # 移除 http://
     
     oss_url = f"https://{pre_data['bucket']}.{upload_url}/{pre_data['obj_key']}"
     
