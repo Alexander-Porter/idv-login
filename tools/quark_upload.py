@@ -263,7 +263,8 @@ def up_commit(pre_data, etags):
     upload_url = pre_data['upload_url']
     if upload_url.startswith('https://'):
         upload_url = upload_url[8:]
-    
+    if upload_url.startswith('http://'):
+        upload_url = upload_url[7:]
     oss_url = f"https://{pre_data['bucket']}.{upload_url}/{pre_data['obj_key']}"
     
     oss_headers = {

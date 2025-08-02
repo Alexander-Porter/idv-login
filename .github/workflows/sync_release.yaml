@@ -44,7 +44,7 @@ jobs:
           release_data: ${{(steps.latest_release.outputs.result)}}
         run: |
           mkdir -p tmps
-          echo '${{ steps.latest_release.outputs.result }}' | jq -r '.assets[] | select(.name | test("\\.(exe|mac)$")) | .browser_download_url' | while read url; do
+          echo '${{ steps.latest_release.outputs.result }}' | jq -r '.assets[] | select(.name | test("\\.exe$|mac$")) | .browser_download_url' | while read url; do
             echo "Downloading: $url"
             wget -P tmps "$url"
           done
