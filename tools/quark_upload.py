@@ -129,7 +129,6 @@ def up_pre(file_path, parent_id):
     
     data = {
         "ccp_hash_update": True,
-        "parallel_upload": True,
         "dir_name": "",
         "file_name": file_name,
         "format_type": mime_type,
@@ -330,7 +329,12 @@ def upload_file(file_path, parent_id):
     if not os.path.exists(file_path):
         raise Exception(f"文件不存在: {file_path}")
     
-    # 1. 预上传
+    # 1. 预先计算完整文件哈希（关键：必须在预上传之前计算）
+    log_step("计算文件哈希")
+    md5_str, sha1_str = get_file_hash(file_path)
+    log_step("哈希计算完成", f"MD5: {md5_str[:8]}..., SHA1: {sha1_str[:8]}...")
+    
+    # 2. 预上传
     pre_result = up_pre(file_path, parent_id)
     pre_data = pre_result['data']
     
@@ -340,13 +344,12 @@ def upload_file(file_path, parent_id):
     
     log_step("获取任务信息", f"task_id: {task_id}, part_size: {part_size}")
     
-    # 2. 计算文件哈希
-    md5_str, sha1_str = get_file_hash(file_path)
-    
-    # 3. 更新哈希
+    # 3. 更新哈希（在分片上传之前提交完整文件哈希）
     finish = up_hash(md5_str, sha1_str, task_id)
     if finish:
         log_step("文件已存在，秒传成功")
+        # 仍需调用finish来完成流程
+        up_finish(pre_data)
         return pre_data
     
     # 4. 分片上传
