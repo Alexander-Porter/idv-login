@@ -108,5 +108,59 @@ class HttpDNSBlocker:
         for ip in self.blocked:
             self.unblock_ip(ip)
         self.blocked = []
+    
+    def get_status(self):
+        """获取HTTPDNS屏蔽状态"""
+        return {
+            "enabled": len(self.blocked) > 0,
+            "blocked_count": len(self.blocked),
+            "blocked_ips": self.blocked.copy(),
+            "to_be_blocked_count": len(self.to_be_blocked)
+        }
+    
+    def toggle_blocking(self, enable=None):
+        """切换HTTPDNS屏蔽状态
+        Args:
+            enable: True启用，False禁用，None切换当前状态
+        Returns:
+            dict: 操作结果和状态信息
+        """
+        current_enabled = len(self.blocked) > 0
+        
+        if enable is None:
+            enable = not current_enabled
+        
+        try:
+            if enable and not current_enabled:
+                # 启用屏蔽
+                self.apply_blocking()
+                success = len(self.blocked) > 0
+                message = f"HTTPDNS屏蔽已启用，共屏蔽{len(self.blocked)}个IP" if success else "HTTPDNS屏蔽启用失败"
+            elif not enable and current_enabled:
+                # 禁用屏蔽
+                old_count = len(self.blocked)
+                self.unblock_all()
+                success = len(self.blocked) == 0
+                message = f"HTTPDNS屏蔽已禁用，已解除{old_count}个IP的屏蔽" if success else "HTTPDNS屏蔽禁用失败"
+            else:
+                # 状态未改变
+                success = True
+                message = f"HTTPDNS屏蔽状态未改变（当前：{'启用' if current_enabled else '禁用'}）"
+            
+            return {
+                "success": success,
+                "message": message,
+                "enabled": len(self.blocked) > 0,
+                "blocked_count": len(self.blocked),
+                "unblocked_count": len(self.to_be_blocked) - len(self.blocked)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"操作失败：{str(e)}",
+                "enabled": len(self.blocked) > 0,
+                "blocked_count": len(self.blocked),
+                "unblocked_count": len(self.to_be_blocked) - len(self.blocked)
+            }
 if __name__=='__main__':
     HttpDNSBlocker().apply_blocking()

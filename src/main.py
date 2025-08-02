@@ -279,8 +279,17 @@ def initialize():
     genv.set("CHANNELS_HELPER", ChannelManager())
     #blocks httpdns ips
     from httpdnsblocker import HttpDNSBlocker
-    HttpDNSBlocker().apply_blocking()
-    logger.info(f"封锁了{len(HttpDNSBlocker().blocked)}个HTTPDNS IP")
+    
+    # 检查全局HTTPDNS屏蔽设置，默认启用
+    httpdns_enabled = genv.get("httpdns_blocking_enabled", True)
+    
+    if httpdns_enabled:
+        HttpDNSBlocker().apply_blocking()
+        logger.info(f"HTTPDNS屏蔽已启用，封锁了{len(HttpDNSBlocker().blocked)}个HTTPDNS IP")
+    else:
+        logger.info("HTTPDNS屏蔽已禁用")
+        # 确保之前的屏蔽规则被清除
+        HttpDNSBlocker().unblock_all()
     # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
     if getattr(sys, 'frozen', False):
         _check_and_copy_pyqt5_files()

@@ -690,6 +690,68 @@ def export_logs():
             "error": str(e)
         }), 500
 
+@app.route("/_idv-login/get-httpdns-status", methods=["GET"])
+def get_httpdns_status():
+    """获取HTTPDNS屏蔽状态"""
+    try:
+        from httpdnsblocker import HttpDNSBlocker
+        blocker = HttpDNSBlocker()
+        status = blocker.get_status()
+        
+        # 从环境管理器获取全局设置状态
+        global_enabled = genv.get("httpdns_blocking_enabled", True)
+        
+        return jsonify({
+            "success": True,
+            "global_enabled": global_enabled,
+            "current_status": status
+        })
+    except Exception as e:
+        logger.exception("获取HTTPDNS屏蔽状态失败")
+        return jsonify({
+            "success": False,
+            "error": f"获取状态失败：{str(e)}"
+        }), 500
+
+@app.route("/_idv-login/toggle-httpdns-blocking", methods=["GET"])
+def toggle_httpdns_blocking():
+    """切换HTTPDNS屏蔽功能"""
+    try:
+        from httpdnsblocker import HttpDNSBlocker
+        
+        # 获取请求参数
+        enable = request.args.get('enable')
+        if enable is not None:
+            enable = enable.lower() == 'true'
+        
+        blocker = HttpDNSBlocker()
+        
+        # 执行切换操作
+        result = blocker.toggle_blocking(enable)
+        
+        # 更新全局设置状态
+        genv.set("httpdns_blocking_enabled", result["enabled"], True)
+        
+        # 添加警告信息
+        if not result["enabled"]:
+            result["warning"] = "警告：禁用HTTPDNS屏蔽可能导致拦截不生效，游戏可能无法正常登录！"
+        
+        return jsonify({
+            "success": result["success"],
+            "message": result["message"],
+            "warning": result.get("warning", ""),
+            "enabled": result["enabled"],
+            "blocked_count": result["blocked_count"],
+            "unblocked_count": result["unblocked_count"]
+        })
+        
+    except Exception as e:
+        logger.exception("切换HTTPDNS屏蔽功能失败")
+        return jsonify({
+            "success": False,
+            "error": f"操作失败：{str(e)}"
+        }), 500
+
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
     try:

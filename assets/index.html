@@ -111,6 +111,42 @@
     </div>
 
     <div class="container">
+        <!-- 工具设置区域 -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-gear me-2"></i>工具设置</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <strong>开启HTTPDNS屏蔽</strong>
+                                <small class="d-block text-muted">屏蔽网易HTTPDNS服务以确保拦截生效，但是可能导致部分游戏联网失败</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="httpdnsToggle" onchange="toggleHttpDnsBlocking()">
+                                <label class="form-check-label" for="httpdnsToggle"></label>
+                            </div>
+                        </div>
+                        <div id="httpdnsStatus" class="mt-2">
+                            <small class="text-muted">状态：<span id="httpdnsStatusText">加载中...</span></small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <strong>日志导出</strong>
+                                <small class="d-block text-muted">导出包含系统信息的完整调试日志</small>
+                            </div>
+                            <button onclick="exportLogs()" class="btn btn-outline-info">
+                                <i class="bi bi-download me-1"></i>导出日志
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- 游戏选择区域 -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -704,6 +740,9 @@
             // 首先加载游戏列表
             loadGameList();
             
+            // 加载HTTPDNS屏蔽状态
+            loadHttpDnsStatus();
+            
             // 如果有game_id，加载该游戏的账号和设置
             if (game_id) {
                 // 加载登录延迟设置
@@ -864,7 +903,7 @@
                 setTimeout(() => {
                     swal({
                         title: "日志导出成功",
-                        text: "调试日志文件已开始下载",
+                        text: "调试日志文件已开始下载。其中包含操作系统、计算机、IP、已安装应用列表、进程、代理状态等诊断信息，分享前请注意个人隐私。",
                         icon: "success",
                         button: "确定",
                     });
@@ -874,6 +913,93 @@
             
             // 触发下载
             downloadLink.click();
+        }
+
+        // HTTPDNS屏蔽功能相关函数
+        function loadHttpDnsStatus() {
+            fetch('/_idv-login/get-httpdns-status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const toggle = document.getElementById('httpdnsToggle');
+                        const statusText = document.getElementById('httpdnsStatusText');
+                        
+                        toggle.checked = data.enabled;
+                        statusText.textContent = data.enabled ? '已启用' : '已禁用';
+                        statusText.className = data.enabled ? 'text-success' : 'text-warning';
+                    } else {
+                        document.getElementById('httpdnsStatusText').textContent = '获取状态失败';
+                        document.getElementById('httpdnsStatusText').className = 'text-danger';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取HTTPDNS状态失败:', error);
+                    document.getElementById('httpdnsStatusText').textContent = '获取状态失败';
+                    document.getElementById('httpdnsStatusText').className = 'text-danger';
+                });
+        }
+
+        function toggleHttpDnsBlocking() {
+            const toggle = document.getElementById('httpdnsToggle');
+            const statusText = document.getElementById('httpdnsStatusText');
+            
+            // 显示切换中状态
+            statusText.textContent = '切换中...';
+            statusText.className = 'text-info';
+            
+            fetch('/_idv-login/toggle-httpdns-blocking', {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新状态显示
+                        statusText.textContent = data.enabled ? '已启用' : '已禁用';
+                        statusText.className = data.enabled ? 'text-success' : 'text-warning';
+                        
+                        // 显示操作结果
+                        let message = data.enabled ? 
+                            'HTTPDNS屏蔽已启用，网易HTTPDNS服务将被屏蔽' : 
+                            'HTTPDNS屏蔽已禁用';
+                        
+                        if (!data.enabled && data.unblock_result) {
+                            message += '\n防火墙规则解除结果：' + data.unblock_result;
+                        }
+                        
+                        swal({
+                            title: data.enabled ? "HTTPDNS屏蔽已启用" : "HTTPDNS屏蔽已禁用",
+                            text: message + (data.warning ? '\n\n⚠️ ' + data.warning : ''),
+                            icon: "success",
+                            button: "确定",
+                        });
+                    } else {
+                        // 操作失败，恢复开关状态
+                        toggle.checked = !toggle.checked;
+                        statusText.textContent = '切换失败';
+                        statusText.className = 'text-danger';
+                        
+                        swal({
+                            title: "操作失败",
+                            text: data.message || "切换HTTPDNS屏蔽状态失败",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('切换HTTPDNS屏蔽失败:', error);
+                    // 操作失败，恢复开关状态
+                    toggle.checked = !toggle.checked;
+                    statusText.textContent = '切换失败';
+                    statusText.className = 'text-danger';
+                    
+                    swal({
+                        title: "网络错误",
+                        text: "无法连接到服务器，请检查网络连接",
+                        icon: "error",
+                        button: "确定",
+                    });
+                });
         }
 
         function manual() {
