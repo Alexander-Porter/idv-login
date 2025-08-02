@@ -122,7 +122,7 @@
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <strong>开启HTTPDNS屏蔽</strong>
-                                <small class="d-block text-muted">屏蔽网易HTTPDNS服务以确保拦截生效，但是可能导致部分游戏联网失败</small>
+                                <small class="d-block text-muted">屏蔽HTTPDNS服务以确保拦截生效，但是可能导致部分游戏联网失败</small>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="httpdnsToggle" onchange="toggleHttpDnsBlocking()">
@@ -959,7 +959,7 @@
                         
                         // 显示操作结果
                         let message = data.enabled ? 
-                            'HTTPDNS屏蔽已启用，网易HTTPDNS服务将被屏蔽' : 
+                            'HTTPDNS屏蔽已启用，游戏的HTTPDNS服务将被屏蔽' : 
                             'HTTPDNS屏蔽已禁用';
                         
                         if (!data.enabled && data.unblock_result) {
