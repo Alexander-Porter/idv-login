@@ -39,7 +39,6 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
 
 from envmgr import genv
-from logutil import setup_logger # Moved import to top for consistency
 
 
 # Global variable declarations
@@ -588,6 +587,7 @@ def main():
     setup_work_directory()
 
     # Initialize logger (assign to global logger variable)
+    from logutil import setup_logger
     logger = setup_logger() 
 
     # 解析命令行参数
