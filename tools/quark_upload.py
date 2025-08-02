@@ -400,27 +400,27 @@ def main(upload_file_path):
             raise Exception("未获取到文件ID")
         
         # 创建分享链接
-        title = os.path.basename(upload_file_path)
-        share_result = share_file(fid, title, url_type=1, expired_type=2)
+        #title = os.path.basename(upload_file_path)
+        #share_result = share_file(fid, title, url_type=1, expired_type=2)
         
         # 获取分享信息
-        share_data = share_result.get('data', {})
-        if 'task_resp' in share_data and 'data' in share_data['task_resp']:
-            share_data = share_data['task_resp']['data']
+        #share_data = share_result.get('data', {})
+        #if 'task_resp' in share_data and 'data' in share_data['task_resp']:
+        #    share_data = share_data['task_resp']['data']
         
-        share_id = share_data.get('share_id')
-        if not share_id:
-            raise Exception("未获取到share_id")
+        #share_id = share_data.get('share_id')
+        #if not share_id:
+        #    raise Exception("未获取到share_id")
         
         # 查询最终分享信息
-        pwd_info = get_share_password_info(share_id)
+        #pwd_info = get_share_password_info(share_id)
         
-        if 'data' in pwd_info:
-            file_name = pwd_info['data'].get('title', title)
-            share_url = pwd_info['data'].get('share_url')
-            print(f"{file_name} 分享链接：{share_url}")
-        else:
-            raise Exception("未获取到最终分享链接")
+        #if 'data' in pwd_info:
+        #    file_name = pwd_info['data'].get('title', title)
+        #    share_url = pwd_info['data'].get('share_url')
+        #    print(f"{file_name} 分享链接：{share_url}")
+        #else:
+        #    raise Exception("未获取到最终分享链接")
             
     except Exception as e:
         log_step("上传失败", str(e))
