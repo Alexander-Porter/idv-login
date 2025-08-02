@@ -44,7 +44,49 @@ jobs:
           release_data: ${{(steps.latest_release.outputs.result)}}
         run: |
           mkdir -p tmps
+          echo '${{ steps.latest_release.outputs.result }}' | jq -r '.assets[] | select(.name | test("\\.(exe|mac)$")) | .browser_download_url' | while read url; do
+            echo "Downloading: $url"
+            wget -P tmps "$url"
+          done
+          ls -la tmps/
+
+      - name: Create compressed archives
+        run: |
+          cd tmps
           
+          # 获取当前日期
+          current_date=$(date +"%Y-%m-%d")
+          
+          # 压缩所有.exe文件
+          if ls *.exe 1> /dev/null 2>&1; then
+            zip -r "最新版-${current_date}.zip" *.exe
+            echo "Created 最新版-${current_date}.zip"
+          fi
+          
+          # 压缩所有mac文件
+          if ls *mac 1> /dev/null 2>&1; then
+            zip -r "MacOSVer（只在苹果电脑上使用，一般人不要下！）.zip" *mac
+            echo "Created MacOSVer（只在苹果电脑上使用，一般人不要下！）.zip"
+          fi
+          
+          ls -la *.zip
+
+      - name: Upload to Quark Drive
+        env:
+          QUARK_COOKIES_B64: ${{ secrets.QUARK_COOKIES_B64 }}
+          QUARK_PDIR_FID: ${{ secrets.QUARK_PDIR_FID }}
+        run: |
+          pip install requests
+          
+          cd tmps
+          
+          # 上传所有zip文件到夸克网盘
+          for zip_file in *.zip; do
+            if [ -f "$zip_file" ]; then
+              echo "Uploading $zip_file to Quark Drive..."
+              python ../tools/quark_upload.py "$zip_file"
+            fi
+          done
       
       - name: Release to Gitee and update cloudRes
         id: release
