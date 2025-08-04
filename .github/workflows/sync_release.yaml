@@ -44,7 +44,7 @@ jobs:
           release_data: ${{(steps.latest_release.outputs.result)}}
         run: |
           mkdir -p tmps
-          echo '${{ steps.latest_release.outputs.result }}' | jq -r '.assets[] | select(.name | test("\\.exe$|mac$")) | .browser_download_url' | while read url; do
+          echo '${{ steps.latest_release.outputs.result }}' | jq -r '.assets[] | select(.name | test("\.exe$|mac$|\.zip$")) | .browser_download_url' | while read url; do
             echo "Downloading: $url"
             wget -P tmps "$url"
           done
@@ -56,6 +56,15 @@ jobs:
           
           # 获取当前日期
           current_date=$(date +"%Y-%m-%d")
+          
+          # 重命名pack版本的zip文件
+          for zip_file in idv-login-*-Py*.zip; do
+            if [ -f "$zip_file" ]; then
+              cp "$zip_file" "问题十八专用！-${current_date}.zip"
+              echo "Renamed $zip_file to 问题十八专用！-${current_date}.zip"
+              break
+            fi
+          done
           
           # 压缩所有.exe文件
           if ls *.exe 1> /dev/null 2>&1; then

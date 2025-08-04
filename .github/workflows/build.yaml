@@ -1,18 +1,19 @@
-name: Build Stable and Release
+name: Build Beta
 
 on:
-  push:
-    tags:
-      - "v[0-100]+.[0-9]+.[0-1000]-stable"
   workflow_dispatch:
-  
+  push:
+    paths:
+      - 'src/**'
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, macos-latest]
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.12"]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,7 +50,7 @@ jobs:
           .\python-embed\python.exe -m pip install --upgrade pip
           .\python-embed\python.exe -m pip install -r requirements.txt
         shell: pwsh
-  
+
       # 插入构建信息（Windows）
       - name: Insert build info (Windows)
         if: runner.os == 'Windows'
@@ -112,6 +113,7 @@ jobs:
           pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
         shell: bash
 
+
       # SHA256 校验（Windows）
       - name: Calculate checksum (Windows)
         if: runner.os == 'Windows'
@@ -134,28 +136,12 @@ jobs:
           file="dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
           shasum -a 256 "$file" | cut -d ' ' -f1 > "$file.sha256"
 
-      # 添加测试运行步骤（macOS）
-      - name: Test Run on macOS
-        if: runner.os == 'macOS'
-        shell: bash
-        continue-on-error: true
-        run: |
-          echo "尝试运行程序，将在60秒后自动终止..."
-          chmod +x "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
-          timeout 60s "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac" || echo "程序已超时或异常退出"
-          echo "测试运行完成，继续下一步"
-
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-${{ matrix.python-version }}
           path: dist/
 
-      - name: Release body
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          body_path: ext/${{github.ref_name}}-CHANGELOG
 
   release:
     needs: [build]
@@ -167,12 +153,4 @@ jobs:
         with:
           merge-multiple: true
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            **/*.exe
-            **/*-mac
-            **/*.zip
-            **/*.sha256
+
