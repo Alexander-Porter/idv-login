@@ -31,28 +31,6 @@ jobs:
       - name: Install pywin32 (Windows)
         if: runner.os == 'Windows'
         run: pip install pywin32
-
-      # 下载Python嵌入式版本（仅Windows）
-      - name: Download Python Embedded (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.8.4/python-3.8.4-embed-amd64.zip -OutFile python-embed.zip
-          Expand-Archive python-embed.zip -DestinationPath python-embed
-
-      # 设置Python嵌入式版本（仅Windows）
-      - name: Set up Python Embedded (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
-          .\python-embed\python.exe get-pip.py
-          .\python-embed\python.exe -m pip install --upgrade pip
-        shell: pwsh
-
-      # 安装依赖（仅Windows）
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          .\python-embed\python.exe -m pip install -r requirements.txt
   
       # 插入构建信息（Windows）
       - name: Insert build info (Windows)
@@ -72,50 +50,14 @@ jobs:
           echo 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"' > src/buildinfo.py
           echo 'VERSION="${{github.ref_name}}"' >> src/buildinfo.py
 
-      # 编译Python文件到.pyc（仅Windows）
-      - name: Compile Python files to .pyc (Windows)
-        if: runner.os == 'Windows'
+      - name: Build with PyInstaller
         run: |
-            .\python-embed\python.exe  -m compileall src
-            Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object {
-                $newName = $_.Name -replace '\.cpython-3\d+', ''
-                if (Test-Path -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName)) {
-                    Remove-Item -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName) -Force
-                }
-                Rename-Item -Path $_.FullName -NewName $newName
-            }
-            Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object { Move-Item $_.FullName -Destination $_.Directory.Parent.FullName }
-            Get-ChildItem -Recurse -Filter '*.py' | Remove-Item -Force
-            Get-ChildItem -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
-        shell: pwsh
-
-      # 打包应用程序（仅Windows）
-      - name: Package application (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          mkdir dist
-          Copy-Item -Recurse -Force python-embed dist/python-embed
-          Copy-Item -Recurse -Force src dist/src
-          Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
-        shell: pwsh
-
-      # 压缩打包（仅Windows）
-      - name: Compress package (Windows)
-        if: runner.os == 'Windows'
-        run: Compress-Archive -Path dist/* -DestinationPath "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip"
-        shell: pwsh
-
-      - name: Build with PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $NAME = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
-          pyinstaller -F src\main.py -n $NAME -i assets\icon.ico --version-file assets\version.txt
-        shell: pwsh
-
-      - name: Build with PyInstaller (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          NAME="idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
+          NAME="idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            NAME="${NAME}-mac"
+          else
+            NAME="${NAME}.exe"
+          fi
           pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
         shell: bash
 
@@ -124,14 +66,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $exeFile = "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
-          $zipFile = "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip"
-          Get-FileHash $exeFile |
+          $file = "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          Get-FileHash $file |
             Select-Object -ExpandProperty Hash |
-            Out-File -Encoding ascii "$exeFile.sha256"
-          Get-FileHash $zipFile |
-            Select-Object -ExpandProperty Hash |
-            Out-File -Encoding ascii "$zipFile.sha256"
+            Out-File -Encoding ascii "$file.sha256"
 
       # SHA256 校验（macOS）
       - name: Calculate checksum (macOS)
@@ -164,8 +102,83 @@ jobs:
         with:
           body_path: ext/${{github.ref_name}}-CHANGELOG
 
+  pack:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.8.4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Python Embedded
+        run: |
+          Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ matrix.python-version }}/python-${{ matrix.python-version }}-embed-amd64.zip -OutFile python-embed.zip
+          Expand-Archive python-embed.zip -DestinationPath python-embed
+
+      - name: Set up Python Embedded
+        run: |
+          Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
+          .\python-embed\python.exe get-pip.py
+          .\python-embed\python.exe -m pip install --upgrade pip
+        shell: pwsh
+
+      - name: Install dependencies
+        run: |
+          .\python-embed\python.exe -m pip install -r requirements.txt
+      
+      - name: Install pywin32 (Windows)
+        if: runner.os == 'Windows'
+        run: pip install pywin32
+
+      - name: Insert build info
+        run: |
+          $buildInfo = 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"'
+          $versionInfo = 'VERSION="${{github.ref_name}}"'
+          $buildInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8
+          $versionInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Compile Python files to .pyc
+        run: |
+            .\python-embed\python.exe  -m compileall src
+            Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object {
+                $newName = $_.Name -replace '\.cpython-3\d+', ''
+                if (Test-Path -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName)) {
+                    Remove-Item -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName) -Force
+                }
+                Rename-Item -Path $_.FullName -NewName $newName
+            }
+            Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object { Move-Item $_.FullName -Destination $_.Directory.Parent.FullName }
+            Get-ChildItem -Recurse -Filter '*.py' | Remove-Item -Force
+            Get-ChildItem -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
+        shell: pwsh
+      
+      - name: Package application
+        run: |
+          mkdir dist
+          Copy-Item -Recurse -Force python-embed dist/python-embed
+          Copy-Item -Recurse -Force src dist/src
+          Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
+        shell: pwsh
+
+      - name: Compress package
+        run: Compress-Archive -Path dist/* -DestinationPath idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
+        shell: pwsh
+
+      - name: Calculate Client checksum
+        run: Get-FileHash "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip" | select-object -ExpandProperty Hash > idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip.sha256
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-${{ matrix.python-version }}
+          path: |
+            idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
+            idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip.sha256
+
   release:
-    needs: [build]
+    needs: [build, pack]
     runs-on: ubuntu-latest
 
     steps:
@@ -181,5 +194,5 @@ jobs:
           files: |
             **/*.exe
             **/*-mac
-            **/*.zip
             **/*.sha256
+            **/*.zip
