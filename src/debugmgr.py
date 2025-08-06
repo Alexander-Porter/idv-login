@@ -350,13 +350,17 @@ class DebugMgr:
         memory_info = {}
         
         try:
-            # 内存信息
             if psutil:
                 try:
+                    # 获取内存信息
                     memory = psutil.virtual_memory()
-                    memory_info['总内存'] = f"{round(memory.total / 1024 / 1024 / 1024, 2)} GB"
-                    memory_info['可用内存'] = f"{round(memory.available / 1024 / 1024 / 1024, 2)} GB"
-                    memory_info['内存使用率'] = f"{memory.percent}%"
+                    memory_info = {
+                        '总内存': f"{memory.total / (1024**3):.2f} GB",
+                        '可用内存': f"{memory.available / (1024**3):.2f} GB",
+                        '已用内存': f"{memory.used / (1024**3):.2f} GB",
+                        '内存使用率': f"{memory.percent}%",
+                        '缓存': f"{memory.cached / (1024**3):.2f} GB" if hasattr(memory, 'cached') else '不可用'
+                    }
                 except Exception as e:
                     memory_info['内存信息错误'] = str(e)
             else:
@@ -365,6 +369,124 @@ class DebugMgr:
             memory_info['系统信息获取错误'] = str(e)
         
         return memory_info
+    
+    @staticmethod
+    def get_firewall_rules():
+        """获取Windows防火墙规则"""
+        if not DebugMgr.is_windows():
+            return {'错误': '仅支持Windows系统'}
+        
+        firewall_info = {
+            '入站规则': [],
+            '出站规则': [],
+            '防火墙状态': {},
+            '错误信息': []
+        }
+        
+        try:
+            # 获取防火墙状态
+            try:
+                result = subprocess.run(
+                    ['netsh', 'advfirewall', 'show', 'allprofiles', 'state'],
+                    capture_output=True, timeout=30
+                )
+                if result.returncode == 0:
+                    stdout_text = DebugMgr._decode_output(result.stdout)
+                    firewall_info['防火墙状态']['原始输出'] = stdout_text
+                else:
+                    stderr_text = DebugMgr._decode_output(result.stderr)
+                    firewall_info['错误信息'].append(f'获取防火墙状态失败: {stderr_text}')
+            except Exception as e:
+                firewall_info['错误信息'].append(f'获取防火墙状态异常: {str(e)}')
+            
+            # 获取入站规则
+            try:
+                result = subprocess.run(
+                    ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=all', 'dir=in'],
+                    capture_output=True, timeout=60
+                )
+                if result.returncode == 0:
+                    # 尝试多种编码方式解码输出
+                    stdout_text = DebugMgr._decode_output(result.stdout)
+                    firewall_info['入站规则'] = DebugMgr._parse_firewall_rules(stdout_text)
+                else:
+                    stderr_text = DebugMgr._decode_output(result.stderr)
+                    firewall_info['错误信息'].append(f'获取入站规则失败: {stderr_text}')
+            except Exception as e:
+                firewall_info['错误信息'].append(f'获取入站规则异常: {str(e)}')
+            
+            # 获取出站规则
+            try:
+                result = subprocess.run(
+                    ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=all', 'dir=out'],
+                    capture_output=True, timeout=60
+                )
+                if result.returncode == 0:
+                    # 尝试多种编码方式解码输出
+                    stdout_text = DebugMgr._decode_output(result.stdout)
+                    firewall_info['出站规则'] = DebugMgr._parse_firewall_rules(stdout_text)
+                else:
+                    stderr_text = DebugMgr._decode_output(result.stderr)
+                    firewall_info['错误信息'].append(f'获取出站规则失败: {stderr_text}')
+            except Exception as e:
+                firewall_info['错误信息'].append(f'获取出站规则异常: {str(e)}')
+                
+        except Exception as e:
+            firewall_info['错误信息'].append(f'获取防火墙信息时发生错误: {str(e)}')
+        
+        return firewall_info
+    
+    @staticmethod
+    def _decode_output(byte_output):
+        """尝试多种编码方式解码输出"""
+        if isinstance(byte_output, str):
+            return byte_output
+        
+        # 尝试的编码列表，按优先级排序
+        encodings = ['utf-8', 'gbk', 'gb2312', 'cp936', 'latin1']
+        
+        for encoding in encodings:
+            try:
+                return byte_output.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        # 如果所有编码都失败，使用 errors='replace' 强制解码
+        try:
+            return byte_output.decode('utf-8', errors='replace')
+        except Exception:
+            return str(byte_output)
+    
+    @staticmethod
+    def _parse_firewall_rules(output):
+        """解析防火墙规则输出"""
+        rules = []
+        current_rule = {}
+        
+        try:
+            lines = output.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    if current_rule:
+                        rules.append(current_rule.copy())
+                        current_rule = {}
+                    continue
+                
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    current_rule[key] = value
+            
+            # 添加最后一个规则
+            if current_rule:
+                rules.append(current_rule)
+                
+        except Exception as e:
+            rules.append({'解析错误': str(e)})
+        
+        return rules  # 返回所有规则
     
     @staticmethod
     def export_debug_info():
@@ -432,6 +554,46 @@ class DebugMgr:
                 else:
                     logger.info(f"{key}: {value}")
             
+            # 导出防火墙规则
+            logger.info("\n[防火墙规则]")
+            firewall_info = DebugMgr.get_firewall_rules()
+            
+            # 输出防火墙状态
+            if '防火墙状态' in firewall_info and firewall_info['防火墙状态']:
+                logger.info("防火墙状态:")
+                for key, value in firewall_info['防火墙状态'].items():
+                    if key == '原始输出':
+                        logger.info(f"  {key}:")
+                        for line in value.split('\n'):
+                            if line.strip():
+                                logger.info(f"    {line.strip()}")
+                    else:
+                        logger.info(f"  {key}: {value}")
+            
+            # 输出入站规则
+            if '入站规则' in firewall_info and firewall_info['入站规则']:
+                logger.info(f"\n入站规则 (共{len(firewall_info['入站规则'])}条):")
+                for i, rule in enumerate(firewall_info['入站规则'], 1):  # 显示所有规则
+                    logger.info(f"  规则 {i}:")
+                    for key, value in rule.items():
+                        logger.info(f"    {key}: {value}")
+                    logger.info("")
+            
+            # 输出出站规则
+            if '出站规则' in firewall_info and firewall_info['出站规则']:
+                logger.info(f"\n出站规则 (共{len(firewall_info['出站规则'])}条):")
+                for i, rule in enumerate(firewall_info['出站规则'], 1):  # 显示所有规则
+                    logger.info(f"  规则 {i}:")
+                    for key, value in rule.items():
+                        logger.info(f"    {key}: {value}")
+                    logger.info("")
+            
+            # 输出错误信息
+            if '错误信息' in firewall_info and firewall_info['错误信息']:
+                logger.info("\n防火墙规则获取错误:")
+                for error in firewall_info['错误信息']:
+                    logger.info(f"  - {error}")
+            
             logger.info("=" * 80)
             logger.info(f"调试信息导出完成 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info("=" * 80)
@@ -458,7 +620,8 @@ class DebugMgr:
                 'system_info': DebugMgr.get_system_info(),
                 'processes': DebugMgr.get_process_list(),
                 'installed_apps': DebugMgr.get_installed_apps(),
-                'proxy_info': DebugMgr.get_proxy_info()
+                'proxy_info': DebugMgr.get_proxy_info(),
+                'firewall_rules': DebugMgr.get_firewall_rules()
             }
             
             with open(file_path, 'w', encoding='utf-8') as f:

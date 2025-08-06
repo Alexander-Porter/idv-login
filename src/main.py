@@ -521,6 +521,11 @@ def setup_network_proxy(force_mitm_mode):
 
 def handle_error_and_exit(e):
     """处理异常并退出程序"""
+    try:
+        import debugmgr
+        debugmgr.DebugMgr().export_debug_info()
+    except:
+        pass
     if logger: # Check if logger was initialized
         logger.exception(
             f"发生未处理的异常:{e}.反馈时请发送日志！\n日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
