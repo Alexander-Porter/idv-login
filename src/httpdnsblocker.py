@@ -7,6 +7,27 @@ import sys
 class HttpDNSBlocker:
     _instance = None
     
+    @staticmethod
+    def _decode_output(byte_output):
+        """尝试多种编码方式解码输出"""
+        if isinstance(byte_output, str):
+            return byte_output
+        
+        # 尝试的编码列表，按优先级排序
+        encodings = ['utf-8', 'gbk', 'gb2312', 'cp936', 'latin1']
+        
+        for encoding in encodings:
+            try:
+                return byte_output.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        # 如果所有编码都失败，使用 errors='replace' 强制解码
+        try:
+            return byte_output.decode('utf-8', errors='replace')
+        except Exception:
+            return str(byte_output)
+    
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -87,17 +108,19 @@ class HttpDNSBlocker:
             inbound_result = subprocess.run([
                 'netsh', 'advfirewall', 'firewall', 'show', 'rule',
                 'name=Block_Inbound_IP'
-            ], shell=True, capture_output=True, text=True)
+            ], shell=True, capture_output=True)
             
             # 获取出站规则数量
             outbound_result = subprocess.run([
                 'netsh', 'advfirewall', 'firewall', 'show', 'rule',
                 'name=Block_Outbound_IP'
-            ], shell=True, capture_output=True, text=True)
+            ], shell=True, capture_output=True)
             
             # 统计规则数量
-            inbound_count = len([line for line in inbound_result.stdout.split('\n') if 'Block_Inbound_IP' in line])
-            outbound_count = len([line for line in outbound_result.stdout.split('\n') if 'Block_Outbound_IP' in line])
+            inbound_stdout = self._decode_output(inbound_result.stdout)
+            outbound_stdout = self._decode_output(outbound_result.stdout)
+            inbound_count = len([line for line in inbound_stdout.split('\n') if 'Block_Inbound_IP' in line])
+            outbound_count = len([line for line in outbound_stdout.split('\n') if 'Block_Outbound_IP' in line])
             
             print(f"发现入站规则数量: {inbound_count}")
             print(f"发现出站规则数量: {outbound_count}")
