@@ -36,9 +36,8 @@ jobs:
       - name: Download Python Embedded (Windows)
         if: runner.os == 'Windows'
         run: |
-          Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ matrix.python-version }}.4/python-${{ matrix.python-version }}.4-embed-amd64.zip -OutFile python-embed.zip
+          Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.8.4/python-3.8.4-embed-amd64.zip -OutFile python-embed.zip
           Expand-Archive python-embed.zip -DestinationPath python-embed
-        shell: pwsh
 
       # 设置Python嵌入式版本（仅Windows）
       - name: Set up Python Embedded (Windows)
@@ -47,8 +46,13 @@ jobs:
           Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
           .\python-embed\python.exe -m pip install --upgrade pip
-          .\python-embed\python.exe -m pip install -r requirements.txt
         shell: pwsh
+
+      # 安装依赖（仅Windows）
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\python-embed\python.exe -m pip install -r requirements.txt
   
       # 插入构建信息（Windows）
       - name: Insert build info (Windows)
