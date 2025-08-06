@@ -108,6 +108,24 @@ class CloudRes:
     def get_version(self):
         return self.local_data.get('version', genv.get('VERSION'))
 
+    def get_netease_qrcode_login_game_list(self):
+        return self.local_data.get('netease_qrcode_login_game_list', [])
+
+    def is_game_in_qrcode_login_list(self,game_id):
+        game_list = self.get_netease_qrcode_login_game_list()
+        for item in game_list:
+            if item.get('game_id') == game_id:
+                return True
+        return False
+
+    def get_qrcode_app_channel(self,game_id):
+        if self.is_game_in_qrcode_login_list(game_id):
+            game_list = self.get_netease_qrcode_login_game_list()
+            for item in game_list:
+                if item.get('game_id') == game_id:
+                    return item.get('app_channel')
+        return None
+
     def get_announcement(self):
         return self.local_data.get('announcement', '')
 

@@ -37,7 +37,7 @@ import const
 import subprocess
 import socket
 import requests
-
+from channelHandler.channelUtils import getShortGameId
 
 def is_ipv4(s):
     # Feel free to improve this: https://stackoverflow.com/questions/11827961/checking-for-ip-addresses
@@ -207,11 +207,13 @@ def requestPostAsCv(request, cv,body_mapping={}):
         for k,v in body_mapping.items():
             new_body[k]=v
     except:
-        new_body = dict(x.split("=") for x in request.get_data(as_text=True).split("&"))
+        # 使用Flask的request.form来处理表单数据
+        new_body = request.form.to_dict()
         new_body["cv"] = cv
         new_body.pop("arch", None)
         for k,v in body_mapping.items():
             new_body[k]=v
+        # 转换为URL编码的字符串格式
         new_body = "&".join([f"{k}={v}" for k, v in new_body.items()])
 
     app.logger.info(new_body)
@@ -285,7 +287,12 @@ def handle_login(game_id, device_id, user_id):
             "_cloud_extra_base64": "e30=",
             "sc": "1"
         }
-        resp: Response = requestGetAsCv(request, "a5.10.0",mapping)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+            resp: Response = requestGetAsCv(request, "a5.10.0",mapping)
+        else:
+            resp: Response = requestGetAsCv(request, "a5.10.0")
+
 
         new_devices = resp.get_json()
         new_devices["user"]["pc_ext_info"] = pcInfo
@@ -326,17 +333,18 @@ def handle_pc_config():
 def handle_create_login():
     try:
         query=request.args.to_dict()
-        # 设置二维码登录的渠道类型和其他必要参数
-        query["qrcode_channel_type"] = "3"
-        query["gv"] = "251881013"
-        query["gvn"] = "2025.0707.1013" 
-        query["cv"] = "a5.10.0"
-        query["sv"] = "35"
-        query["app_type"] = "games"
-        query["app_mode"] = "2"
-        query["app_channel"] = "netease.wyzymnqsd_cps_dev"
-        query["_cloud_extra_base64"] = "e30="
-        query["sc"] = "1"
+        game_id=query["game_id"]
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
+            query["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+            query["qrcode_channel_type"] = "3"
+            query["gv"] = "251881013"
+            query["gvn"] = "2025.0707.1013" 
+            query["cv"] = "a5.10.0"
+            query["sv"] = "35"
+            query["app_type"] = "games"
+            query["app_mode"] = "2"
+            query["_cloud_extra_base64"] = "e30="
+            query["sc"] = "1"
         resp: Response = proxy(request,query)
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
         data={
@@ -788,18 +796,21 @@ def handle_token_exchange():
         "_cloud_extra_base64": "e30=",
         "sc": "1"
     }
+    try:
+        # 尝试读取 form 数据
+        form_data = request.form.to_dict()
+        logger.debug(f"数据上传内容: {form_data}")
+    except Exception as e:
+        logger.error(f"解析上传数据失败: {e}")
+    game_id = form_data.get("game_id", "")
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        resp=  requestPostAsCv(request,"a5.10.0",mapping)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+            resp=  requestPostAsCv(request,"a5.10.0",mapping)
+        else:
+            resp=  requestPostAsCv(request,"a5.10.0")
 
-        try:
-            # 尝试读取 form 数据
-            form_data = request.form.to_dict()
-            logger.debug(f"数据上传内容: {form_data}")
-        except Exception as e:
-            logger.error(f"解析上传数据失败: {e}")
-            return resp
-        game_id = form_data.get("game_id", "")
         if resp.status_code==200 and game_helper.get_auto_close_setting(game_id):
             logger.info("检测到登录已完成请求，即将自动关闭程序...")
             # 使用 gevent 延迟退出，确保响应能够正常返回
@@ -807,7 +818,12 @@ def handle_token_exchange():
         return resp
     else:
         logger.info(f"捕获到渠道服登录Token.")
-        resp: Response = requestPostAsCv(request,"a5.10.0",mapping)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+            resp: Response = requestPostAsCv(request,"a5.10.0",mapping)
+        else:
+            resp: Response = requestPostAsCv(request,"a5.10.0")
+
 
         if resp.status_code == 200:
             if genv.get("pending_login_info"):
