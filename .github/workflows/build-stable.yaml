@@ -105,14 +105,17 @@ jobs:
         run: Compress-Archive -Path dist/* -DestinationPath "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip"
         shell: pwsh
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (Windows)
+        if: runner.os == 'Windows'
         run: |
-          NAME="idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            NAME="${NAME}-mac"
-          else
-            NAME="${NAME}.exe"
-          fi
+          $NAME = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          pyinstaller -F src\main.py -n $NAME -i assets\icon.ico --version-file assets\version.txt
+        shell: pwsh
+
+      - name: Build with PyInstaller (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          NAME="idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}-mac"
           pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
         shell: bash
 
