@@ -287,8 +287,8 @@ def handle_login(game_id, device_id, user_id):
             "_cloud_extra_base64": "e30=",
             "sc": "1"
         }
-        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
-            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(getShortGameId(game_id))
             resp: Response = requestGetAsCv(request, "a5.10.0",mapping)
         else:
             resp: Response = requestGetAsCv(request, "a5.10.0")
@@ -334,8 +334,9 @@ def handle_create_login():
     try:
         query=request.args.to_dict()
         game_id=query["game_id"]
-        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
-            query["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
+            query["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(getShortGameId(game_id))
+
             query["qrcode_channel_type"] = "3"
             query["gv"] = "251881013"
             query["gvn"] = "2025.0707.1013" 
@@ -805,8 +806,8 @@ def handle_token_exchange():
     game_id = form_data.get("game_id", "")
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
-            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(getShortGameId(game_id))
             resp=  requestPostAsCv(request,"a5.10.0",mapping)
         else:
             resp=  requestPostAsCv(request,"a5.10.0")
@@ -818,8 +819,8 @@ def handle_token_exchange():
         return resp
     else:
         logger.info(f"捕获到渠道服登录Token.")
-        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(game_id):
-            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(game_id)
+        if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
+            mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(getShortGameId(game_id))
             resp: Response = requestPostAsCv(request,"a5.10.0",mapping)
         else:
             resp: Response = requestPostAsCv(request,"a5.10.0")
