@@ -700,7 +700,7 @@ def get_httpdns_status():
         status = blocker.get_status()
         
         # 从环境管理器获取全局设置状态
-        global_enabled = genv.get("httpdns_blocking_enabled", True)
+        global_enabled = genv.get("httpdns_blocking_enabled", False)
         
         return jsonify({
             "success": True,
@@ -721,7 +721,7 @@ def toggle_httpdns_blocking():
         from httpdnsblocker import HttpDNSBlocker
         
         # 获取当前状态并切换
-        current_enabled = genv.get("httpdns_blocking_enabled", True)
+        current_enabled = genv.get("httpdns_blocking_enabled", False)
         new_enabled = not current_enabled
         
         blocker = HttpDNSBlocker()

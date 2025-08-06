@@ -280,13 +280,13 @@ def initialize():
     from httpdnsblocker import HttpDNSBlocker
     
     # 检查全局HTTPDNS屏蔽设置，默认启用
-    httpdns_enabled = genv.get("httpdns_blocking_enabled", True)
+    httpdns_enabled = genv.get("httpdns_blocking_enabled", False)
     
     if httpdns_enabled:
         HttpDNSBlocker().apply_blocking()
         logger.info(f"HTTPDNS屏蔽已启用，封锁了{len(HttpDNSBlocker().blocked)}个HTTPDNS IP")
     else:
-        logger.info("HTTPDNS屏蔽已禁用")
+        logger.info("HTTPDNS屏蔽未启用")
         # 确保之前的屏蔽规则被清除
         HttpDNSBlocker().unblock_all()
     # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
@@ -305,6 +305,7 @@ def initialize():
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
         import webbrowser
         url=genv.get("CLOUD_RES").get_guideUrl()
+        genv.set("httpdns_blocking_enabled",False,True)
         webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
     try:

@@ -52,6 +52,9 @@ class HttpDNSBlocker:
             return False
 
     def unblock_ip(self, target_ip):
+        if sys.platform!='win32':
+            return False
+
         try:
             # Remove outbound rule
             result = subprocess.run([
@@ -74,6 +77,51 @@ class HttpDNSBlocker:
             return True
         except Exception:
             return False
+    def unblock_all(self):
+        if sys.platform!='win32':
+            return
+
+        # 获取所有防火墙规则
+        try:
+            # 获取入站规则数量
+            inbound_result = subprocess.run([
+                'netsh', 'advfirewall', 'firewall', 'show', 'rule',
+                'name=Block_Inbound_IP'
+            ], shell=True, capture_output=True, text=True)
+            
+            # 获取出站规则数量
+            outbound_result = subprocess.run([
+                'netsh', 'advfirewall', 'firewall', 'show', 'rule',
+                'name=Block_Outbound_IP'
+            ], shell=True, capture_output=True, text=True)
+            
+            # 统计规则数量
+            inbound_count = len([line for line in inbound_result.stdout.split('\n') if 'Block_Inbound_IP' in line])
+            outbound_count = len([line for line in outbound_result.stdout.split('\n') if 'Block_Outbound_IP' in line])
+            
+            print(f"发现入站规则数量: {inbound_count}")
+            print(f"发现出站规则数量: {outbound_count}")
+            
+            # 删除所有规则
+            if inbound_count > 0:
+                subprocess.run([
+                    'netsh', 'advfirewall', 'firewall', 'delete', 'rule',
+                    'name=Block_Inbound_IP'
+                ], shell=True)
+            
+            if outbound_count > 0:
+                subprocess.run([
+                    'netsh', 'advfirewall', 'firewall', 'delete', 'rule',
+                    'name=Block_Outbound_IP'
+                ], shell=True)
+            
+            # 清空已封禁IP列表
+            self.blocked.clear()
+            
+            print(f"已清除全部防火墙规则")
+            
+        except Exception as e:
+            print(f"清除防火墙规则时发生错误: {e}")
 
     def update_dns_ips(self):
         try:
@@ -104,11 +152,7 @@ class HttpDNSBlocker:
                 if self.block_ip(ip):
                     self.blocked.append(ip)
 
-    def unblock_all(self):
-        for ip in self.blocked:
-            self.unblock_ip(ip)
-        self.blocked = []
-    
+
     def get_status(self):
         """获取HTTPDNS屏蔽状态"""
         return {
@@ -164,3 +208,4 @@ class HttpDNSBlocker:
             }
 if __name__=='__main__':
     HttpDNSBlocker().apply_blocking()
+    HttpDNSBlocker().unblock_all()
