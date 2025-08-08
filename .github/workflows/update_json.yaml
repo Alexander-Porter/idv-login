@@ -1,0 +1,98 @@
+name: Update JSON Resources
+
+on:
+  push:
+    paths:
+      - 'assets/anno'
+      - 'assets/index.html'
+  workflow_dispatch:
+
+jobs:
+  update_json:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install dependencies
+        run: |
+          pip install requests_toolbelt
+          pip install requests
+
+      - name: Update cloudRes.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -c "
+          import sys
+          import requests
+          import os
+          import json
+          import base64
+          import time
+          
+          # 读取环境变量
+          github_token = os.getenv('GITHUB_TOKEN')
+          
+          def getLatestRelease():
+              headers = {'Authorization': 'token ' + github_token}
+              r = requests.get('https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest', headers=headers)
+              return r.json()
+          
+          def updateCloudRes():
+              # 获取当前 cloudRes.json
+              url = 'https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json'
+              headers = {'Authorization': 'token ' + github_token}
+              r = requests.get(url, headers=headers)
+              fileInfo = r.json()
+              sha = fileInfo['sha']
+              
+              # 解码现有内容
+              content = base64.b64decode(fileInfo['content']).decode()
+              data = json.loads(content)
+              
+              # 更新 cloudRes
+              releaseData = getLatestRelease()
+              data['version'] = releaseData['tag_name']
+              data['lastModified'] = int(time.time())
+              
+              # 获取 assets/index.html
+              with open('assets/index.html', 'r', encoding='utf-8') as f:
+                  html = f.read()
+              data['login_base64_page'] = base64.b64encode(html.encode()).decode()
+              
+              data['downloadUrl'] = f\"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}\"
+              data['detail'] = releaseData['body']
+              
+              # 读取 assets/anno 文件，得到公告
+              with open('assets/anno', 'r', encoding='utf-8') as f:
+                  anno = f.read()
+              data['announcement'] = anno
+              
+              # 提交更新
+              commitMessage = f\"Update cloudRes.json - JSON resources updated\"
+              dataStr = json.dumps(data)
+              dataStr = base64.b64encode(dataStr.encode()).decode()
+              
+              updateData = {
+                  'message': commitMessage,
+                  'content': dataStr,
+                  'sha': sha
+              }
+              
+              r = requests.put(url, headers=headers, json=updateData)
+              print('cloudRes.json updated successfully')
+              print(r.json())
+          
+          # 禁用SSL警告
+          requests.packages.urllib3.disable_warnings()
+          
+          # 执行更新
+          updateCloudRes()
+          "
