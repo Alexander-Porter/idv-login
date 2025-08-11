@@ -347,11 +347,11 @@ def upload_file(file_path, parent_id):
     
     # 3. 更新哈希（在分片上传之前提交完整文件哈希）
     finish = up_hash(md5_str, sha1_str, task_id)
-    if finish:
-        log_step("文件已存在，秒传成功")
+    #if finish:
+        #log_step("文件已存在，秒传成功")
         # 仍需调用finish来完成流程
-        up_finish(pre_data)
-        return pre_data
+        #up_finish(pre_data)
+        #return pre_data
     
     # 4. 分片上传
     file_size = os.path.getsize(file_path)
