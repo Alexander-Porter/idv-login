@@ -24,7 +24,7 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
-
+from PyQt5.QtWidgets import QPushButton
 DEVICE_RECORD = 'huawei_device.json'
 
 
@@ -53,7 +53,6 @@ class HuaweiBrowser(WebBrowser):
         
         # 如果是g37游戏，添加解除授权按钮到工具栏
         if self.real_game_id == "g37":
-            from PyQt5.QtWidgets import QPushButton
             self.deauth_button = QPushButton("解除阴阳师授权")
             self.deauth_button.clicked.connect(self.show_deauth_page)
             self.toolBarLayout.addWidget(self.deauth_button)
