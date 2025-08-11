@@ -16,7 +16,7 @@ from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from faker import Faker
 #from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY
-from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,COMMON_PARAMS
+from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,hms_scope_g37,COMMON_PARAMS
 from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
 from channelHandler.channelUtils import G_clipListener
 from channelHandler.WebLoginUtils import WebBrowser
@@ -41,14 +41,23 @@ class HuaweiBrowser(WebBrowser):
                 self.parent.invokeSaveAccountPwdPair()
                 self.parent.notify(info.requestUrl())  # Notify the parent class
 
-    def __init__(self):
+    def __init__(self, real_game_id=None):
         super().__init__("huawei",True)
         self.logger=setup_logger()
+        self.real_game_id = real_game_id
         self.intercept_request = self.HuaweiRequestInterceptor(self)
         self.profile.removeAllUrlSchemeHandlers()
         self.profile.installUrlSchemeHandler(b"hms", self.intercept_request)
         self.autoFillMgr=RecordMgr()
         self.records=self.autoFillMgr.list_records()
+        
+        # 如果是g37游戏，添加解除授权按钮到工具栏
+        if self.real_game_id == "g37":
+            from PyQt5.QtWidgets import QPushButton
+            self.deauth_button = QPushButton("解除阴阳师授权")
+            self.deauth_button.clicked.connect(self.show_deauth_page)
+            self.toolBarLayout.addWidget(self.deauth_button)
+            self.deauth_completed = False
         #check genv for default account
         defaultAccount=genv.get(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",None)
         if defaultAccount:
@@ -205,6 +214,42 @@ class HuaweiBrowser(WebBrowser):
                         record=self.autoFillMgr.add_record(data["account"],data["pwd"])
                     genv.set(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",record.truncated_username,True)
 
+    def show_deauth_page(self):
+        """显示解除授权页面"""
+        deauth_url = "https://id1.cloud.huawei.com/AMW/portal/userCenter/oauth/appList.html?lang=zh-cn"
+        self.set_url(deauth_url)
+        self.deauth_button.setText("我已解除授权")
+        self.deauth_button.clicked.disconnect()
+        self.deauth_button.clicked.connect(self.confirm_deauth)
+    
+    def confirm_deauth(self):
+        """确认解除授权完成"""
+        self.deauth_completed = True
+        self.deauth_button.hide()
+        # 继续正常的OAuth流程
+        if hasattr(self, 'oauth_url'):
+            super().set_url(self.oauth_url)
+    
+    def run(self):
+        # 如果是g37游戏，先显示解除授权页面
+        if self.real_game_id == "g37":
+            self.show_deauth_page()
+            self.show()
+            # 等待用户完成解除授权
+            while not self.deauth_completed:
+                from PyQt5.QtWidgets import QApplication
+                QApplication.processEvents()
+        
+        # 调用父类的run方法
+        return super().run()
+    
+    def set_url(self, url):
+        # 如果是g37游戏且是OAuth URL，先保存起来
+        if self.real_game_id == "g37" and "oauth-login.cloud.huawei.com" in url:
+            self.oauth_url = url
+            return
+        super().set_url(url)
+
     def notify(self, url):
         if self.verify(url.toString()):
             if self.parseReslt(url.toString()):
@@ -213,7 +258,7 @@ class HuaweiBrowser(WebBrowser):
 
 class HuaweiLogin:
 
-    def __init__(self, channelConfig, refreshToken=None):
+    def __init__(self, channelConfig, refreshToken=None, real_game_id=None):
 
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         #self.logger = setup_logger()
@@ -223,6 +268,7 @@ class HuaweiLogin:
         self.code_verifier=None
         self.lastLoginTime = 0
         self.expiredTime = 0
+        self.real_game_id = real_game_id
         if os.path.exists(DEVICE_RECORD):
             with open(DEVICE_RECORD, "r") as f:
                 self.device = json.load(f)
@@ -254,9 +300,15 @@ class HuaweiLogin:
     def newOAuthLogin(self):
         client_id = str(self.channelConfig["app_id"])
         redirect_uri = hms_redirect_uri
-        scope = hms_scope
+        
+        # 根据游戏ID选择scope
+        if self.real_game_id == "g37":
+            scope = hms_scope_g37
+        else:
+            scope = hms_scope
+            
         auth_url, self.code_verifier = get_authorization_code(client_id, redirect_uri, scope)
-        huaWebLogin=HuaweiBrowser()
+        huaWebLogin=HuaweiBrowser(self.real_game_id)
         huaWebLogin.set_url(auth_url)
         res=(huaWebLogin.run())
         self.standardCallback(res)

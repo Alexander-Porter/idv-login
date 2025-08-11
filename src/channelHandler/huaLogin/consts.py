@@ -23,3 +23,4 @@ COMMON_PARAMS = {
 hms_client_id = "10132067"
 hms_redirect_uri = "hms://redirect_url"
 hms_scope = "openid"
+hms_scope_g37 = "https://www.huawei.com/auth/account/mobile.number https://www.huawei.com/auth/account/age.range openid https://www.huawei.com/auth/account/base.profile https://www.huawei.com/auth/drive.appdata https://www.huawei.com/auth/realname/realnameinfo https://www.huawei.com/auth/account/country"

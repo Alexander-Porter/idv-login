@@ -78,7 +78,7 @@ class huaweiChannel(channelmgr.channel):
             self.logger.error(f"Failed to get channel config for {self.name}")
             Exception(f"游戏{real_game_id}-渠道{self.channel_name}暂不支持，请参照教程联系开发者发起添加请求。")
             return
-        self.huaweiLogin = HuaweiLogin(res.get(self.channel_name), self.refreshToken)
+        self.huaweiLogin = HuaweiLogin(res.get(self.channel_name), self.refreshToken, real_game_id)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
