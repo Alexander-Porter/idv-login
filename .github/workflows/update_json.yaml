@@ -28,6 +28,7 @@ jobs:
       - name: Update cloudRes.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
         run: |
           python -c "
           import sys
