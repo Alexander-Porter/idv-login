@@ -237,14 +237,6 @@
                                 </button>
                             </div>
                         </div>
-                        
-                        <div class="mt-3">
-                            <h5 class="section-title">日志导出</h5>
-                            <button onclick="exportLogs()" class="btn btn-outline-info w-100">
-                                <i class="bi bi-download me-1"></i>导出调试日志
-                            </button>
-                            <small class="form-text text-muted mt-1">导出包含系统信息、进程列表等调试信息的完整日志文件</small>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -928,7 +920,7 @@
                         statusText.textContent = data.enabled ? '已启用' : '已禁用';
                         statusText.className = data.enabled ? 'text-success' : 'text-warning';
                     } else {
-                        document.getElementById('httpdnsStatusText').textContent = '获取状态失败';
+                        document.getElementById('httpdnsStatusText').textContent = '获取状态失败，请更新工具到最新版本';
                         document.getElementById('httpdnsStatusText').className = 'text-danger';
                     }
                 })
@@ -975,12 +967,12 @@
                     } else {
                         // 操作失败，恢复开关状态
                         toggle.checked = !toggle.checked;
-                        statusText.textContent = '切换失败';
+                        statusText.textContent = '切换失败，请更新工具到最新版本并检查日志';
                         statusText.className = 'text-danger';
                         
                         swal({
                             title: "操作失败",
-                            text: data.message || "切换HTTPDNS屏蔽状态失败",
+                            text: data.message || "切换HTTPDNS屏蔽状态失败，请更新工具到最新版本并检查日志",
                             icon: "error",
                             button: "确定",
                         });
