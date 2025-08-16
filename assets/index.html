@@ -758,6 +758,11 @@
                             batchOperationsGroup.style.display = 'block'; // 有账号时显示批量操作
                             
                             data.forEach(channel => {
+                                // 如果uuid以netease开头，则跳过不显示
+                                if (channel.uuid.startsWith('netease')) {
+                                    return;
+                                }
+                                
                                 var row = tableBody.insertRow();
                                 row.insertCell().innerHTML = `<input type="checkbox" class="account-checkbox" value="${channel.uuid}">`;
                                 
