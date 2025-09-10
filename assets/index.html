@@ -6,10 +6,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>渠道服账号管理</title>
     <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QOQjeQAAAABJRU5ErkJggg==">
-    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-y/sweetalert/2.1.2/sweetalert.min.js"></script>
-    <link href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-y/bootstrap/5.1.3/css/bootstrap.css" rel="stylesheet">
-    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-y/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+
+    
+    <!-- 资源优先从 s4.zstatic.net 加载，失败回退到 cloudflare -->
+    <script>
+        (function(){
+            const primary = {
+                js: [
+                    {src: 'https://s4.zstatic.net/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=='},
+                    {src: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q=='}
+                ],
+                css: [
+                    {href: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA=='},
+                    {href: 'https://s4.zstatic.net/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g=='}
+                ]
+            };
+
+            const fallback = {
+                js: [
+                    {src: 'https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=='},
+                    {src: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q=='}
+                ],
+                css: [
+                    {href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA=='},
+                    {href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g=='}
+                ]
+            };
+
+            function loadCssItem(item){
+                return new Promise((resolve) => {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = item.href;
+                    if(item.integrity) link.integrity = item.integrity;
+                    link.crossOrigin = 'anonymous';
+                    link.referrerPolicy = 'no-referrer';
+                    link.onload = () => resolve({ok:true});
+                    link.onerror = () => resolve({ok:false});
+                    document.head.appendChild(link);
+                });
+            }
+
+            function loadScriptItem(item, isModule){
+                return new Promise((resolve) => {
+                    const s = document.createElement('script');
+                    s.src = item.src;
+                    if(item.integrity) s.integrity = item.integrity;
+                    s.crossOrigin = 'anonymous';
+                    s.referrerPolicy = 'no-referrer';
+                    // 保证按顺序执行
+                    s.async = false;
+                    s.onload = () => resolve({ok:true});
+                    s.onerror = () => resolve({ok:false});
+                    document.head.appendChild(s);
+                });
+            }
+
+            async function tryLoadWithFallback(primaryList, fallbackList, loader){
+                const results = [];
+                for(let i=0;i<primaryList.length;i++){
+                    const p = primaryList[i];
+                    const f = fallbackList && fallbackList[i] ? fallbackList[i] : null;
+                    const res = await loader(p);
+                    if(res.ok){
+                        results.push(true);
+                    } else if(f){
+                        const r2 = await loader(f);
+                        results.push(r2.ok);
+                    } else {
+                        results.push(false);
+                    }
+                }
+                return results;
+            }
+
+            // 启动加载：先 css 并行加载，脚本按顺序加载
+            (async function(){
+                // CSS: 我们希望先加载 bootstrap CSS 然后 icons，但两个可以并行
+                // 为每个 CSS 资源创建一个 promise，失败时回退到备用 CDN
+                await Promise.all(primary.css.map((p, idx) => {
+                    const f = (fallback.css && fallback.css[idx]) ? fallback.css[idx] : null;
+                    return loadCssItem(p).then(res => res.ok ? true : (f ? loadCssItem(f).then(r => r.ok) : false));
+                }));
+
+                // JS: 需要按顺序加载 sweetalert -> bootstrap
+                await tryLoadWithFallback(primary.js, fallback.js, loadScriptItem);
+            })();
+        })();
+    </script>
     <style>
         body {
             background-color: #f8f9fa;
