@@ -534,7 +534,7 @@ def handle_error_and_exit(e):
         print(f"发生未处理的异常:{e}. 日志记录器未初始化。")
         # Try to provide workdir info if genv is available
         workdir_path = genv.get('FP_WORKDIR', '未知') if 'genv' in locals() else '未知'
-        print(f"工作目录（可能）: {workdir_path}")
+        print(f"工作目录: {workdir_path}")
 
     # Original logic to open explorer, with safeguards
     try:
