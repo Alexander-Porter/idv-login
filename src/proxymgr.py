@@ -922,7 +922,7 @@ class proxymgr:
                             )
                         else:
                             RealTime_PIDs=psutil.pids()#获取当前最新的所有PID，防止用户手动终止冲突进程
-                            if t_pid in TaskKillRealTimePIDs:
+                            if t_pid in RealTime_PIDs:
                                 subprocess.check_call(
                                     ["taskkill", "/f", "/pid", t_pid], shell=True
                                 )
