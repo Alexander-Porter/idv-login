@@ -733,35 +733,83 @@ class macProxyMgr:
                 except socket.error:
                     return True  # 端口被占用
         if is_port_in_use(443):
-            with os.popen('netstat -ano | findstr ":443"') as netstat_output:
-                netstat_output = netstat_output.read().split("\n")
+            # 根据操作系统选择不同的netstat命令
+            if sys.platform == 'win32':
+                # Windows
+                with os.popen('netstat -ano | findstr ":443"') as netstat_output:
+                    netstat_output = netstat_output.read().split("\n")
+            elif sys.platform == 'darwin':
+                # macOS
+                with os.popen('lsof -i :443 -sTCP:LISTEN') as netstat_output:
+                    netstat_output = netstat_output.read().split("\n")
+            else:
+                # Linux
+                with os.popen('lsof -i :443 -sTCP:LISTEN') as netstat_output:
+                    netstat_output = netstat_output.read().split("\n")
+            
             for cur in netstat_output:
-                info = [i for i in cur.split(" ") if i != ""]
-                if len(info) > 4:
-                    if info[1].find(":443") != -1:
-                        t_pid = info[4]
-                        try:
-                            readable_exe_name = psutil.Process(int(t_pid)).exe()
-                        except psutil.AccessDenied:
-                            readable_exe_name = "权限不足"
+                info = [i for i in cur.split() if i != ""]
+                if sys.platform == 'win32':
+                    # Windows netstat 输出格式
+                    if len(info) > 4:
+                        if info[1].find(":443") != -1:
+                            t_pid = info[4]
+                            try:
+                                readable_exe_name = psutil.Process(int(t_pid)).exe()
+                            except psutil.AccessDenied:
+                                readable_exe_name = "权限不足"
+                                logger.warning(
+                                    f"读取进程{t_pid}的可执行文件名失败！权限不足。"
+                                )
+                                return
                             logger.warning(
-                                f"读取进程{t_pid}的可执行文件名失败！权限不足。"
+                                f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
                             )
-                            return
-                        logger.warning(
-                            f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
-                        )
-                        input()
-                        if t_pid == "4":
-                            subprocess.check_call(
-                                ["net", "stop", "http", "/y"], shell=True
+                            input()
+                            try:
+                                if t_pid == "4":
+                                    subprocess.check_call(
+                                        ["net", "stop", "http", "/y"], shell=True
+                                    )
+                                else:
+                                    subprocess.check_call(
+                                        ["taskkill", "/f", "/pid", t_pid], shell=True
+                                    )
+                                gevent.sleep(3)
+                            except subprocess.CalledProcessError as e:
+                                logger.warning(f"终止进程{t_pid}时发生错误: {e}")
+                            except Exception as e:
+                                logger.warning(f"终止进程{t_pid}时发生未知错误: {e}")
+                            break
+                else:
+                    # macOS 和 Linux lsof 输出格式
+                    # lsof格式: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+                    # 跳过表头并验证是否包含443端口
+                    if len(info) > 1 and info[0] != "COMMAND":
+                        # 验证这一行确实是关于443端口的
+                        if ":443" in cur or "*:443" in cur:
+                            try:
+                                t_pid = info[1]  # 第二列是PID
+                                readable_exe_name = psutil.Process(int(t_pid)).exe()
+                            except (psutil.AccessDenied, ValueError, IndexError):
+                                readable_exe_name = "权限不足"
+                                logger.warning(
+                                    f"读取进程{t_pid}的可执行文件名失败！权限不足。"
+                                )
+                                return
+                            logger.warning(
+                                f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
                             )
-                        else:
-                            subprocess.check_call(
-                                ["taskkill", "/f", "/pid", t_pid], shell=True
-                            )
-                        gevent.sleep(3)
-                        break
+                            input()
+                            try:
+                                # 在 Unix 系统上使用 kill 命令
+                                subprocess.check_call(["kill", "-9", t_pid])
+                                gevent.sleep(3)
+                            except subprocess.CalledProcessError as e:
+                                logger.warning(f"终止进程{t_pid}时发生错误: {e}")
+                            except Exception as e:
+                                logger.warning(f"终止进程{t_pid}时发生未知错误: {e}")
+                            break
 
     def run(self):
         from dnsmgr import DNSResolver
@@ -787,18 +835,45 @@ class macProxyMgr:
             target = "42.186.193.21"
 
         genv.set("URI_REMOTEIP", f"https://{target}")
-        self.check_port()
+        
         #创建一个空日志
         import logging
         web_logger=logging.getLogger("web")
         web_logger.setLevel(logging.WARN)
-        server = pywsgi.WSGIServer(
-                listener=("127.0.0.1", 443),
-                certfile=genv.get("FP_WEBCERT"),
-                keyfile=genv.get("FP_WEBKEY"),
-                application=app,
-                log=web_logger,
-            )
+        
+        # 最大重试次数
+        max_retries = 5
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                # 尝试启动服务器
+                server = pywsgi.WSGIServer(
+                    listener=("127.0.0.1", 443),
+                    certfile=genv.get("FP_WEBCERT"),
+                    keyfile=genv.get("FP_WEBKEY"),
+                    application=app,
+                    log=web_logger,
+                )
+                # 如果成功创建服务器，跳出重试循环
+                break
+            except OSError as e:
+                # errno 98: EADDRINUSE on Linux
+                # errno 48: EADDRINUSE on macOS/BSD
+                if e.errno == 98 or e.errno == 48 or "Address already in use" in str(e):
+                    # 端口被占用
+                    retry_count += 1
+                    logger.warning(f"端口443被占用，尝试解决... (尝试 {retry_count}/{max_retries})")
+                    # 调用check_port引导用户解决端口占用问题
+                    self.check_port()
+                    if retry_count >= max_retries:
+                        logger.error(f"已达到最大重试次数({max_retries})，无法启动服务器。")
+                        return False
+                else:
+                    # 其他错误，直接抛出
+                    logger.exception(f"启动服务器时发生未知错误: {e}")
+                    return False
+        
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1" or genv.get("USING_BACKUP_VER", False):
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
