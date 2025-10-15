@@ -766,15 +766,20 @@ class macProxyMgr:
                                 f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
                             )
                             input()
-                            if t_pid == "4":
-                                subprocess.check_call(
-                                    ["net", "stop", "http", "/y"], shell=True
-                                )
-                            else:
-                                subprocess.check_call(
-                                    ["taskkill", "/f", "/pid", t_pid], shell=True
-                                )
-                            gevent.sleep(3)
+                            try:
+                                if t_pid == "4":
+                                    subprocess.check_call(
+                                        ["net", "stop", "http", "/y"], shell=True
+                                    )
+                                else:
+                                    subprocess.check_call(
+                                        ["taskkill", "/f", "/pid", t_pid], shell=True
+                                    )
+                                gevent.sleep(3)
+                            except subprocess.CalledProcessError as e:
+                                logger.warning(f"终止进程{t_pid}时发生错误: {e}")
+                            except Exception as e:
+                                logger.warning(f"终止进程{t_pid}时发生未知错误: {e}")
                             break
                 else:
                     # macOS 和 Linux lsof 输出格式
@@ -796,9 +801,14 @@ class macProxyMgr:
                                 f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。"
                             )
                             input()
-                            # 在 Unix 系统上使用 kill 命令
-                            subprocess.check_call(["kill", "-9", t_pid])
-                            gevent.sleep(3)
+                            try:
+                                # 在 Unix 系统上使用 kill 命令
+                                subprocess.check_call(["kill", "-9", t_pid])
+                                gevent.sleep(3)
+                            except subprocess.CalledProcessError as e:
+                                logger.warning(f"终止进程{t_pid}时发生错误: {e}")
+                            except Exception as e:
+                                logger.warning(f"终止进程{t_pid}时发生未知错误: {e}")
                             break
 
     def run(self):
