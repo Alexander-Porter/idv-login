@@ -778,13 +778,13 @@ class macProxyMgr:
                             break
                 else:
                     # macOS 和 Linux lsof 输出格式
-                    # 跳过表头
+                    # lsof格式: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+                    # 跳过表头并验证是否包含443端口
                     if len(info) > 1 and info[0] != "COMMAND":
-                        # lsof格式: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-                        # 第二列是PID
-                        if len(info) > 1:
+                        # 验证这一行确实是关于443端口的
+                        if ":443" in cur or "*:443" in cur:
                             try:
-                                t_pid = info[1]
+                                t_pid = info[1]  # 第二列是PID
                                 readable_exe_name = psutil.Process(int(t_pid)).exe()
                             except (psutil.AccessDenied, ValueError, IndexError):
                                 readable_exe_name = "权限不足"
@@ -848,6 +848,8 @@ class macProxyMgr:
                 # 如果成功创建服务器，跳出重试循环
                 break
             except OSError as e:
+                # errno 98: EADDRINUSE on Linux
+                # errno 48: EADDRINUSE on macOS/BSD
                 if e.errno == 98 or e.errno == 48 or "Address already in use" in str(e):
                     # 端口被占用
                     retry_count += 1
