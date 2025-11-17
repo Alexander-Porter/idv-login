@@ -182,10 +182,70 @@
             font-size: 0.875rem;
             font-weight: 500;
         }
+        
+        /* 状态指示器样式 */
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .status-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .status-light.connected {
+            background-color: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+        }
+        
+        .status-light.disconnected {
+            background-color: #dc3545;
+            box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .status-text {
+            font-size: 0.875rem;
+            color: #495057;
+            margin: 0;
+        }
+        
+        .status-indicator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 
 <body>
+    <!-- 状态指示器 -->
+    <div class="status-indicator" id="statusIndicator">
+        <div class="status-light disconnected" id="statusLight"></div>
+        <p class="status-text" id="statusText">检查中...</p>
+    </div>
+    
     <!-- 页面头部 -->
     <div class="page-header text-center">
         <div class="container">
@@ -813,6 +873,9 @@
             //获得query参数game_id
             game_id = getQueryVariable("game_id");
             
+            // 启动工具状态检查
+            startStatusCheck();
+            
             // 首先加载游戏列表
             loadGameList();
             
@@ -1081,6 +1144,58 @@
                         button: "确定",
                     });
                 });
+        }
+
+        // 工具状态检查功能
+        let statusCheckInterval = null;
+        const FAQ_URL = 'https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu';
+        
+        function checkToolStatus() {
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            
+            fetch('/_idv-login/list-games')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 连接成功
+                    statusLight.className = 'status-light connected';
+                    statusText.textContent = '工具运行中';
+                    statusIndicator.title = '工具连接正常';
+                    statusIndicator.style.cursor = 'default';
+                    statusIndicator.onclick = null;
+                })
+                .catch(error => {
+                    // 连接失败
+                    statusLight.className = 'status-light disconnected';
+                    statusText.textContent = '工具未连接';
+                    statusIndicator.title = '工具连接失败，点击查看常见问题解答';
+                    statusIndicator.style.cursor = 'pointer';
+                    statusIndicator.onclick = function() {
+                        window.open(FAQ_URL, '_blank');
+                    };
+                });
+        }
+        
+        // 启动状态检查
+        function startStatusCheck() {
+            // 立即执行一次检查
+            checkToolStatus();
+            // 然后每1秒检查一次
+            statusCheckInterval = setInterval(checkToolStatus, 1000);
+        }
+        
+        // 停止状态检查
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
         }
 
         function manual() {
