@@ -1267,6 +1267,7 @@
         // 工具状态检查功能
         let statusCheckInterval = null;
         let disconnectedCount = 0;
+        let overlayDismissed = false;  // 标记用户是否已手动关闭遮罩
         const FAQ_URL = 'https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu';
         
         function checkToolStatus() {
@@ -1285,6 +1286,7 @@
                 .then(data => {
                     // 连接成功
                     disconnectedCount = 0;
+                    overlayDismissed = false;  // 重置关闭标记
                     statusLight.className = 'status-light connected';
                     statusText.textContent = '工具运行中';
                     statusIndicator.title = '工具连接正常';
@@ -1308,8 +1310,8 @@
                         window.open(FAQ_URL, '_blank');
                     };
                     
-                    // 如果连续失败超过5秒（5次检查），显示全局遮罩
-                    if (disconnectedCount >= 5 && connectionOverlay && !connectionOverlay.classList.contains('show')) {
+                    // 如果连续失败超过5秒（5次检查）且用户未手动关闭，显示全局遮罩
+                    if (disconnectedCount >= 5 && !overlayDismissed && connectionOverlay && !connectionOverlay.classList.contains('show')) {
                         connectionOverlay.classList.add('show');
                     }
                 });
@@ -1323,6 +1325,7 @@
         
         // 关闭遮罩层
         function dismissOverlay() {
+            overlayDismissed = true;  // 标记用户已手动关闭
             const connectionOverlay = document.getElementById('connectionOverlay');
             if (connectionOverlay) {
                 connectionOverlay.classList.remove('show');
