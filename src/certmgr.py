@@ -146,12 +146,23 @@ class certmgr:
                 )
             elif sys.platform.startswith("linux"):
                 # Linux
-                subprocess.check_call(
-                    ['sudo', 'cp', cert_path, '/usr/local/share/ca-certificates/']
-                )
-                subprocess.check_call(
-                    ['sudo', 'update-ca-certificates']
-                )
+                if os.path.exists("/etc/arch-release"):
+                    # Arch Linux
+                    self.logger.info("Detected OS Arch Linux")
+                    print(f"Copying certificate {cert_path} to /usr/local/share/ca-certificates/")
+                    subprocess.check_call(
+                        ['sudo', 'cp', cert_path, '/etc//ca-certificates/trust-source/anchors/']
+                    )
+                    subprocess.check_call(
+                        ['sudo', 'trust', 'extract-compat']
+                    )
+                else:
+                    subprocess.check_call(
+                        ['sudo', 'cp', cert_path, '/usr/local/share/ca-certificates/']
+                    )
+                    subprocess.check_call(
+                        ['sudo', 'update-ca-certificates']
+                    )
             return True
         except subprocess.CalledProcessError as e:
             self.logger.error("导入CA证书失败。请关闭杀毒软件后重试。报错信息：", exc_info=True)
