@@ -35,6 +35,7 @@ import os
 import psutil
 import const
 import subprocess
+import ssl
 import socket
 import requests
 from channelHandler.channelUtils import getShortGameId
@@ -51,9 +52,9 @@ def add_custom_dns(domain, port, ip):
     # https://docs.python.org/2/library/socket.html#socket.getaddrinfo
     # Values were taken from the output of `socket.getaddrinfo(...)`
     if is_ipv4(ip):
-        value = (socket.AddressFamily.AF_INET, 0, 0, '', (ip, port))
+        value = (socket.AddressFamily.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port))
     else: # ipv6
-        value = (socket.AddressFamily.AF_INET6, 0, 0, '', (ip, port, 0, 0))
+        value = (socket.AddressFamily.AF_INET6, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port, 0, 0))
     dns_cache[key] = [value]
 
 # Inspired by: https://stackoverflow.com/a/15065711/868533
@@ -1010,12 +1011,13 @@ class proxymgr:
         while retry_count < max_retries:
             try:
                 # 尝试启动服务器
+                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ssl_context.load_cert_chain(certfile=genv.get("FP_WEBCERT"), keyfile=genv.get("FP_WEBKEY"))
                 server = pywsgi.WSGIServer(
                     listener=("127.0.0.1", 443),
-                    certfile=genv.get("FP_WEBCERT"),
-                    keyfile=genv.get("FP_WEBKEY"),
                     application=app,
                     log=web_logger,
+                    ssl_context=ssl_context
                 )
                 # 如果成功创建服务器，跳出重试循环
                 break
@@ -1036,6 +1038,13 @@ class proxymgr:
                     logger.exception(f"启动服务器时发生未知错误: {e}")
                     return False
         
+        # in archlinux, need to sleep 3 seconds to wait for system to flush dns cache
+        if sys.platform.startswith("linux"):
+            if os.path.exists("/etc/arch-release"):
+                    # Arch Linux            
+                    logger.info("等待3秒以确保系统DNS缓存已刷新...")
+                    gevent.sleep(3)
+        # input("请按回车键继续，确保系统DNS缓存已刷新...")
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1" or genv.get("USING_BACKUP_VER", False):
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
