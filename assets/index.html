@@ -182,10 +182,188 @@
             font-size: 0.875rem;
             font-weight: 500;
         }
+        
+        /* 状态指示器样式 */
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .status-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .status-light.connected {
+            background-color: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+        }
+        
+        .status-light.disconnected {
+            background-color: #dc3545;
+            box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .status-text {
+            font-size: 0.875rem;
+            color: #495057;
+            margin: 0;
+        }
+        
+        .status-indicator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        /* 断开连接时的额外提示样式 */
+        .status-indicator.disconnected-state {
+            background: rgba(220, 53, 69, 0.95);
+            color: white;
+            animation: shake 0.5s ease-in-out;
+            animation-delay: 1s;
+        }
+        
+        .status-indicator.disconnected-state .status-text {
+            color: white;
+            font-weight: 500;
+        }
+        
+        .status-indicator.disconnected-state::after {
+            content: '👆 点击查看解决方案';
+            position: absolute;
+            bottom: -30px;
+            right: 0;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        /* 全局遮罩层（可选，在连接失败时间过长时显示） */
+        .connection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .connection-overlay.show {
+            display: flex;
+        }
+        
+        .connection-modal {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .connection-modal h3 {
+            color: #dc3545;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .connection-modal p {
+            color: #495057;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .connection-modal .btn-primary {
+            background: #dc3545;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .connection-modal .btn-primary:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 
 <body>
+    <!-- 连接失败全局遮罩层 -->
+    <div class="connection-overlay" id="connectionOverlay">
+        <div class="connection-modal">
+            <h3>⚠️ 工具未连接</h3>
+            <p>检测到工具后端服务未运行或连接失败。<br>请检查工具是否正常启动，或查看常见问题解答获取帮助。</p>
+            <button class="btn btn-primary" onclick="openFAQAndCloseOverlay()">
+                <i class="bi bi-question-circle me-2"></i>查看常见问题解答
+            </button>
+            <p class="mt-3 small text-muted">
+                <a href="#" onclick="dismissOverlay(); return false;" style="color: #6c757d;">我知道了，暂时忽略</a>
+            </p>
+        </div>
+    </div>
+    
+    <!-- 状态指示器 -->
+    <div class="status-indicator" id="statusIndicator">
+        <div class="status-light disconnected" id="statusLight"></div>
+        <p class="status-text" id="statusText">检查中...</p>
+    </div>
+    
     <!-- 页面头部 -->
     <div class="page-header text-center">
         <div class="container">
@@ -813,6 +991,9 @@
             //获得query参数game_id
             game_id = getQueryVariable("game_id");
             
+            // 启动工具状态检查
+            startStatusCheck();
+            
             // 首先加载游戏列表
             loadGameList();
             
@@ -1081,6 +1262,90 @@
                         button: "确定",
                     });
                 });
+        }
+
+        // 工具状态检查功能
+        let statusCheckInterval = null;
+        let disconnectedCount = 0;
+        let overlayDismissed = false;  // 标记用户是否已手动关闭遮罩
+        const FAQ_URL = 'https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu';
+        
+        function checkToolStatus() {
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const connectionOverlay = document.getElementById('connectionOverlay');
+            
+            fetch('/_idv-login/list-games')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 连接成功
+                    disconnectedCount = 0;
+                    overlayDismissed = false;  // 重置关闭标记
+                    statusLight.className = 'status-light connected';
+                    statusText.textContent = '工具运行中';
+                    statusIndicator.title = '工具连接正常';
+                    statusIndicator.style.cursor = 'default';
+                    statusIndicator.onclick = null;
+                    statusIndicator.classList.remove('disconnected-state');
+                    // 隐藏遮罩层
+                    if (connectionOverlay) {
+                        connectionOverlay.classList.remove('show');
+                    }
+                })
+                .catch(error => {
+                    // 连接失败
+                    disconnectedCount++;
+                    statusLight.className = 'status-light disconnected';
+                    statusText.textContent = '工具未连接';
+                    statusIndicator.title = '工具连接失败，点击查看常见问题解答';
+                    statusIndicator.style.cursor = 'pointer';
+                    statusIndicator.classList.add('disconnected-state');
+                    statusIndicator.onclick = function() {
+                        window.open(FAQ_URL, '_blank');
+                    };
+                    
+                    // 如果连续失败超过5秒（5次检查）且用户未手动关闭，显示全局遮罩
+                    if (disconnectedCount >= 5 && !overlayDismissed && connectionOverlay && !connectionOverlay.classList.contains('show')) {
+                        connectionOverlay.classList.add('show');
+                    }
+                });
+        }
+        
+        // 打开FAQ并关闭遮罩层
+        function openFAQAndCloseOverlay() {
+            window.open(FAQ_URL, '_blank');
+            dismissOverlay();
+        }
+        
+        // 关闭遮罩层
+        function dismissOverlay() {
+            overlayDismissed = true;  // 标记用户已手动关闭
+            const connectionOverlay = document.getElementById('connectionOverlay');
+            if (connectionOverlay) {
+                connectionOverlay.classList.remove('show');
+            }
+        }
+        
+        // 启动状态检查
+        function startStatusCheck() {
+            // 立即执行一次检查
+            checkToolStatus();
+            // 然后每1秒检查一次
+            statusCheckInterval = setInterval(checkToolStatus, 1000);
+        }
+        
+        // 停止状态检查
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
         }
 
         function manual() {
