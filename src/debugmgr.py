@@ -488,132 +488,14 @@ class DebugMgr:
         
         return rules  # 返回所有规则
     
-    @staticmethod
-    def export_debug_info():
-        """导出调试信息到日志文件"""
-        if not DebugMgr.is_windows():
-            print("警告: debugmgr仅支持Windows系统")
-            return False
-        
-        logger = setup_logger()
-        
-        try:
-            logger.info("=" * 80)
-            logger.info(f"调试信息导出开始 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            logger.info("=" * 80)
-            
-            # 导出系统信息
-            logger.info("[系统信息]")
-            system_info = DebugMgr.get_system_info()
-            for key, value in system_info.items():
-                logger.info(f"{key}: {value}")
-            
-            # 导出进程列表
-            logger.info("\n[当前进程列表]")
-            processes = DebugMgr.get_process_list()
-            if isinstance(processes, list) and len(processes) > 0:
-                if isinstance(processes[0], dict):
-                    logger.info(f"共找到 {len(processes)} 个进程:")
-                    for proc in processes:
-                        logger.info(f"PID: {proc['pid']}, 名称: {proc['name']}, 内存: {proc['memory_mb']}MB, CPU: {proc['cpu_percent']}%")
-
-                else:
-                    for proc in processes:
-                        logger.info(proc)
-            
-            # 导出已安装应用
-            logger.info("\n[已安装应用列表]")
-            apps = DebugMgr.get_installed_apps()
-            if isinstance(apps, list) and len(apps) > 0:
-                if isinstance(apps[0], str) and not apps[0].startswith("winreg"):
-                    logger.info(f"共找到 {len(apps)} 个已安装应用:")
-                    for app in apps:
-                        logger.info(f"应用: {app}")
-                else:
-                    for app in apps:
-                        logger.info(app)
-            
-            # 导出代理信息
-            logger.info("\n[代理信息]")
-            proxy_info = DebugMgr.get_proxy_info()
-            for key, value in proxy_info.items():
-                if isinstance(value, list):
-                    logger.info(f"{key}:")
-                    if value:
-                        for item in value:
-                            if isinstance(item, dict):
-                                logger.info(f"  - {item}")
-                            else:
-                                logger.info(f"  - {item}")
-                    else:
-                        logger.info(f"  未检测到")
-                elif isinstance(value, dict):
-                    logger.info(f"{key}:")
-                    for sub_key, sub_value in value.items():
-                        logger.info(f"  {sub_key}: {sub_value}")
-                else:
-                    logger.info(f"{key}: {value}")
-            
-            # 导出防火墙规则
-            logger.info("\n[防火墙规则]")
-            firewall_info = DebugMgr.get_firewall_rules()
-            
-            # 输出防火墙状态
-            if '防火墙状态' in firewall_info and firewall_info['防火墙状态']:
-                logger.info("防火墙状态:")
-                for key, value in firewall_info['防火墙状态'].items():
-                    if key == '原始输出':
-                        logger.info(f"  {key}:")
-                        for line in value.split('\n'):
-                            if line.strip():
-                                logger.info(f"    {line.strip()}")
-                    else:
-                        logger.info(f"  {key}: {value}")
-            
-            # 输出入站规则
-            if '入站规则' in firewall_info and firewall_info['入站规则']:
-                logger.info(f"\n入站规则 (共{len(firewall_info['入站规则'])}条):")
-                for i, rule in enumerate(firewall_info['入站规则'], 1):  # 显示所有规则
-                    logger.info(f"  规则 {i}:")
-                    for key, value in rule.items():
-                        logger.info(f"    {key}: {value}")
-                    logger.info("")
-            
-            # 输出出站规则
-            if '出站规则' in firewall_info and firewall_info['出站规则']:
-                logger.info(f"\n出站规则 (共{len(firewall_info['出站规则'])}条):")
-                for i, rule in enumerate(firewall_info['出站规则'], 1):  # 显示所有规则
-                    logger.info(f"  规则 {i}:")
-                    for key, value in rule.items():
-                        logger.info(f"    {key}: {value}")
-                    logger.info("")
-            
-            # 输出错误信息
-            if '错误信息' in firewall_info and firewall_info['错误信息']:
-                logger.info("\n防火墙规则获取错误:")
-                for error in firewall_info['错误信息']:
-                    logger.info(f"  - {error}")
-            
-            logger.info("=" * 80)
-            logger.info(f"调试信息导出完成 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            logger.info("=" * 80)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"导出调试信息时发生错误: {str(e)}")
-            return False
     
     @staticmethod
-    def export_debug_info_json(file_path=None):
-        """导出调试信息到JSON文件"""
+    def export_debug_info_json():
         if not DebugMgr.is_windows():
             print("警告: debugmgr仅支持Windows系统")
             return False
         
-        if not file_path:
-            file_path = f"debug_info_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
+
         try:
             debug_data = {
                 'export_time': datetime.now().isoformat(),
@@ -623,18 +505,11 @@ class DebugMgr:
                 'proxy_info': DebugMgr.get_proxy_info(),
                 'firewall_rules': DebugMgr.get_firewall_rules()
             }
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(debug_data, f, ensure_ascii=False, indent=2)
-            
-            print(f"调试信息已导出到: {file_path}")
-            return True
-            
+            return debug_data
         except Exception as e:
-            print(f"导出JSON调试信息时发生错误: {str(e)}")
+            print(f"收集调试信息时出错: {str(e)}")
             return False
 
 
-if __name__ == "__main__":
 
-    DebugMgr.export_debug_info()
+

@@ -78,7 +78,7 @@ jobs:
               
               # 提交更新
               commitMessage = f\"Update cloudRes.json - JSON resources updated\"
-              dataStr = json.dumps(data)
+              dataStr = json.dumps(data,indent=4, ensure_ascii=False)
               dataStr = base64.b64encode(dataStr.encode()).decode()
               
               updateData = {
