@@ -72,7 +72,7 @@ class huaweiChannel(channelmgr.channel):
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
         # find cloudConfig
-        cloudRes = genv.get("CLOUD_RES")
+        cloudRes = CloudRes()
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")

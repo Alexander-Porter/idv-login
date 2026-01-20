@@ -23,6 +23,7 @@ import base64
 import requests
 import channelmgr
 
+from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
@@ -93,7 +94,7 @@ class wechatChannel(channelmgr.channel):
         )
         self.logger = setup_logger()
         self.crossGames = False
-        cloudRes = genv.get("CLOUD_RES")
+        cloudRes = CloudRes()
 
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)

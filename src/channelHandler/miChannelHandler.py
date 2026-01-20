@@ -20,6 +20,7 @@ import time
 import base64
 import channelmgr
 
+from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
 from channelHandler.miLogin.miChannel import MiLogin
@@ -55,7 +56,7 @@ class miChannel(channelmgr.channel):
         # Done: Use Actions to auto update game_id-app_id mapping by uploading an APK.
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)
-        cloudRes = genv.get("CLOUD_RES")
+        cloudRes = CloudRes()
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")

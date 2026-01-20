@@ -21,6 +21,7 @@ import sys
 
 import gevent
 from flask import request, jsonify, Response
+from cloudRes import CloudRes
 from envmgr import genv
 from login_stack_mgr import LoginStackManager
 
@@ -157,9 +158,9 @@ def register_mpay_routes(
     def handle_qrcode_image():
         try:
             resp = proxy(request)
-            if genv.get("CLOUD_RES").get_risk_wm() != "":
+            if CloudRes().get_risk_wm() != "":
                 from riskWmUtils import wm
-                resp.set_data(wm(resp.get_data(), genv.get("CLOUD_RES").get_risk_wm()))
+                resp.set_data(wm(resp.get_data(), CloudRes().get_risk_wm()))
                 return resp
             return resp
         except Exception:

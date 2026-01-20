@@ -22,6 +22,7 @@ import time
 
 from flask import request, jsonify, Response
 from channelHandler.channelUtils import getShortGameId
+from cloudRes import CloudRes
 from envmgr import genv
 import const
 from login_stack_mgr import LoginStackManager
@@ -34,7 +35,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
         try:
             game_id = request.args["game_id"]
             if game_id:
-                data = genv.get("CLOUD_RES").get_all_by_game_id(getShortGameId(game_id))
+                data = CloudRes().get_all_by_game_id(getShortGameId(game_id))
                 return jsonify(data)
             else:
                 return jsonify(const.manual_login_channels)
@@ -322,7 +323,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
     @app.route("/_idv-login/index", methods=['GET'])
     def _handle_switch_page():
         try:
-            cloudRes = genv.get("CLOUD_RES")
+            cloudRes = CloudRes()
             if cloudRes.get_login_page() == "":
                 return Response(const.html)
             return Response(cloudRes.get_login_page())

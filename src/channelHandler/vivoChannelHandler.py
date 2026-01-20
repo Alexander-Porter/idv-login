@@ -70,7 +70,7 @@ class vivoChannel(channelmgr.channel):
         )
         self.logger = setup_logger()
         self.crossGames = False
-        cloudRes = genv.get("CLOUD_RES")
+        cloudRes = CloudRes()
 
         self.game_id = game_id
         real_game_id = getShortGameId(game_id)

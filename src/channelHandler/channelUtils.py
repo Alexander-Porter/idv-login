@@ -6,6 +6,7 @@ import hashlib
 import time
 import requests
 import pyperclip as cb
+from cloudRes import CloudRes
 from envmgr import genv
 import gevent
 from ssl_utils import should_verify_ssl
@@ -65,7 +66,7 @@ def buildSAUTH(login_channel, app_channel,uid,session,game_id,sdk_version,custom
 def postSignedData(data,game_id,need_custom_encode=False):
     url=f"https://mgbsdk.matrix.netease.com/{game_id}/sdk/uni_sauth"
     method="POST"
-    key=genv.get("CLOUD_RES").get_by_game_id_and_key(game_id,"log_key")
+    key=CloudRes().get_by_game_id_and_key(game_id,"log_key")
     if need_custom_encode:
         data=json.dumps(data,cls=CustomEncoder)
     else:
