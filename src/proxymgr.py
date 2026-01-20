@@ -54,9 +54,21 @@ def add_custom_dns(domain, port, ip):
     # https://docs.python.org/2/library/socket.html#socket.getaddrinfo
     # Values were taken from the output of `socket.getaddrinfo(...)`
     if is_ipv4(ip):
-        value = (socket.AddressFamily.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port))
-    else: # ipv6
-        value = (socket.AddressFamily.AF_INET6, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port, 0, 0))
+        value = (
+            socket.AddressFamily.AF_INET,
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP,
+            "",
+            (ip, port),
+        )
+    else:  # ipv6
+        value = (
+            socket.AddressFamily.AF_INET6,
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP,
+            "",
+            (ip, port, 0, 0),
+        )
     dns_cache[key] = [value]
 
 
@@ -490,7 +502,6 @@ class proxymgr:
         target_using_hardcoded_ip = False
         target_oversea_using_hardcoded_ip = False
 
-
         # result check
         try:
             if (
@@ -548,6 +559,10 @@ class proxymgr:
             # 劫持dns，使得Hosts文件被忽略
             add_custom_dns(genv.get("DOMAIN_TARGET"), 443, target)
             add_custom_dns(genv.get("DOMAIN_TARGET_OVERSEA"), 443, target_oversea)
+            if sys.platform.startswith("linux"):
+                if os.path.exists("/etc/arch-release"):
+                    logger.info("等待3秒以确保系统DNS缓存已刷新...")
+                    gevent.sleep(3)
             if (
                 not socket.gethostbyname(genv.get("DOMAIN_TARGET_OVERSEA"))
                 == "127.0.0.1"
