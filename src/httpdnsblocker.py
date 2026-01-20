@@ -4,6 +4,8 @@ import base64
 import json
 import sys
 
+from logutil import setup_logger
+
 class HttpDNSBlocker:
     _instance = None
     
@@ -43,6 +45,7 @@ class HttpDNSBlocker:
         self.timeout = 2  # 2 seconds timeout
         self.update_dns_ips()
         self.__initialized = True
+        self.logger = setup_logger()
         
     def block_ip(self, target_ip):
         if sys.platform!='win32':
@@ -122,8 +125,8 @@ class HttpDNSBlocker:
             inbound_count = len([line for line in inbound_stdout.split('\n') if 'Block_Inbound_IP' in line])
             outbound_count = len([line for line in outbound_stdout.split('\n') if 'Block_Outbound_IP' in line])
             
-            print(f"发现入站规则数量: {inbound_count}")
-            print(f"发现出站规则数量: {outbound_count}")
+            self.logger.debug(f"发现入站规则数量: {inbound_count}")
+            self.logger.debug(f"发现出站规则数量: {outbound_count}")    
             
             # 删除所有规则
             if inbound_count > 0:
@@ -140,11 +143,10 @@ class HttpDNSBlocker:
             
             # 清空已封禁IP列表
             self.blocked.clear()
-            
-            print(f"已清除全部防火墙规则")
+                 
             
         except Exception as e:
-            print(f"清除防火墙规则时发生错误: {e}")
+            self.logger.error(f"解除所有屏蔽失败: {e}")
 
     def update_dns_ips(self):
         try:
