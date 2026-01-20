@@ -6,6 +6,11 @@ on:
       - 'assets/anno'
       - 'assets/index.html'
   workflow_dispatch:
+    inputs:
+      critical_update:
+        description: '是否为重要更新（true/false）'
+        required: false
+        default: 'false'
 
 jobs:
   update_json:
@@ -24,11 +29,13 @@ jobs:
         run: |
           pip install requests_toolbelt
           pip install requests
+          pip install markdown
 
       - name: Update cloudRes.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+          CRITICAL_UPDATE: ${{ github.event.inputs.critical_update || 'false' }}
         run: |
           python -c "
           import sys
@@ -37,6 +44,7 @@ jobs:
           import json
           import base64
           import time
+          import markdown
           
           # 读取环境变量
           github_token = os.getenv('GITHUB_TOKEN')
@@ -70,6 +78,9 @@ jobs:
               
               data['downloadUrl'] = f\"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}\"
               data['detail'] = releaseData['body']
+              data['detail_html'] = markdown.markdown(releaseData.get('body','') or '')
+              critical_update = os.getenv('CRITICAL_UPDATE', 'false').strip().lower() == 'true'
+              data['critical_update'] = critical_update
               
               # 读取 assets/anno 文件，得到公告
               with open('assets/anno', 'r', encoding='utf-8') as f:

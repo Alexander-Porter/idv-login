@@ -22,6 +22,7 @@ from flask import Flask, request, Response, jsonify, send_file
 from gevent import pywsgi
 import gevent
 from channelHandler.channelUtils import getShortGameId
+from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
 from gamemgr import GameManager
@@ -212,14 +213,14 @@ def requestPostAsCv(request, cv, body_mapping={}):
 
 
 def _qrcode_app_channel_provider(game_id):
-    if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
-        return genv.get("CLOUD_RES").get_qrcode_app_channel(getShortGameId(game_id))
+    if CloudRes().is_game_in_qrcode_login_list(getShortGameId(game_id)):
+        return CloudRes().get_qrcode_app_channel(getShortGameId(game_id))
     return None
 
 
 def _create_login_query_hook(query, game_id):
-    if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
-        query["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(
+    if CloudRes().is_game_in_qrcode_login_list(getShortGameId(game_id)):
+        query["app_channel"] = CloudRes().get_qrcode_app_channel(
             getShortGameId(game_id)
         )
         query["qrcode_channel_type"] = "3"
@@ -245,8 +246,8 @@ def _exchange_token_request(is_selected, game_id, form_data):
         "_cloud_extra_base64": "e30=",
         "sc": "1",
     }
-    if genv.get("CLOUD_RES").is_game_in_qrcode_login_list(getShortGameId(game_id)):
-        mapping["app_channel"] = genv.get("CLOUD_RES").get_qrcode_app_channel(
+    if CloudRes().is_game_in_qrcode_login_list(getShortGameId(game_id)):
+        mapping["app_channel"] = CloudRes().get_qrcode_app_channel(
             getShortGameId(game_id)
         )
         return requestPostAsCv(request, "a5.10.0", mapping)

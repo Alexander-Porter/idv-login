@@ -24,6 +24,8 @@ import glob
 
 from gevent import monkey
 monkey.patch_all()
+
+from cloudRes import CloudRes
 import socket
 import os
 import sys
@@ -133,7 +135,10 @@ def _check_and_copy_pyqt5_files():
         logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
 
 def handle_update():
-    ignoredVersions=genv.get("ignoredVersions",[])
+    from PyQt5.QtWidgets import QMessageBox, QToolButton, QMenu, QAction, QSizePolicy, QApplication
+    from PyQt5.QtCore import Qt
+    #ignoredVersions=genv.get("ignoredVersions",[])
+    ignoredVersions=[]
     if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
@@ -142,22 +147,74 @@ def handle_update():
         return
     elif not genv.get("CLOUD_VERSION") in ignoredVersions:
         print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
-        details=genv.get("CLOUD_RES").get_detail()
-        print(f"{details}")
-        print("[*]选项：直接按回车：跳转至新版本下载页面。输入P再回车：暂时不更新。输入N再回车：永久跳过此版本。")
-        choice=input("[*]请选择：")
-        if choice.lower()=="p":
-            return
-        elif choice.lower()=="n":
-            ignoredVersions.append(genv.get("CLOUD_VERSION"))
-            genv.set("ignoredVersions",ignoredVersions,True)
-            return
+        details=CloudRes().get_detail()
+        
+        QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle(f"新版本！")
+        msg_box.setText(f"{genv.get('VERSION')} -> {genv.get('CLOUD_VERSION')}")
+        # 将换行符转换为 HTML 换行符以支持富文本显示
+        formatted_details = details.replace('\n', '<br>')
+        msg_box.setInformativeText(f"{formatted_details}")
+        
+        yes_btn = msg_box.addButton("现在更新", QMessageBox.AcceptRole)
+        
+        # 创建带下拉菜单的“暂时跳过”按钮 (Split Button)
+        no_btn = QToolButton()
+        no_btn.setText("下次提醒我")
+        no_btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        no_btn.setPopupMode(QToolButton.MenuButtonPopup)
+        no_btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        # 设置最小高度以匹配普通按钮
+        no_btn.setMinimumHeight(23)
+        if CloudRes().is_update_critical():
+            pass
         else:
-            url=genv.get("CLOUD_RES").get_downloadUrl()
+            # 创建“忽略此版本”菜单项
+            ignore_action = QAction("忽略此版本", msg_box)
+            def on_ignore(checked=False):
+                print(f"【在线更新】用户选择忽略版本{genv.get('CLOUD_VERSION')}。")
+                ignoredVersions.append(genv.get("CLOUD_VERSION"))
+                genv.set("ignoredVersions",ignoredVersions,True)
+                msg_box.close() 
+
+            ignore_action.triggered.connect(on_ignore)
+        
+            menu = QMenu()
+            menu.addAction(ignore_action)
+            no_btn.setMenu(menu)
+        
+        # 将按钮点击（主区域）连接到对话框的 reject
+        # QToolButton 的 clicked 信号在点击主区域时触发
+        no_btn.clicked.connect(msg_box.reject)
+        
+        msg_box.addButton(no_btn, QMessageBox.RejectRole)
+        msg_box.setDefaultButton(yes_btn)
+        
+        msg_box.exec_()
+        def go_to_update():
+            url=CloudRes().get_downloadUrl()
             import webbrowser
             webbrowser.open(url)
-            input("【更新方法】按照页面上的指引下载文件即可。")
+            QMessageBox.information(None, "提示", "请按照打开的网页指引下载更新。\n程序将自动退出。")
             sys.exit(0)
+        if msg_box.clickedButton() == yes_btn:
+            go_to_update()
+        else:
+            if CloudRes().is_update_critical():
+                info_box = QMessageBox()
+                info_box.setWindowTitle("提示")
+                info_box.setText("本次更新为安全相关更新，为了保护你的账号安全，请及时更新。")
+                update_btn = info_box.addButton("现在更新", QMessageBox.AcceptRole)
+                remind_btn = info_box.addButton("我知道了，下次提醒我", QMessageBox.RejectRole)
+                info_box.setDefaultButton(update_btn)
+                info_box.exec_()
+                if info_box.clickedButton() == update_btn:
+                    go_to_update()
+                else:
+                    # 用户选择下次提醒，什么都不做
+                    pass
+            return
     else:
         print(f"【在线更新】检测到新版本{genv.get('CLOUD_VERSION')}，但已被用户永久跳过。")
         return
@@ -298,7 +355,7 @@ def initialize():
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
         import webbrowser
-        url=genv.get("CLOUD_RES").get_guideUrl()
+        url=CloudRes().get_guideUrl()
         genv.set("httpdns_blocking_enabled",False,True)
         webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)

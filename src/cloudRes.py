@@ -20,7 +20,7 @@ class CloudRes:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def __init__(self, urls, cache_dir):
+    def __init__(self, urls=[], cache_dir='./'):
         # 防止重复初始化
         if not self._initialized:
             self.urls = urls
@@ -138,6 +138,9 @@ class CloudRes:
     def get_detail(self):
         return self.local_data.get('detail', '')
     
+    def get_detail_html(self):
+        return self.local_data.get('detail_html', self.get_detail())
+    
     def get_risk_wm(self):
         return self.local_data.get('risk_wm', '')
     
@@ -147,3 +150,6 @@ class CloudRes:
     
     def get_shortcuts(self):
         return self.local_data.get('shortcuts', [])
+    
+    def is_update_critical(self):
+        return self.local_data.get('critical_update', False)
