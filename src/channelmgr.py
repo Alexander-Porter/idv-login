@@ -201,7 +201,7 @@ class ChannelManager:
                 tmp_channel.uuid = to_be_deleted[0].uuid
                 for i in to_be_deleted:
                     self.channels.remove(i)
-                self.logger.warning(f"发现账号{account_name}有{len(to_be_deleted)}条重复记录，已删除重复账号，并自动继承最近一次登录的账号名和uuid。")
+                self.logger.warning(f"发现{login_info['login_channel']}账号{tmp_channel.name}({account_name})有{len(to_be_deleted)}条重复记录，已删除重复账号，并自动继承最近一次登录的账号名和uuid。")
         except:
             self.logger.exception("删除旧记录时发生错误")
         self.channels.append(tmp_channel)  
