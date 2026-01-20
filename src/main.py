@@ -1,6 +1,6 @@
 # coding=UTF-8
 """
- Copyright (c) 2025 Alexander-Porter & fwilliamhe
+ Copyright (c) 2026 Alexander-Porter
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@ def handle_exit():
         if logger: logger.info("正在清理 hosts...")
         else: print("正在清理 hosts...")
         m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
+        m_hostmgr.remove(genv.get("DOMAIN_TARGET_OVERSEA"))
     
     if genv.get("USING_BACKUP_VER", False):
         backup_mgr = genv.get("backupVerMgr")
@@ -78,10 +79,6 @@ def handle_exit():
             if logger: logger.info("正在停止 mitmproxy...")
             else: print("正在停止 mitmproxy...")
             backup_mgr.stop_mitmproxy()
-        elif logger: # Should not happen if USING_BACKUP_VER is true and logic is correct
-            logger.warning("USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
-        else:
-            print("WARN: USING_BACKUP_VER is true, but backupVerMgr not found in genv for cleanup.")
     from httpdnsblocker import HttpDNSBlocker
     HttpDNSBlocker().unblock_all()
     print("再见!")
@@ -214,10 +211,11 @@ def initialize():
 
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
-    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
+    genv.set("DOMAIN_TARGET_OVERSEA","sdk-os.mpsdk.easebar.com")
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
-    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
-    genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
+    genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_3.pem"))
+    genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_3.pem"))
+    genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca_oversea.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
     genv.set("GLOB_LOGIN_PROFILE_PATH", os.path.join(genv.get("FP_WORKDIR"), "profile"))
@@ -233,9 +231,6 @@ def initialize():
     genv.set("CLOUD_RES",m_cloudres)
     genv.set("CLOUD_VERSION",m_cloudres.get_version())
     genv.set("CLOUD_ANNO",m_cloudres.get_announcement())
-
-    # (Can't) copy web assets! Have trouble using pyinstaller = =
-    # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -409,7 +404,7 @@ def generate_certificates_if_needed():
 
         srv_key = m_certmgr.generate_private_key(bits=2048)
         srv_cert = m_certmgr.generate_cert(
-            [genv.get("DOMAIN_TARGET"), "localhost"], srv_key, ca_cert, ca_key
+            [genv.get("DOMAIN_TARGET"),genv.get("DOMAIN_TARGET_OVERSEA"),"localhost"], srv_key, ca_cert, ca_key
         )
 
         if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
@@ -471,10 +466,11 @@ def setup_host_manager():
         if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
             logger.info("识别到手动定向!")
             logger.info(
-                f"请确保已经将 {genv.get('DOMAIN_TARGET')} 和 localhost 指向 127.0.0.1"
+                f"请确保已经将 {genv.get('DOMAIN_TARGET')}、{genv.get('DOMAIN_TARGET_OVERSEA')} 和 localhost 指向 127.0.0.1"
             )
         else:
             m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
+            m_hostmgr.add(genv.get("DOMAIN_TARGET_OVERSEA"), "127.0.0.1")
             m_hostmgr.add("localhost", "127.0.0.1")
         return True
     except Exception as e_hostmgr:
