@@ -5,72 +5,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>渠道服账号管理</title>
-    <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QOQjeQAAAABJRU5ErkJggg==">
+    <link rel="icon"
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QOQjeQAAAABJRU5ErkJggg==">
 
-    
+
     <!-- 资源优先从 s4.zstatic.net 加载，失败回退到 cloudflare -->
     <script>
-        (function(){
+        (function () {
             const primary = {
                 js: [
-                    {src: 'https://s4.zstatic.net/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=='},
-                    {src: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q=='}
+                    { src: 'https://s4.zstatic.net/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA==' },
+                    { src: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q==' }
                 ],
                 css: [
-                    {href: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA=='},
-                    {href: 'https://s4.zstatic.net/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g=='}
+                    { href: 'https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==' },
+                    { href: 'https://s4.zstatic.net/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==' }
                 ]
             };
 
             const fallback = {
                 js: [
-                    {src: 'https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=='},
-                    {src: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q=='}
+                    { src: 'https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js', integrity: 'sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA==' },
+                    { src: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.min.js', integrity: 'sha512-nKXmKvJyiGQy343jatQlzDprflyB5c+tKCzGP3Uq67v+lmzfnZUi/ZT+fc6ITZfSC5HhaBKUIvr/nTLCV+7F+Q==' }
                 ],
                 css: [
-                    {href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA=='},
-                    {href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g=='}
+                    { href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css', integrity: 'sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==' },
+                    { href: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css', integrity: 'sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==' }
                 ]
             };
 
-            function loadCssItem(item){
+            function loadCssItem(item) {
                 return new Promise((resolve) => {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
                     link.href = item.href;
-                    if(item.integrity) link.integrity = item.integrity;
+                    if (item.integrity) link.integrity = item.integrity;
                     link.crossOrigin = 'anonymous';
                     link.referrerPolicy = 'no-referrer';
-                    link.onload = () => resolve({ok:true});
-                    link.onerror = () => resolve({ok:false});
+                    link.onload = () => resolve({ ok: true });
+                    link.onerror = () => resolve({ ok: false });
                     document.head.appendChild(link);
                 });
             }
 
-            function loadScriptItem(item, isModule){
+            function loadScriptItem(item, isModule) {
                 return new Promise((resolve) => {
                     const s = document.createElement('script');
                     s.src = item.src;
-                    if(item.integrity) s.integrity = item.integrity;
+                    if (item.integrity) s.integrity = item.integrity;
                     s.crossOrigin = 'anonymous';
                     s.referrerPolicy = 'no-referrer';
                     // 保证按顺序执行
                     s.async = false;
-                    s.onload = () => resolve({ok:true});
-                    s.onerror = () => resolve({ok:false});
+                    s.onload = () => resolve({ ok: true });
+                    s.onerror = () => resolve({ ok: false });
                     document.head.appendChild(s);
                 });
             }
 
-            async function tryLoadWithFallback(primaryList, fallbackList, loader){
+            async function tryLoadWithFallback(primaryList, fallbackList, loader) {
                 const results = [];
-                for(let i=0;i<primaryList.length;i++){
+                for (let i = 0; i < primaryList.length; i++) {
                     const p = primaryList[i];
                     const f = fallbackList && fallbackList[i] ? fallbackList[i] : null;
                     const res = await loader(p);
-                    if(res.ok){
+                    if (res.ok) {
                         results.push(true);
-                    } else if(f){
+                    } else if (f) {
                         const r2 = await loader(f);
                         results.push(r2.ok);
                     } else {
@@ -81,7 +82,7 @@
             }
 
             // 启动加载：先 css 并行加载，脚本按顺序加载
-            (async function(){
+            (async function () {
                 // CSS: 我们希望先加载 bootstrap CSS 然后 icons，但两个可以并行
                 // 为每个 CSS 资源创建一个 promise，失败时回退到备用 CDN
                 await Promise.all(primary.css.map((p, idx) => {
@@ -99,16 +100,16 @@
             background-color: #f8f9fa;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        
+
         .page-header {
             background-color: #3f6ad8;
             color: white;
             padding: 1.5rem 0;
             margin-bottom: 2rem;
             border-radius: 0 0 10px 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        
+
         .card {
             border: none;
             border-radius: 10px;
@@ -116,30 +117,30 @@
             margin-bottom: 1.5rem;
             transition: transform 0.2s;
         }
-        
+
         .card:hover {
             transform: translateY(-3px);
         }
-        
+
         .card-header {
             font-weight: 500;
-            background-color: rgba(0,0,0,0.02);
-            border-bottom: 1px solid rgba(0,0,0,0.03);
+            background-color: rgba(0, 0, 0, 0.02);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
         }
-        
+
         .table {
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
             border-radius: 0.5rem;
             overflow: hidden;
         }
-        
+
         .btn-action {
             padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
             border-radius: 4px;
             margin-right: 3px;
         }
-        
+
         .section-title {
             font-size: 1.1rem;
             font-weight: 500;
@@ -148,16 +149,17 @@
             border-left: 3px solid #3f6ad8;
             padding-left: 0.75rem;
         }
-        
-        .form-control, .form-select {
+
+        .form-control,
+        .form-select {
             border-radius: 0.375rem;
         }
-        
+
         .btn-group {
             border-radius: 0.375rem;
             overflow: hidden;
         }
-        
+
         .action-label {
             font-size: 0.75rem;
             display: block;
@@ -165,24 +167,24 @@
             margin-top: 2px;
             color: #6c757d;
         }
-        
+
         .actions-container {
             display: flex;
             gap: 5px;
             align-items: center;
         }
-        
+
         .action-button {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        
+
         .table th {
             font-size: 0.875rem;
             font-weight: 500;
         }
-        
+
         /* 状态指示器样式 */
         .status-indicator {
             position: fixed;
@@ -194,49 +196,52 @@
             padding: 8px 16px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             z-index: 1000;
             transition: all 0.3s ease;
         }
-        
+
         .status-light {
             width: 12px;
             height: 12px;
             border-radius: 50%;
             transition: all 0.3s ease;
         }
-        
+
         .status-light.connected {
             background-color: #28a745;
             box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
         }
-        
+
         .status-light.disconnected {
             background-color: #dc3545;
             box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% {
+
+            0%,
+            100% {
                 opacity: 1;
             }
+
             50% {
                 opacity: 0.5;
             }
         }
-        
+
         .status-text {
             font-size: 0.875rem;
             color: #495057;
             margin: 0;
         }
-        
+
         .status-indicator:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
-        
+
         /* 断开连接时的额外提示样式 */
         .status-indicator.disconnected-state {
             background: rgba(220, 53, 69, 0.95);
@@ -244,12 +249,12 @@
             animation: shake 0.5s ease-in-out;
             animation-delay: 1s;
         }
-        
+
         .status-indicator.disconnected-state .status-text {
             color: white;
             font-weight: 500;
         }
-        
+
         .status-indicator.disconnected-state::after {
             content: '👆 点击查看解决方案';
             position: absolute;
@@ -261,21 +266,38 @@
             border-radius: 12px;
             font-size: 0.75rem;
             white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
             animation: bounce 2s infinite;
         }
-        
+
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
         }
-        
+
         @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
         }
-        
+
         /* 全局遮罩层（可选，在连接失败时间过长时显示） */
         .connection-overlay {
             position: fixed;
@@ -289,44 +311,45 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .connection-overlay.show {
             display: flex;
         }
-        
+
         .connection-modal {
             background: white;
             border-radius: 15px;
             padding: 30px;
             max-width: 500px;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             animation: slideIn 0.3s ease-out;
         }
-        
+
         @keyframes slideIn {
             from {
                 transform: translateY(-50px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
             }
         }
-        
+
         .connection-modal h3 {
             color: #dc3545;
             margin-bottom: 15px;
             font-size: 1.5rem;
         }
-        
+
         .connection-modal p {
             color: #495057;
             margin-bottom: 20px;
             line-height: 1.6;
         }
-        
+
         .connection-modal .btn-primary {
             background: #dc3545;
             border: none;
@@ -336,7 +359,7 @@
             cursor: pointer;
             transition: background 0.3s;
         }
-        
+
         .connection-modal .btn-primary:hover {
             background: #c82333;
         }
@@ -357,18 +380,22 @@
             </p>
         </div>
     </div>
-    
+
     <!-- 状态指示器 -->
     <div class="status-indicator" id="statusIndicator">
         <div class="status-light disconnected" id="statusLight"></div>
         <p class="status-text" id="statusText">检查中...</p>
     </div>
-    
+
     <!-- 页面头部 -->
     <div class="page-header text-center">
         <div class="container">
             <h1 class="fw-bold fs-3">渠道服账号管理系统</h1>
             <p class="lead fs-6 mb-0">轻松管理您的游戏账号和登录信息</p>
+            <p class="small" >
+                <a style="color: bisque;" href="https://docs.qq.com/form/page/DTk1LY0ZuZ1h5TmpZ" target="_blank"
+                    class="text-decoration-none">🖊点此参与新版本功能投票</a>
+            </p>
         </div>
     </div>
 
@@ -387,7 +414,8 @@
                                 <small class="d-block text-muted">屏蔽HTTPDNS服务以确保拦截生效，但是可能导致部分游戏联网失败</small>
                             </div>
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="httpdnsToggle" onchange="toggleHttpDnsBlocking()">
+                                <input class="form-check-input" type="checkbox" id="httpdnsToggle"
+                                    onchange="toggleHttpDnsBlocking()">
                                 <label class="form-check-label" for="httpdnsToggle"></label>
                             </div>
                         </div>
@@ -425,7 +453,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- 操作区域 -->
         <div class="row">
             <!-- 登录操作 -->
@@ -438,7 +466,8 @@
                         <div class="mb-3">
                             <label for="channelSelect" class="form-label">渠道选择:</label>
                             <div class="d-flex align-items-center">
-                                <select id="channelSelect" class="form-select me-2" style="width: 80%; flex: 0 0 auto;"></select>
+                                <select id="channelSelect" class="form-select me-2"
+                                    style="width: 80%; flex: 0 0 auto;"></select>
                                 <button onclick="manual()" class="btn btn-primary">
                                     <i class="bi bi-person-plus me-1"></i>手动登录
                                 </button>
@@ -457,17 +486,19 @@
                         <div class="mt-3">
                             <h5 class="section-title">自动登录延迟设置</h5>
                             <div class="d-flex align-items-center">
-                                <input type="number" id="loginDelayInput" style="width: 80%; flex: 0 0 auto;" class="form-control me-2" min="0" max="30" placeholder="延迟秒数">
+                                <input type="number" id="loginDelayInput" style="width: 80%; flex: 0 0 auto;"
+                                    class="form-control me-2" min="0" max="30" placeholder="延迟秒数">
                                 <button onclick="saveLoginDelay()" class="btn btn-outline-primary">
                                     <i class="bi bi-save me-1"></i>保存
                                 </button>
                             </div>
-                            <small class="form-text text-muted mt-1">二维码显示后<span id="currentDelay">加载中...</span> 秒会自动登录默认账号。</small>
+                            <small class="form-text text-muted mt-1">二维码显示后<span id="currentDelay">加载中...</span>
+                                秒会自动登录默认账号。</small>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <!-- 系统设置 -->
             <div class="col-md-6">
                 <div class="card h-100">
@@ -475,10 +506,11 @@
                         <span><i class="bi bi-gear me-2"></i>自动启动/关闭设置</span>
                     </div>
                     <div class="card-body">
-                        <button id="autoCloseBtn" onclick="switchAutoClose()" class="btn btn-outline-primary mb-3 w-100">
+                        <button id="autoCloseBtn" onclick="switchAutoClose()"
+                            class="btn btn-outline-primary mb-3 w-100">
                             <i class="bi bi-power me-1"></i>登录后自动关闭工具：加载中...
                         </button>
-                        
+
                         <div class="mt-3">
                             <h5 class="section-title">游戏自动启动设置</h5>
                             <div class="d-flex align-items-center mb-2">
@@ -488,10 +520,12 @@
                                 <small id="autoStartPath" class="text-muted ms-2 text-truncate">未设置</small>
                             </div>
                             <div class="btn-group w-100">
-                                <button id="setAutoStartBtn" onclick="setAutoStart(true)" class="btn btn-outline-success">
+                                <button id="setAutoStartBtn" onclick="setAutoStart(true)"
+                                    class="btn btn-outline-success">
                                     <i class="bi bi-plus-circle me-1"></i>设置游戏路径
                                 </button>
-                                <button id="disableAutoStartBtn" onclick="setAutoStart(false)" class="btn btn-outline-danger">
+                                <button id="disableAutoStartBtn" onclick="setAutoStart(false)"
+                                    class="btn btn-outline-danger">
                                     <i class="bi bi-dash-circle me-1"></i>禁用自启
                                 </button>
                                 <button id="startGameBtn" onclick="startGame()" class="btn btn-primary">
@@ -503,7 +537,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- 账号列表 -->
         <div class="card mt-4">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -536,19 +570,22 @@
                 </div>
             </div>
         </div>
-        
+
         <footer class="mt-4 text-center text-muted">
             <p class="small">IDV-LOGIN渠道服账号管理界面 &copy; 2025</p>
             <p class="small">
-                <a href="https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3" target="_blank" class="text-decoration-none">官方教程</a>
+                <a href="https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3" target="_blank"
+                    class="text-decoration-none">官方教程</a>
             </p>
             <p class="small">
-                <a href="https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu" target="_blank" class="text-decoration-none">出现问题？</a>
+                <a href="https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu" target="_blank"
+                    class="text-decoration-none">出现问题？</a>
             </p>
+
         </footer>
     </div>
 
-    
+
     <script>
         function timeStampToLocalTime(timestamp) {
             return new Date(timestamp * 1000).toLocaleString();
@@ -577,24 +614,24 @@
                 buttons: ["取消", "确定删除"],
                 dangerMode: true,
             })
-            .then((willDelete) => {
-                if (willDelete) {
-                    fetch(`/_idv-login/del?uuid=${uuid}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                swal('账号已成功删除', {
-                                    icon: "success",
-                                });
-                                location.reload();
-                            } else {
-                                swal('删除失败', {
-                                    icon: "error",
-                                });
-                            }
-                        });
-                }
-            });
+                .then((willDelete) => {
+                    if (willDelete) {
+                        fetch(`/_idv-login/del?uuid=${uuid}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    swal('账号已成功删除', {
+                                        icon: "success",
+                                    });
+                                    location.reload();
+                                } else {
+                                    swal('删除失败', {
+                                        icon: "error",
+                                    });
+                                }
+                            });
+                    }
+                });
         }
 
         function batchDelete() {
@@ -621,41 +658,41 @@
                 buttons: ["取消", "确定删除"],
                 dangerMode: true,
             })
-            .then((willDelete) => {
-                if (willDelete) {
-                    // 显示加载中提示
-                    swal({
-                        title: "删除中...",
-                        text: "正在批量删除账号",
-                        icon: "info",
-                        buttons: false,
-                        closeOnClickOutside: false,
-                    });
-
-                    // 创建一个Promise数组来跟踪所有删除请求
-                    const deletePromises = selectedAccounts.map(uuid => {
-                        return fetch(`/_idv-login/del?uuid=${uuid}`)
-                            .then(response => response.json())
-                            .then(data => ({uuid, success: data.success}));
-                    });
-
-                    // 等待所有删除请求完成
-                    Promise.all(deletePromises)
-                        .then(results => {
-                            const successful = results.filter(r => r.success).length;
-                            const failed = results.length - successful;
-
-                            swal({
-                                title: "批量删除完成",
-                                text: `成功删除 ${successful} 个账号${failed > 0 ? `，${failed} 个账号删除失败` : ''}`,
-                                icon: successful > 0 ? "success" : "warning",
-                                button: "确定",
-                            }).then(() => {
-                                location.reload();
-                            });
+                .then((willDelete) => {
+                    if (willDelete) {
+                        // 显示加载中提示
+                        swal({
+                            title: "删除中...",
+                            text: "正在批量删除账号",
+                            icon: "info",
+                            buttons: false,
+                            closeOnClickOutside: false,
                         });
-                }
-            });
+
+                        // 创建一个Promise数组来跟踪所有删除请求
+                        const deletePromises = selectedAccounts.map(uuid => {
+                            return fetch(`/_idv-login/del?uuid=${uuid}`)
+                                .then(response => response.json())
+                                .then(data => ({ uuid, success: data.success }));
+                        });
+
+                        // 等待所有删除请求完成
+                        Promise.all(deletePromises)
+                            .then(results => {
+                                const successful = results.filter(r => r.success).length;
+                                const failed = results.length - successful;
+
+                                swal({
+                                    title: "批量删除完成",
+                                    text: `成功删除 ${successful} 个账号${failed > 0 ? `，${failed} 个账号删除失败` : ''}`,
+                                    icon: successful > 0 ? "success" : "warning",
+                                    button: "确定",
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            });
+                    }
+                });
         }
 
         function switchChannel(uuid) {
@@ -727,7 +764,7 @@
         function loadLoginDelay() {
             const game_id = getQueryVariable("game_id");
             if (!game_id) return;
-            
+
             fetch(`/_idv-login/get-login-delay?game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
@@ -743,7 +780,7 @@
         function saveLoginDelay() {
             const game_id = getQueryVariable("game_id");
             const delay = document.getElementById('loginDelayInput').value;
-            
+
             if (!game_id) {
                 swal({
                     title: "错误",
@@ -753,7 +790,7 @@
                 });
                 return;
             }
-            
+
             if (delay === "" || isNaN(delay) || delay < 0) {
                 swal({
                     title: "输入错误",
@@ -763,7 +800,7 @@
                 });
                 return;
             }
-            
+
             fetch(`/_idv-login/set-login-delay?game_id=${game_id}&delay=${delay}`)
                 .then(response => response.json())
                 .then(data => {
@@ -803,7 +840,7 @@
             }
             return ("");
         }
-        
+
         // 游戏切换函数
         function switchGame(gameId) {
             if (gameId) {
@@ -815,14 +852,14 @@
                     buttons: false,
                     closeOnClickOutside: false,
                 });
-                
+
                 // 重定向到相同的URL，但改变game_id查询参数
                 const currentUrl = new URL(window.location.href);
                 currentUrl.searchParams.set('game_id', gameId);
                 window.location.href = currentUrl.toString();
             }
         }
-        
+
         // 加载游戏列表
         function loadGameList() {
             fetch('/_idv-login/list-games')
@@ -832,10 +869,10 @@
                         const gameSelect = document.getElementById('gameSelect');
                         // 清空现有选项
                         gameSelect.innerHTML = '';
-                        
+
                         // 获取当前选中的游戏ID
                         const currentGameId = getQueryVariable("game_id");
-                        
+
                         // 添加游戏选项
                         data.games.forEach(game => {
                             const option = document.createElement('option');
@@ -844,16 +881,16 @@
                             option.selected = game.game_id === currentGameId;
                             gameSelect.appendChild(option);
                         });
-                        
+
                         // 如果没有当前游戏ID或列表中没有此游戏
                         if (!currentGameId && data.games.length > 0) {
                             switchGame(data.games[0].game_id);
                         }
                         //如果当前有id但是列表中没有，展示当前id
-                        has_match=false;
+                        has_match = false;
                         for (var i = 0; i < data.games.length; i++) {
                             if (data.games[i].game_id == currentGameId) {
-                                has_match=true;
+                                has_match = true;
                                 break;
                             }
                         }
@@ -870,7 +907,7 @@
                     }
                 });
         }
-        
+
         // 自动启动相关函数
         function loadAutoStartSettings() {
             const game_id = getQueryVariable("game_id");
@@ -888,17 +925,17 @@
                     }
                 });
         }
-        
+
         function updateAutoStartUI(enabled, path) {
             const statusElement = document.getElementById('autoStartStatus');
             const pathElement = document.getElementById('autoStartPath');
             const setBtn = document.getElementById('setAutoStartBtn');
             const disableBtn = document.getElementById('disableAutoStartBtn');
             const startBtn = document.getElementById('startGameBtn');
-            
+
             statusElement.textContent = enabled ? '已启用' : '已禁用';
             statusElement.className = enabled ? 'ms-2 badge bg-success' : 'ms-2 badge bg-secondary';
-            
+
             if (path) {
                 pathElement.textContent = path;
                 pathElement.title = path; // 添加完整路径作为提示
@@ -906,12 +943,12 @@
                 pathElement.textContent = '未设置';
                 pathElement.title = '';
             }
-            
+
             setBtn.disabled = enabled;
             disableBtn.disabled = !enabled;
             startBtn.disabled = !enabled || !path;
         }
-        
+
         function setAutoStart(enabled) {
             const game_id = getQueryVariable("game_id");
             fetch(`/_idv-login/set-game-auto-start?game_id=${game_id}&enabled=${enabled}`)
@@ -953,10 +990,10 @@
                     }
                 });
         }
-        
+
         function startGame() {
             const game_id = getQueryVariable("game_id");
-            
+
             swal({
                 title: "正在启动游戏",
                 text: "请稍候...",
@@ -964,7 +1001,7 @@
                 buttons: false,
                 closeOnClickOutside: false,
             });
-            
+
             fetch(`/_idv-login/start-game?game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
@@ -991,54 +1028,54 @@
         window.onload = function () {
             //获得query参数game_id
             game_id = getQueryVariable("game_id");
-            
+
             // 启动工具状态检查
             startStatusCheck();
-            
+
             // 首先加载游戏列表
             loadGameList();
-            
+
             // 加载HTTPDNS屏蔽状态
             loadHttpDnsStatus();
-            
+
             // 如果有game_id，加载该游戏的账号和设置
             if (game_id) {
                 // 加载登录延迟设置
                 loadLoginDelay();
-                
+
                 fetch('/_idv-login/list?game_id=' + game_id)
                     .then(response => response.json())
                     .then(data => {
                         var tableBody = document.getElementById('channelTableBody');
                         var noAccountsDiv = document.getElementById('noAccounts');
                         var batchOperationsGroup = document.getElementById('batchOperationsGroup');
-                        
+
                         // 清空表格
                         tableBody.innerHTML = '';
-                        
+
                         if (data.length === 0) {
                             noAccountsDiv.style.display = 'block';
                             batchOperationsGroup.style.display = 'none'; // 没有账号时隐藏批量操作
                         } else {
                             noAccountsDiv.style.display = 'none';
                             batchOperationsGroup.style.display = 'block'; // 有账号时显示批量操作
-                            
+
                             data.forEach(channel => {
                                 // 如果uuid以netease开头，则跳过不显示
                                 if (channel.uuid.startsWith('netease')) {
                                     return;
                                 }
-                                
+
                                 var row = tableBody.insertRow();
                                 row.insertCell().innerHTML = `<input type="checkbox" class="account-checkbox" value="${channel.uuid}">`;
-                                
+
                                 var uuidCell = row.insertCell();
                                 uuidCell.innerHTML = `<span class="badge bg-light text-dark">${channel.uuid}</span>`;
                                 uuidCell.title = channel.uuid;
-                                
+
                                 row.insertCell().innerHTML = channel.name;
                                 row.insertCell().innerHTML = `<small>${timeStampToLocalTime(channel.last_login_time)}</small>`;
-                                
+
                                 var actionsCell = row.insertCell();
                                 actionsCell.innerHTML = `
                                     <div class="actions-container">
@@ -1069,9 +1106,9 @@
                                     </div>
                                 `;
                             });
-                            
+
                             // 全选功能
-                            document.getElementById('selectAll').addEventListener('change', function() {
+                            document.getElementById('selectAll').addEventListener('change', function () {
                                 const checkboxes = document.querySelectorAll('.account-checkbox');
                                 checkboxes.forEach(checkbox => {
                                     checkbox.checked = this.checked;
@@ -1086,7 +1123,7 @@
                         var channelSelect = document.getElementById('channelSelect');
                         // 清空下拉框
                         channelSelect.innerHTML = '';
-                        
+
                         data.forEach(channel => {
                             var option = document.createElement('option');
                             option.value = channel.channel;
@@ -1111,11 +1148,11 @@
                 fetch(`/_idv-login/get-auto-close-state?game_id=${game_id}`)
                     .then(response => response.json())
                     .then(data => {
-                        if(data.success) {
+                        if (data.success) {
                             updateAutoCloseButton(data.state);
                         }
                     });
-                    
+
                 // 加载自动启动设置
                 loadAutoStartSettings();
             }
@@ -1160,9 +1197,9 @@
             downloadLink.href = '/_idv-login/export-logs';
             downloadLink.style.display = 'none';
             document.body.appendChild(downloadLink);
-            
+
             // 监听下载完成
-            downloadLink.addEventListener('click', function() {
+            downloadLink.addEventListener('click', function () {
                 setTimeout(() => {
                     swal({
                         title: "日志导出成功",
@@ -1173,7 +1210,7 @@
                     document.body.removeChild(downloadLink);
                 }, 1000);
             });
-            
+
             // 触发下载
             downloadLink.click();
         }
@@ -1186,7 +1223,7 @@
                     if (data.success) {
                         const toggle = document.getElementById('httpdnsToggle');
                         const statusText = document.getElementById('httpdnsStatusText');
-                        
+
                         toggle.checked = data.enabled;
                         statusText.textContent = data.enabled ? '已启用' : '已禁用';
                         statusText.className = data.enabled ? 'text-success' : 'text-warning';
@@ -1205,11 +1242,11 @@
         function toggleHttpDnsBlocking() {
             const toggle = document.getElementById('httpdnsToggle');
             const statusText = document.getElementById('httpdnsStatusText');
-            
+
             // 显示切换中状态
             statusText.textContent = '切换中...';
             statusText.className = 'text-info';
-            
+
             fetch('/_idv-login/toggle-httpdns-blocking', {
                 method: 'POST'
             })
@@ -1219,16 +1256,16 @@
                         // 更新状态显示
                         statusText.textContent = data.enabled ? '已启用' : '已禁用';
                         statusText.className = data.enabled ? 'text-success' : 'text-warning';
-                        
+
                         // 显示操作结果
-                        let message = data.enabled ? 
-                            'HTTPDNS屏蔽已启用，游戏的HTTPDNS服务将被屏蔽' : 
+                        let message = data.enabled ?
+                            'HTTPDNS屏蔽已启用，游戏的HTTPDNS服务将被屏蔽' :
                             'HTTPDNS屏蔽已禁用';
-                        
+
                         if (!data.enabled && data.unblock_result) {
                             message += '\n防火墙规则解除结果：' + data.unblock_result;
                         }
-                        
+
                         swal({
                             title: data.enabled ? "HTTPDNS屏蔽已启用" : "HTTPDNS屏蔽已禁用",
                             text: message + (data.warning ? '\n\n⚠️ ' + data.warning : ''),
@@ -1240,7 +1277,7 @@
                         toggle.checked = !toggle.checked;
                         statusText.textContent = '切换失败，请更新工具到最新版本并检查日志';
                         statusText.className = 'text-danger';
-                        
+
                         swal({
                             title: "操作失败",
                             text: data.message || "切换HTTPDNS屏蔽状态失败，请更新工具到最新版本并检查日志",
@@ -1255,7 +1292,7 @@
                     toggle.checked = !toggle.checked;
                     statusText.textContent = '切换失败';
                     statusText.className = 'text-danger';
-                    
+
                     swal({
                         title: "网络错误",
                         text: "无法连接到服务器，请检查网络连接",
@@ -1270,13 +1307,13 @@
         let disconnectedCount = 0;
         let overlayDismissed = false;  // 标记用户是否已手动关闭遮罩
         const FAQ_URL = 'https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu';
-        
+
         function checkToolStatus() {
             const statusLight = document.getElementById('statusLight');
             const statusText = document.getElementById('statusText');
             const statusIndicator = document.getElementById('statusIndicator');
             const connectionOverlay = document.getElementById('connectionOverlay');
-            
+
             fetch('/_idv-login/list-games')
                 .then(response => {
                     if (!response.ok) {
@@ -1307,23 +1344,23 @@
                     statusIndicator.title = '工具连接失败，点击查看常见问题解答';
                     statusIndicator.style.cursor = 'pointer';
                     statusIndicator.classList.add('disconnected-state');
-                    statusIndicator.onclick = function() {
+                    statusIndicator.onclick = function () {
                         window.open(FAQ_URL, '_blank');
                     };
-                    
+
                     // 如果连续失败超过5秒（5次检查）且用户未手动关闭，显示全局遮罩
                     if (disconnectedCount >= 5 && !overlayDismissed && connectionOverlay && !connectionOverlay.classList.contains('show')) {
                         connectionOverlay.classList.add('show');
                     }
                 });
         }
-        
+
         // 打开FAQ并关闭遮罩层
         function openFAQAndCloseOverlay() {
             window.open(FAQ_URL, '_blank');
             dismissOverlay();
         }
-        
+
         // 关闭遮罩层
         function dismissOverlay() {
             overlayDismissed = true;  // 标记用户已手动关闭
@@ -1332,7 +1369,7 @@
                 connectionOverlay.classList.remove('show');
             }
         }
-        
+
         // 启动状态检查
         function startStatusCheck() {
             // 立即执行一次检查
@@ -1340,7 +1377,7 @@
             // 然后每1秒检查一次
             statusCheckInterval = setInterval(checkToolStatus, 1000);
         }
-        
+
         // 停止状态检查
         function stopStatusCheck() {
             if (statusCheckInterval) {
@@ -1352,7 +1389,7 @@
         function manual() {
             //获取channelSelect的值
             var selectedChannel = document.getElementById('channelSelect').value;
-            
+
             if (!selectedChannel) {
                 swal({
                     title: "请选择登录渠道",
@@ -1361,7 +1398,7 @@
                 });
                 return;
             }
-            
+
             swal({
                 title: "正在处理",
                 text: "正在执行手动登录，请稍候...如果在此界面停留过久，请参考教程文档->常见问题解决方案问题18",
@@ -1369,7 +1406,7 @@
                 buttons: false,
                 closeOnClickOutside: false,
             });
-            
+
             fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
