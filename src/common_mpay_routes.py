@@ -22,6 +22,7 @@ import sys
 import gevent
 from flask import request, jsonify, Response
 from envmgr import genv
+from login_stack_mgr import LoginStackManager
 
 
 LOGIN_METHODS = [
@@ -90,63 +91,7 @@ def register_mpay_routes(
     use_login_mapping_always=False,
     exchange_token_request=None,
 ):
-    def _get_pending_stacks():
-        stacks = genv.get("pending_login_info_stack", {})
-        return stacks if isinstance(stacks, dict) else {}
-
-    def _set_pending_stacks(stacks):
-        genv.set("pending_login_info_stack", stacks)
-
-    def _push_pending_login_info(game_id, process_id, login_info):
-        stacks = _get_pending_stacks()
-        stack = stacks.get(game_id, [])
-        if process_id:
-            stack = [item for item in stack if item.get("process_id") != process_id]
-        stack.append({
-            "process_id": process_id,
-            "login_info": login_info,
-        })
-        stacks[game_id] = stack
-        _set_pending_stacks(stacks)
-
-    def _ensure_pending_stack(game_id):
-        stacks = _get_pending_stacks()
-        stacks.setdefault(game_id, [])
-        _set_pending_stacks(stacks)
-
-    def _pop_pending_login_info(game_id, process_id=None):
-        stacks = _get_pending_stacks()
-        stack = stacks.get(game_id, [])
-        item = None
-        if process_id:
-            for i in range(len(stack) - 1, -1, -1):
-                if stack[i].get("process_id") == process_id:
-                    item = stack.pop(i)
-                    break
-        elif stack:
-            item = stack.pop()
-        stacks[game_id] = stack
-        _set_pending_stacks(stacks)
-        return item["login_info"] if item else None
-
-    def _get_cached_qrcode_stacks():
-        stacks = genv.get("cached_qrcode_data_stack", {})
-        return stacks if isinstance(stacks, dict) else {}
-
-    def _set_cached_qrcode_stacks(stacks):
-        genv.set("cached_qrcode_data_stack", stacks)
-
-    def _push_cached_qrcode_data(game_id, process_id, data):
-        stacks = _get_cached_qrcode_stacks()
-        stack = stacks.get(game_id, [])
-        if process_id:
-            stack = [item for item in stack if item.get("process_id") != process_id]
-        stack.append({
-            "process_id": process_id,
-            "data": data,
-        })
-        stacks[game_id] = stack
-        _set_cached_qrcode_stacks(stacks)
+    stack_mgr = LoginStackManager.get_instance()
     @app.route("/mpay/games/<game_id>/login_methods", methods=["GET"])
     def handle_login_methods(game_id):
         try:
@@ -249,8 +194,8 @@ def register_mpay_routes(
                 "uuid": resp.get_json()["uuid"],
                 "game_id": request.args["game_id"],
             }
-            _push_cached_qrcode_data(game_id, process_id, data)
-            _ensure_pending_stack(game_id)
+            stack_mgr.push_cached_qrcode_data(game_id, process_id, data)
+            stack_mgr.ensure_pending_stack(game_id)
             # auto login start
             if genv.get(f"auto-{request.args['game_id']}", "") != "":
                 delay = game_helper.get_login_delay(request.args["game_id"])
@@ -276,11 +221,20 @@ def register_mpay_routes(
             return proxy(request)
         else:
             resp: Response = proxy(request)
-            qrCodeStatus = resp.get_json()["qrcode"]["status"]
+            resp_json = resp.get_json()
+            game_id = request.args.get("game_id", "")
+            process_id = request.args.get("process_id", "")
+            print(resp_json)
+            if resp_json.get("code", -1) != -1:
+                #1345
+                stack_mgr.pop_cached_qrcode_data(game_id, process_id)
+                logger.error(f"扫码登录失败，错误码：{resp_json.get('code', -1)}，信息：{resp_json.get('reason', '')}")
+                pass
+            qrCodeStatus = resp_json["qrcode"]["status"]
             if qrCodeStatus == 2 and genv.get("CHANNEL_ACCOUNT_SELECTED") == "":
                 game_id = request.args.get("game_id", "")
                 process_id = request.args.get("process_id", "")
-                _push_pending_login_info(game_id, process_id, resp.get_json()["login_info"])
+                stack_mgr.push_pending_login_info(game_id, process_id, resp_json["login_info"])
             return resp
 
     @app.route("/mpay/api/users/login/qrcode/exchange_token", methods=['POST'])
@@ -309,7 +263,7 @@ def register_mpay_routes(
                 gevent.spawn_later(3, sys.exit, 0)
         else:
             if resp.status_code == 200:
-                pending_login_info = _pop_pending_login_info(game_id, process_id)
+                pending_login_info = stack_mgr.pop_pending_login_info(game_id, process_id)
                 if pending_login_info:
                     genv.get("CHANNELS_HELPER").import_from_scan(
                         pending_login_info, resp.get_json()
@@ -364,7 +318,7 @@ def register_mpay_routes(
         return resp
 
     def pop_pending_login_info(game_id, process_id=None):
-        return _pop_pending_login_info(game_id, process_id)
+        return stack_mgr.pop_pending_login_info(game_id, process_id)
 
     return pop_pending_login_info
 

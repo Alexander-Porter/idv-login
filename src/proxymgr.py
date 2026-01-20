@@ -36,6 +36,7 @@ import requests
 from channelHandler.channelUtils import getShortGameId
 from common_routes import register_common_idv_routes
 from common_mpay_routes import register_mpay_routes
+from login_stack_mgr import LoginStackManager
 
 
 def is_ipv4(s):
@@ -389,8 +390,7 @@ def after_request_func(response: Response):
 class proxymgr:
     def __init__(self) -> None:
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-        genv.set("cached_qrcode_data_stack", {})
-        genv.set("pending_login_info_stack", {})
+        LoginStackManager.get_instance().reset()
 
     def _is_port_in_use(self, port, host="127.0.0.1"):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

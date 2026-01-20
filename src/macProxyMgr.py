@@ -31,6 +31,7 @@ import psutil
 import subprocess
 from common_routes import register_common_idv_routes
 from common_mpay_routes import register_mpay_routes
+from login_stack_mgr import LoginStackManager
 
 
 app = Flask(__name__)
@@ -225,8 +226,7 @@ def after_request_func(response: Response):
 class macProxyMgr:
     def __init__(self) -> None:
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-        genv.set("cached_qrcode_data_stack", {})
-        genv.set("pending_login_info_stack", {})
+        LoginStackManager.get_instance().reset()
 
     def check_port(self):
         def is_port_in_use(port, host="127.0.0.1"):

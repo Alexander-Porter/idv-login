@@ -24,30 +24,11 @@ from flask import request, jsonify, Response
 from channelHandler.channelUtils import getShortGameId
 from envmgr import genv
 import const
+from login_stack_mgr import LoginStackManager
 
 
 def register_common_idv_routes(app, *, game_helper, logger):
-    def _get_cached_qrcode_stacks():
-        stacks = genv.get("cached_qrcode_data_stack", {})
-        return stacks if isinstance(stacks, dict) else {}
-
-    def _set_cached_qrcode_stacks(stacks):
-        genv.set("cached_qrcode_data_stack", stacks)
-
-    def _pop_cached_qrcode_data(game_id, process_id=None):
-        stacks = _get_cached_qrcode_stacks()
-        stack = stacks.get(game_id, [])
-        item = None
-        if process_id:
-            for i in range(len(stack) - 1, -1, -1):
-                if stack[i].get("process_id") == process_id:
-                    item = stack.pop(i)
-                    break
-        elif stack:
-            item = stack.pop()
-        stacks[game_id] = stack
-        _set_cached_qrcode_stacks(stacks)
-        return item["data"] if item else None
+    stack_mgr = LoginStackManager.get_instance()
     @app.route("/_idv-login/manualChannels", methods=["GET"])
     def _manual_list():
         try:
@@ -74,7 +55,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
     def _switch_channel():
         genv.set("CHANNEL_ACCOUNT_SELECTED", request.args["uuid"])
         game_id = request.args.get("game_id", "")
-        data = _pop_cached_qrcode_data(game_id) if game_id else None
+        data = stack_mgr.pop_cached_qrcode_data(game_id) if game_id else None
         if data:
             genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"], data["uuid"], data["game_id"])
         # debug only
