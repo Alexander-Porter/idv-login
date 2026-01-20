@@ -659,7 +659,8 @@
         }
 
         function switchChannel(uuid) {
-            fetch(`/_idv-login/switch?uuid=${uuid}`)
+            game_id = getQueryVariable("game_id");
+            fetch(`/_idv-login/switch?uuid=${uuid}&game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.current == uuid) {
