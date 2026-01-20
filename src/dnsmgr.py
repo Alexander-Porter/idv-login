@@ -40,7 +40,7 @@ class DNSResolver(object):
         #r = dns.query.udp(q,"114.114.114.114",timeout=2)
         try:
             r = dns.resolver.resolve(hostname, 'A')
-            self.logger.info(f"DNS 服务器地址:{r.nameserver}")
+            self.logger.debug(f"DNS 服务器地址:{r.nameserver}")
             for answer in r.response.answer:
                 answers.append(str(list(answer.items.keys())[0]))
             if answers:

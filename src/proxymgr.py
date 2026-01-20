@@ -488,7 +488,7 @@ class proxymgr:
         target_oversea = resolver.gethostbyname(genv.get("DOMAIN_TARGET_OVERSEA"))
         target_using_hardcoded_ip = False
         target_oversea_using_hardcoded_ip = False
-        logger.info(target)
+
 
         # result check
         try:

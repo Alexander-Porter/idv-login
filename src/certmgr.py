@@ -51,7 +51,7 @@ class certmgr:
                 self.logger.warning(f"证书 {cert_path} 已于 {cert.not_valid_after_utc} 过期。")
                 return True
             else:
-                self.logger.info(f"证书 {cert_path} 有效期至 {cert.not_valid_after_utc}。")
+                self.logger.debug(f"证书 {cert_path} 有效期至 {cert.not_valid_after_utc}。")
                 return False
         except Exception as e:
             self.logger.error(f"检查证书 {cert_path} 有效期失败: {e}", exc_info=True)

@@ -281,7 +281,6 @@ def initialize():
         HttpDNSBlocker().apply_blocking()
         logger.info(f"HTTPDNS屏蔽已启用，封锁了{len(HttpDNSBlocker().blocked)}个HTTPDNS IP")
     else:
-        logger.info("HTTPDNS屏蔽未启用")
         # 确保之前的屏蔽规则被清除
         HttpDNSBlocker().unblock_all()
     # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
