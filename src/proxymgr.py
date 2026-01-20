@@ -31,6 +31,7 @@ import json
 import os
 import psutil
 import subprocess
+import ssl
 import socket
 import requests
 from channelHandler.channelUtils import getShortGameId
@@ -53,9 +54,9 @@ def add_custom_dns(domain, port, ip):
     # https://docs.python.org/2/library/socket.html#socket.getaddrinfo
     # Values were taken from the output of `socket.getaddrinfo(...)`
     if is_ipv4(ip):
-        value = (socket.AddressFamily.AF_INET, 0, 0, "", (ip, port))
-    else:  # ipv6
-        value = (socket.AddressFamily.AF_INET6, 0, 0, "", (ip, port, 0, 0))
+        value = (socket.AddressFamily.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port))
+    else: # ipv6
+        value = (socket.AddressFamily.AF_INET6, socket.SOCK_STREAM, socket.IPPROTO_TCP, '', (ip, port, 0, 0))
     dns_cache[key] = [value]
 
 
