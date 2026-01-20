@@ -86,7 +86,10 @@ class miChannel(channelmgr.channel):
         except Exception as e:
             self.logger.error(f"Failed to get session data {e}")
             self.oAuthData = None
-            return None, None
+            self.request_user_login()
+            data = self.miLogin.initAccountData()
+            if data is None:
+                raise Exception("Failed to get session data after re-login")
         return data["appAccountId"], data["session"]
 
     def is_token_valid(self):
