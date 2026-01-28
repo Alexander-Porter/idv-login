@@ -363,6 +363,18 @@
         .connection-modal .btn-primary:hover {
             background: #c82333;
         }
+
+        #launcherIcon {
+            width: 96px;
+            height: 96px;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #f0f0f0;
+        }
+
+        #launcherIcon.hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -449,6 +461,65 @@
                         <select id="gameSelect" class="form-select" onchange="switchGame(this.value)">
                             <option value="" disabled selected>加载中...</option>
                         </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-rocket-takeoff me-2"></i>游戏启动器</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-3 text-center">
+                        <img id="launcherIcon" class="hidden" alt="launcher icon">
+                    </div>
+                    <div class="col-md-9">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <h5 class="mb-1" id="launcherTitle">加载中...</h5>
+                                <div class="text-muted small" id="launcherSubTitle">启动器信息</div>
+                            </div>
+                            <div class="text-muted small" id="launcherInstallPath">未安装</div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <small>开发商：<span id="launcherDeveloper">-</span></small>
+                            </div>
+                            <div class="col-md-6">
+                                <small>发行商：<span id="launcherPublisher">-</span></small>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <small>本地版本：<span id="launcherLocalVersion">-</span></small>
+                            </div>
+                            <div class="col-md-4">
+                                <small>目标版本：<span id="launcherTargetVersion">-</span></small>
+                            </div>
+                            <div class="col-md-4">
+                                <small>启动文件：<span id="launcherStartupPath">-</span></small>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label for="launcherDistributionSelect" class="form-label fw-bold">版本选择:</label>
+                            <select id="launcherDistributionSelect" class="form-select" onchange="updateLauncherDisplay()">
+                                <option value="" disabled selected>加载中...</option>
+                            </select>
+                        </div>
+                        <div id="launcherStatusBadges" class="d-flex flex-wrap gap-2 mt-3"></div>
+                        <div class="btn-group w-100 mt-3">
+                            <button id="launcherInstallBtn" onclick="installLauncher()" class="btn btn-outline-success">
+                                <i class="bi bi-download me-1"></i>安装/下载
+                            </button>
+                            <button id="launcherUpdateBtn" onclick="updateLauncher()" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-repeat me-1"></i>更新
+                            </button>
+                            <button id="launcherImportFeverBtn" onclick="importFeverLauncher()" class="btn btn-outline-secondary">
+                                <i class="bi bi-box-arrow-in-down me-1"></i>导入Fever
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1024,6 +1095,228 @@
                 });
         }
 
+        let launcherState = null;
+
+        function loadLauncherStatus() {
+            const game_id = getQueryVariable("game_id");
+            if (!game_id) return;
+            fetch(`/_idv-login/launcher-status?game_id=${game_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || '获取启动器信息失败');
+                    }
+                    launcherState = data;
+                    renderLauncherDistributionOptions();
+                    updateLauncherDisplay();
+                })
+                .catch(() => {
+                    launcherState = null;
+                    document.getElementById('launcherTitle').textContent = '启动器信息加载失败';
+                });
+        }
+
+        function renderLauncherDistributionOptions() {
+            const select = document.getElementById('launcherDistributionSelect');
+            select.innerHTML = '';
+            if (!launcherState || !launcherState.distributions || launcherState.distributions.length === 0) {
+                select.innerHTML = '<option value="" disabled selected>暂无版本</option>';
+                return;
+            }
+            const defaultId = launcherState.game.default_distribution;
+            launcherState.distributions.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.distribution_id;
+                option.text = `分发 ${item.distribution_id}`;
+                if (String(item.distribution_id) === String(defaultId)) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+        }
+
+        function updateLauncherDisplay() {
+            if (!launcherState) return;
+            const select = document.getElementById('launcherDistributionSelect');
+            let distId = select.value;
+            if (!distId && launcherState.distributions.length) {
+                distId = launcherState.distributions[0].distribution_id;
+                select.value = distId;
+            }
+            const dist = launcherState.distributions.find(item => String(item.distribution_id) === String(distId));
+            const launcher = dist ? (dist.launcher || {}) : {};
+
+            document.getElementById('launcherTitle').textContent = launcher.display_name || launcher.app_name || launcherState.game_id;
+            document.getElementById('launcherSubTitle').textContent = launcher.app_name || launcher.display_name || '启动器信息';
+            document.getElementById('launcherDeveloper').textContent = launcher.developer || '-';
+            document.getElementById('launcherPublisher').textContent = launcher.publisher || '-';
+            document.getElementById('launcherLocalVersion').textContent = launcherState.game.version || '未知';
+            document.getElementById('launcherTargetVersion').textContent = dist && dist.target_version ? dist.target_version : '未知';
+            document.getElementById('launcherStartupPath').textContent = launcher.startup_path || '未知';
+            document.getElementById('launcherInstallPath').textContent = launcherState.game.installed ? (launcherState.game.path || '已安装') : '未安装';
+
+            const iconEl = document.getElementById('launcherIcon');
+            const iconSrc = launcher.logo || launcher.icon || '';
+            if (iconSrc) {
+                iconEl.src = iconSrc;
+                iconEl.classList.remove('hidden');
+            } else {
+                iconEl.classList.add('hidden');
+            }
+
+            const badges = [];
+            badges.push({ text: launcherState.game.installed ? '已安装' : '未安装', color: launcherState.game.installed ? 'success' : 'secondary' });
+            badges.push({ text: dist && dist.can_update ? '可更新' : '无需更新', color: dist && dist.can_update ? 'warning' : 'secondary' });
+            badges.push({ text: dist && dist.can_download ? '可下载' : '不可下载', color: dist && dist.can_download ? 'info' : 'secondary' });
+            badges.push({ text: launcherState.game.can_convert ? '可转换' : '无需转换', color: launcherState.game.can_convert ? 'primary' : 'secondary' });
+            if (launcherState.game.is_fever) {
+                badges.push({ text: 'Fever版本', color: 'dark' });
+            }
+            const badgeContainer = document.getElementById('launcherStatusBadges');
+            badgeContainer.innerHTML = '';
+            badges.forEach(item => {
+                const span = document.createElement('span');
+                span.className = `badge bg-${item.color}`;
+                span.textContent = item.text;
+                badgeContainer.appendChild(span);
+            });
+
+            const installBtn = document.getElementById('launcherInstallBtn');
+            const updateBtn = document.getElementById('launcherUpdateBtn');
+            const importBtn = document.getElementById('launcherImportFeverBtn');
+            installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
+            updateBtn.disabled = !(dist && dist.can_update);
+            importBtn.disabled = !launcherState.can_import_fever;
+        }
+
+        function installLauncher() {
+            if (!launcherState) return;
+            const distId = document.getElementById('launcherDistributionSelect').value;
+            if (!distId) return;
+            swal({
+                title: "开始安装",
+                text: "请选择安装目录并等待下载完成",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+            });
+            fetch(`/_idv-login/launcher-install?game_id=${launcherState.game_id}&distribution_id=${distId}`)
+                .then(response => response.json())
+                .then(data => {
+                    swal.close();
+                    if (data.success) {
+                        swal({
+                            title: "安装完成",
+                            text: data.converted ? "下载完成并已完成转换" : "下载完成",
+                            icon: "success",
+                            button: "确定",
+                        }).then(() => {
+                            loadGameList();
+                            loadLauncherStatus();
+                        });
+                    } else {
+                        swal({
+                            title: "安装失败",
+                            text: data.error || "安装过程失败",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(() => {
+                    swal({
+                        title: "请求失败",
+                        text: "无法连接到服务器",
+                        icon: "error",
+                        button: "确定",
+                    });
+                });
+        }
+
+        function updateLauncher() {
+            if (!launcherState) return;
+            const distId = document.getElementById('launcherDistributionSelect').value;
+            if (!distId) return;
+            swal({
+                title: "正在更新",
+                text: "请稍候...",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+            });
+            fetch(`/_idv-login/launcher-update?game_id=${launcherState.game_id}&distribution_id=${distId}`)
+                .then(response => response.json())
+                .then(data => {
+                    swal.close();
+                    if (data.success) {
+                        swal({
+                            title: "更新完成",
+                            text: data.converted ? "更新完成并已完成转换" : "更新完成",
+                            icon: "success",
+                            button: "确定",
+                        }).then(() => {
+                            loadLauncherStatus();
+                        });
+                    } else {
+                        swal({
+                            title: "更新失败",
+                            text: data.error || "更新过程失败",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(() => {
+                    swal({
+                        title: "请求失败",
+                        text: "无法连接到服务器",
+                        icon: "error",
+                        button: "确定",
+                    });
+                });
+        }
+
+        function importFeverLauncher() {
+            if (!launcherState) return;
+            swal({
+                title: "导入中...",
+                text: "正在导入Fever平台游戏记录",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+            });
+            fetch(`/_idv-login/launcher-import-fever?game_id=${launcherState.game_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    swal.close();
+                    if (data.success) {
+                        swal({
+                            title: "导入完成",
+                            icon: "success",
+                            button: "确定",
+                        }).then(() => {
+                            loadGameList();
+                            loadLauncherStatus();
+                        });
+                    } else {
+                        swal({
+                            title: "导入失败",
+                            text: data.error || "未找到可导入记录",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(() => {
+                    swal({
+                        title: "请求失败",
+                        text: "无法连接到服务器",
+                        icon: "error",
+                        button: "确定",
+                    });
+                });
+        }
+
         // 在页面加载时获取账号列表
         window.onload = function () {
             //获得query参数game_id
@@ -1155,6 +1448,7 @@
 
                 // 加载自动启动设置
                 loadAutoStartSettings();
+                loadLauncherStatus();
             }
         }
 

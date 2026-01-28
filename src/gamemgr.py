@@ -16,17 +16,27 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
+import hashlib
 import os
 import json
 import subprocess
 import sys
 import time
-from typing import Dict, List, Optional
-
+import winreg
+import base64
+from typing import Dict, List, Optional, Tuple
+import xxhash
 from channelHandler.channelUtils import getShortGameId
 from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
+
+def calculate_xxh64(file_path):
+    h = xxhash.xxh64() # 初始化 64位 对象
+    with open(file_path, "rb") as f:
+        while chunk := f.read(1024 * 1024):
+            h.update(chunk)
+    return h.hexdigest()
 
 class Game:
     def __init__(
@@ -37,7 +47,9 @@ class Game:
         should_auto_start: bool = False,
         auto_close_after_login: bool = False,
         login_delay: int = 6,
-        last_used_time: int = 0
+        last_used_time: int = 0,
+        version: str = "",
+        default_distribution: int = -1,
     ) -> None:
         self.game_id = game_id
         self.name = name if name else game_id
@@ -47,6 +59,8 @@ class Game:
         self.login_delay = login_delay
         self.last_used_time = last_used_time or int(time.time())
         self.logger = setup_logger()
+        self.version = version
+        self.default_distribution = default_distribution
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -57,7 +71,9 @@ class Game:
             should_auto_start=data.get("should_auto_start", False),
             auto_close_after_login=data.get("auto_close_after_login", True),
             last_used_time=data.get("last_used_time", int(time.time())),
-            login_delay=data.get("login_delay", 6)
+            login_delay=data.get("login_delay", 6),
+            version=data.get("version", ""),
+            default_distribution=data.get("default_distribution", -1)
         )
 
     def to_dict(self) -> dict:
@@ -68,7 +84,9 @@ class Game:
             "should_auto_start": self.should_auto_start,
             "auto_close_after_login": self.auto_close_after_login,
             "last_used_time": self.last_used_time,
-            "login_delay": self.login_delay
+            "login_delay": self.login_delay,
+            "version": self.version,
+            "default_distribution": self.default_distribution
         }
 
     def get_non_sensitive_data(self) -> dict:
@@ -161,6 +179,221 @@ class Game:
         else:
             pass
 
+    def get_root_path(self) -> str:
+        """获取游戏根目录"""
+        if not self.path:
+            return ""
+        return os.path.dirname(self.path)
+    
+    def _normalize_distribution_ids(self, distributions: List) -> List[int]:
+        result = []
+        for dist in distributions:
+            dist_id = None
+            if isinstance(dist, dict):
+                dist_id = dist.get("distribution_id")
+                if dist_id is None:
+                    dist_id = dist.get("app_id")
+            else:
+                dist_id = dist
+            if dist_id is None:
+                continue
+            try:
+                result.append(int(dist_id))
+            except (TypeError, ValueError):
+                continue
+        return result
+
+    def get_distributions(self) -> List[int]:
+        """获取游戏可用的分发ID列表"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        distributions = cloud_res.get_download_distributions(short_game_id)
+        return self._normalize_distribution_ids(distributions)
+        
+    def get_launcher_data_for_distribution(self, distribution_id: int) -> Optional[dict]:
+        """获取指定分发ID的启动器数据"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        distributions = cloud_res.get_download_distributions(short_game_id)
+        distribution_ids = self._normalize_distribution_ids(distributions)
+        if distribution_ids and distribution_id not in distribution_ids:
+            return None
+        import requests
+        try:
+            url=f"https://loadingbaycn.webapp.163.com/app/v1/game_library/app?force=1&app_id={distribution_id}"
+            headers={
+                "User-Agent": "",
+            }
+            response=requests.get(url,headers=headers,timeout=10)
+            if response.status_code!=200 or response.json().get("code")!=200:
+                self.logger.error(f"请求启动器信息失败，状态码: {response.status_code}")
+                return None
+            return response.json().get("data", {})
+        except Exception as e:
+            self.logger.exception(f"请求启动器信息失败: {str(e)}")
+        return None
+    
+    def get_file_distribution_info(self, distribution_id: int) -> Optional[dict]:
+        """获取指定分发ID的文件分发信息"""
+        try:
+            #https://loadingbaycn.webapp.163.com/app/v1/file_distribution/download_app?app_id=
+            import requests
+            url=f"https://loadingbaycn.webapp.163.com/app/v1/file_distribution/download_app?app_id={distribution_id}"
+            headers={
+                "User-Agent": "",
+            }
+            response=requests.get(url,headers=headers,timeout=10)
+            if response.status_code!=200 or response.json().get("code")!=200:
+                return None
+            return response.json().get("data", {}).get("main_content", {})
+        except Exception as e:
+            self.logger.exception(f"请求文件分发信息失败: {str(e)}")
+            return None
+            
+    def try_update(self, distribution_id: int, max_concurrent_files: int) -> bool:
+        """尝试将游戏更新到指定分发ID的版本"""
+        download_root = self.get_root_path()
+        if not download_root or not os.path.exists(download_root):
+            self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
+            return False
+        file_distribution_info = self.get_file_distribution_info(distribution_id)
+        if not file_distribution_info:
+            self.logger.error(f"未找到分发ID {distribution_id} 的文件分发信息")
+            return False
+        import game_updater
+        files = file_distribution_info.get("files", [])
+        directories = file_distribution_info.get("directories", [])
+        check_result, to_update = self.version_check(files)
+        #version_code=file_distribution_info.get("version_code", "")
+        #v3_2547
+        to_be_removed=[]
+        for file_candidate in to_update:
+            if file_candidate.get("url","")=="":
+                to_be_removed.append(file_candidate)
+        for file_candidate in to_be_removed:
+            to_update.remove(file_candidate)
+        if not check_result:
+            updater = game_updater.GameUpdater(
+                download_root=download_root,
+                concurrent_files=max_concurrent_files,
+                directories=directories,
+                files=to_update
+            )
+            result = updater.start()
+            if result:
+                self.version = file_distribution_info.get("version_code", self.version)
+                return True
+            else:
+                self.logger.error(f"游戏更新失败")
+                return False
+        else:
+            self.logger.info(f"游戏已是最新版本，无需更新")
+            return True
+    def need_update(self, distribution_id: int) -> bool:
+        """检查游戏是否需要更新到指定分发ID的版本"""
+        if not self.path or not os.path.exists(self.path):
+            return False
+        if not CloudRes().is_downloadable(getShortGameId(self.game_id)):
+            return False
+        file_distribution_info = self.get_file_distribution_info(distribution_id)
+        if not file_distribution_info:
+            self.logger.error(f"未找到分发ID {distribution_id} 的文件分发信息")
+            return False
+        files = file_distribution_info.get("files", [])
+        check_result, to_update = self.version_check(files)
+        return not check_result
+    
+
+    def version_check(self,files: List[dict]) -> Tuple[bool, List[dict]]:
+        """检查游戏版本是否匹配, 返回需要更新的文件列表"""
+        if not self.get_root_path() or not os.path.exists(self.get_root_path()):
+            return False, files
+        to_update = []
+        for file_info in files:
+            #file_info中的是相对路径
+            if file_info.get("op",1)!=1:
+                continue
+            file_path = os.path.join(self.get_root_path(), file_info.get("path", ""))
+            if not os.path.exists(file_path):
+                to_update.append(file_info)
+                continue
+            #计算xxh64值
+            local_xxh64 = calculate_xxh64(file_path)
+            if local_xxh64 != file_info.get("xxh", ""):
+                to_update.append(file_info)
+        return len(to_update) == 0, to_update
+
+    def convert_to_normal(self) -> bool:
+        """将Fever版本转换为普通版本"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        if not cloud_res.is_convert_to_normal(short_game_id):
+            self.logger.info(f"游戏 {self.game_id} 不需要转换")
+            return False
+        #检查游戏exe同目录下的pack_config.xml文件，将其更名为pack_config.xml.bak
+        if not self.path or not os.path.exists(self.path):
+            self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
+            return False
+        game_dir=os.path.dirname(self.path)
+        pack_config_path=os.path.join(game_dir,"pack_config.xml")
+        if os.path.exists(pack_config_path):
+            bak_path=pack_config_path+".bak"
+            try:
+                os.rename(pack_config_path,bak_path)
+                self.logger.info(f"成功将 {pack_config_path} 重命名为 {bak_path}")
+                return True
+            except Exception as e:
+                self.logger.exception(f"重命名文件失败: {str(e)}")
+                return False
+        else:
+            self.logger.error(f"未找到需要转换的文件: {pack_config_path}")
+            return False
+        
+    def is_downloadable_fever(self) -> bool:
+        """检查游戏是否有Fever版本可供下载"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        return cloud_res.is_downloadable(short_game_id)
+    
+    def get_distribution_options(self) -> List[dict]:
+        """获取游戏的分发选项"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        return cloud_res.get_download_distributions(short_game_id)
+    
+    def get_default_distribution(self) -> int:
+        """获取游戏的默认分发ID"""
+        return self.default_distribution
+    def set_default_distribution(self, distribution_id: int=-1) -> None:
+        """设置游戏的默认分发ID"""
+        if distribution_id==-1:
+            distributions = self.get_distributions()
+            if distributions:
+                self.default_distribution = distributions[0]
+            else:
+                self.default_distribution = -1
+        else:
+            self.default_distribution = distribution_id
+    
+    def get_version(self) -> str:
+        """获取游戏版本号"""
+        return self.version
+    
+    def is_fever(self)-> bool:
+        """检查游戏是否为Fever版本"""
+        if not self.path or not os.path.exists(self.path):
+            self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
+            return False
+        game_dir=os.path.dirname(self.path)
+        pack_config_path=os.path.join(game_dir,"pack_config.xml")
+        return os.path.exists(pack_config_path)
+    
+    def can_convert_to_normal(self) -> bool:
+        """检查游戏是否可以转换为普通版本"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(self.game_id)
+        return cloud_res.is_convert_to_normal(short_game_id) and self.is_fever()
+    
 
 class GameManager:
     GAMES_CACHE_KEY = "game_settings"
@@ -211,6 +444,28 @@ class GameManager:
             self._save_games()
             
         return self.games.get(game_id)
+
+    def get_existing_game(self, game_id: str) -> Optional[Game]:
+        if not game_id:
+            return None
+        if game_id in self.games:
+            return self.games.get(game_id)
+        for key in self.games.keys():
+            common_len = 0
+            for a, b in zip(reversed(game_id), reversed(key)):
+                if a == b:
+                    common_len += 1
+                else:
+                    break
+            if common_len >= 3:
+                return self.games.get(key)
+        return None
+
+    def get_game_or_temp(self, game_id: str) -> Optional[Game]:
+        game = self.get_existing_game(game_id)
+        if game:
+            return game
+        return Game(game_id=game_id)
 
     def list_games(self) -> List[dict]:
         """列出所有已保存的游戏信息"""
@@ -286,6 +541,17 @@ class GameManager:
             return True
         return False
 
+    def set_game_default_distribution(self, game_id: str, distribution_id: int) -> bool:
+        if not game_id:
+            return False
+        game = self.get_game(game_id)
+        if game:
+            game.set_default_distribution(distribution_id)
+            game.last_used_time = int(time.time())
+            self._save_games()
+            return True
+        return False
+
     def set_auto_close_setting(self, game_id: str, auto_close: bool) -> bool:
         """设置登录后是否自动关闭工具"""
         if not game_id:
@@ -329,21 +595,162 @@ class GameManager:
         if game:
             return game.login_delay
         return 6
+
+    def get_game_default_launcher_data(self, game_id: str) -> int:
+        """获取游戏的默认启动器分发ID"""
+        game = self.get_game(game_id)
+        if game and game.default_distribution != -1:
+            return game.get_launcher_data_for_distribution(game.default_distribution)
+        return None
     
-    def check_fever_convert(self, game_id: str) -> bool:
-        """检查游戏是否需要进行Fever ID转换"""
-        cloud_res = CloudRes()
-        short_game_id = getShortGameId(game_id)
-        return cloud_res.is_convert_to_normal(short_game_id)
+    def get_game_version(self, game_id: str) -> str:
+        """获取游戏版本号"""
+        game = self.get_game(game_id)
+        if game:
+            return game.get_version()
+        return ""
     
-    def check_fever_download(self, game_id: str) -> bool:
-        """检查游戏是否需要下载Fever版本"""
-        cloud_res = CloudRes()
-        short_game_id = getShortGameId(game_id)
-        return cloud_res.is_downloadable(short_game_id)
+    def get_game_distribution_options(self, game_id: str) -> List[dict]:
+        """获取游戏的分发选项"""
+        game = self.get_game(game_id)
+        if game:
+            return game.get_distribution_options()
+        return []
     
-    def get_fever_download_options(self, game_id: str) -> List[dict]:
-        """获取游戏的Fever版本下载选项"""
-        cloud_res = CloudRes()
-        short_game_id = getShortGameId(game_id)
-        return cloud_res.get_download_distributions(short_game_id)
+    def get_game_launcher_data_for_distribution(self, game_id: str, distribution_id: int) -> Optional[dict]:
+        """获取指定分发ID的启动器数据"""
+        game = self.get_game(game_id)
+        if game:
+            return game.get_launcher_data_for_distribution(distribution_id)
+        return None
+    
+
+    def list_fever_games(self) -> List[dict]:
+        if sys.platform != "win32":
+            return []
+        result = []
+        try:
+            base_path = r"Software\FeverGames\FeverGamesInstaller\game"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, base_path) as key:
+                index = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(key, index)
+                        subkey_path = f"{base_path}\\{subkey_name}"
+                        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey_path) as subkey:
+                            game_info_value = None
+                            last_install_path = None
+                            running_process_name = None
+                            try:
+                                game_info_value, _ = winreg.QueryValueEx(subkey, "GameInfo")
+                            except FileNotFoundError:
+                                pass
+                            try:
+                                last_install_path, _ = winreg.QueryValueEx(subkey, "LastInstallPath")
+                            except FileNotFoundError:
+                                pass
+                            try:
+                                running_process_name, _ = winreg.QueryValueEx(subkey, "RunningProcessName")
+                            except FileNotFoundError:
+                                pass
+                            if not all([game_info_value, last_install_path, running_process_name]):
+                                index += 1
+                                continue
+                            game_info_value = str(game_info_value)
+                            if game_info_value.startswith("@ByteArray(") and game_info_value.endswith(")"):
+                                game_info_value = game_info_value[11:-1]
+                            decoded_bytes = base64.b64decode(game_info_value)
+                            decoded_str = decoded_bytes.decode('utf-8')
+                            game_info_json = json.loads(decoded_str)
+                            game_id = game_info_json.get('game_id')
+                            display_name = game_info_json.get('display_name')
+                            if not game_id:
+                                index += 1
+                                continue
+                            executable_path = os.path.join(last_install_path, running_process_name)
+                            result.append({
+                                "game_id": game_id,
+                                "display_name": display_name,
+                                "path": executable_path,
+                                "distribution_id": int(subkey_name)
+                            })
+                            index += 1
+                    except OSError:
+                        break
+        except Exception:
+            self.logger.exception("读取Fever游戏列表失败")
+        return result
+
+    def import_fever_game(self, game_id: str) -> bool:
+        if not game_id:
+            return False
+        fever_games = self.list_fever_games()
+        target = None
+        for item in fever_games:
+            if item.get("game_id") == game_id:
+                target = item
+                break
+        if not target:
+            return False
+        executable_path = target.get("path", "")
+        if not executable_path:
+            return False
+        game = self.games.get(game_id)
+        display_name = target.get("display_name")
+        distribution_id = target.get("distribution_id", -1)
+        if game:
+            if display_name:
+                game.name = display_name
+            game.path = executable_path
+            if distribution_id != -1:
+                game.default_distribution = distribution_id
+        else:
+            game = Game(
+                game_id=game_id,
+                name=display_name if display_name else game_id,
+                path=executable_path
+            )
+            if distribution_id != -1:
+                game.default_distribution = distribution_id
+            self.games[game_id] = game
+        self._save_games()
+        return True
+
+    def import_from_fever(self):
+        if sys.platform != "win32":
+            return
+        try:
+            fever_games = self.list_fever_games()
+            for item in fever_games:
+                game_id = item.get("game_id")
+                if not game_id:
+                    continue
+                executable_path = item.get("path", "")
+                display_name = item.get("display_name")
+                distribution_id = item.get("distribution_id", -1)
+                game = self.games.get(game_id)
+                if game:
+                    if display_name:
+                        game.name = display_name
+                    game.path = executable_path
+                    if distribution_id != -1:
+                        game.default_distribution = distribution_id
+                else:
+                    game = Game(
+                        game_id=game_id,
+                        name=display_name if display_name else game_id,
+                        path=executable_path
+                    )
+                    if distribution_id != -1:
+                        game.default_distribution = distribution_id
+                    self.games[game_id] = game
+            self._save_games()
+        except Exception:
+            self.logger.exception("导入Fever游戏失败")
+if __name__ == "__main__":
+    game_mgr = GameManager()
+    game_mgr.import_from_fever()
+    game_mgr._save_games()
+    g=game_mgr.get_game("h55")
+    g.try_update(g.default_distribution,max_concurrent_files=1)
+    

@@ -30,6 +30,24 @@ from login_stack_mgr import LoginStackManager
 
 def register_common_idv_routes(app, *, game_helper, logger):
     stack_mgr = LoginStackManager.get_instance()
+    def _pick_launcher_fields(launcher_data):
+        if not launcher_data:
+            return {}
+        keys = [
+            "app_id",
+            "app_name",
+            "display_name",
+            "logo",
+            "icon",
+            "main_image",
+            "developer",
+            "publisher",
+            "version_code",
+            "startup_path",
+            "startup_params",
+        ]
+        return {key: launcher_data.get(key) for key in keys}
+
     @app.route("/_idv-login/manualChannels", methods=["GET"])
     def _manual_list():
         try:
@@ -288,6 +306,146 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 "success": False,
                 "error": str(e)
             })
+
+    @app.route("/_idv-login/launcher-status", methods=["GET"])
+    def _launcher_status():
+        try:
+            game_id = request.args["game_id"]
+            short_game_id = getShortGameId(game_id)
+            game = game_helper.get_existing_game(game_id)
+            game_for_remote = game_helper.get_game_or_temp(game_id)
+            distribution_ids = game_for_remote.get_distributions()
+            installed = bool(game and game.path and os.path.exists(game.path))
+            is_fever = bool(game and game.path and game.is_fever())
+            can_convert = bool(game and game.path and game.can_convert_to_normal())
+            current_version = game.get_version() if game else ""
+            default_distribution = game.get_default_distribution() if game else -1
+            fever_info = None
+            for item in game_helper.list_fever_games():
+                if item.get("game_id") == game_id:
+                    fever_info = item
+                    break
+            can_import_fever = bool(fever_info) and (not game or not game.path or (fever_info.get("path") and fever_info.get("path") != game.path))
+            distributions = []
+            for dist_id in distribution_ids:
+                launcher_data = game_for_remote.get_launcher_data_for_distribution(dist_id)
+                file_info = game_for_remote.get_file_distribution_info(dist_id)
+                target_version = file_info.get("version_code", "") if file_info else ""
+                can_download = CloudRes().is_downloadable(short_game_id) and file_info is not None
+                can_update = bool(game and installed and game.need_update(dist_id))
+                distributions.append({
+                    "distribution_id": dist_id,
+                    "launcher": _pick_launcher_fields(launcher_data),
+                    "target_version": target_version,
+                    "can_download": can_download,
+                    "can_update": can_update
+                })
+            return jsonify({
+                "success": True,
+                "game_id": game_id,
+                "game": {
+                    "installed": installed,
+                    "path": game.path if game else "",
+                    "version": current_version,
+                    "is_fever": is_fever,
+                    "can_convert": can_convert,
+                    "default_distribution": default_distribution
+                },
+                "distributions": distributions,
+                "can_import_fever": can_import_fever,
+                "fever": fever_info or {}
+            })
+        except Exception as e:
+            logger.exception("获取启动器状态失败")
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            })
+
+    @app.route("/_idv-login/launcher-install", methods=["GET"])
+    def _launcher_install():
+        try:
+            if sys.platform != "win32":
+                return jsonify({"success": False, "error": "当前平台不支持安装"}), 400
+            game_id = request.args["game_id"]
+            distribution_id = int(request.args["distribution_id"])
+            game = game_helper.get_game(game_id)
+            launcher_data = game.get_launcher_data_for_distribution(distribution_id)
+            if not launcher_data:
+                return jsonify({"success": False, "error": "未找到启动器信息"}), 404
+            startup_path = launcher_data.get("startup_path", "")
+            if not startup_path:
+                return jsonify({"success": False, "error": "启动器缺少启动路径"}), 400
+            from PyQt5.QtWidgets import QApplication, QFileDialog
+            from PyQt5.QtCore import Qt
+            app_inst = QApplication.instance()
+            if app_inst is None:
+                app_inst = QApplication(sys.argv)
+            desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+            target_dir = QFileDialog.getExistingDirectory(
+                None,
+                "选择安装目录",
+                desktop_path,
+                QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+            )
+            if not target_dir:
+                return jsonify({"success": False, "error": "用户取消选择安装目录"}), 400
+            os.makedirs(target_dir, exist_ok=True)
+            game_path = os.path.join(target_dir, startup_path)
+            display_name = launcher_data.get("display_name") or launcher_data.get("app_name") or game_id
+            game_helper.rename_game(game_id, display_name)
+            game_helper.set_game_path(game_id, game_path)
+            game_helper.set_game_default_distribution(game_id, distribution_id)
+            max_concurrent = int(request.args.get("concurrent", "4"))
+            updated = game.try_update(distribution_id, max_concurrent)
+            converted = False
+            if updated and game.can_convert_to_normal():
+                converted = game.convert_to_normal()
+            game_helper._save_games()
+            return jsonify({
+                "success": updated,
+                "converted": converted,
+                "path": game_path,
+                "version": game.get_version()
+            })
+        except Exception as e:
+            logger.exception("安装启动器失败")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/_idv-login/launcher-update", methods=["GET"])
+    def _launcher_update():
+        try:
+            game_id = request.args["game_id"]
+            distribution_id = int(request.args["distribution_id"])
+            game = game_helper.get_existing_game(game_id)
+            if not game or not game.path or not os.path.exists(game.path):
+                return jsonify({"success": False, "error": "未找到已安装的游戏"}), 404
+            max_concurrent = int(request.args.get("concurrent", "4"))
+            updated = game.try_update(distribution_id, max_concurrent)
+            converted = False
+            if updated and game.can_convert_to_normal():
+                converted = game.convert_to_normal()
+            game_helper._save_games()
+            return jsonify({
+                "success": updated,
+                "converted": converted,
+                "version": game.get_version()
+            })
+        except Exception as e:
+            logger.exception("更新启动器失败")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/_idv-login/launcher-import-fever", methods=["GET"])
+    def _launcher_import_fever():
+        try:
+            game_id = request.args["game_id"]
+            success = game_helper.import_fever_game(game_id)
+            if not success:
+                return jsonify({"success": False, "error": "未找到可导入的Fever游戏记录"}), 404
+            return jsonify({"success": True})
+        except Exception as e:
+            logger.exception("导入Fever游戏失败")
+            return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route("/_idv-login/defaultChannel", methods=["GET"])
     def get_default():

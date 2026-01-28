@@ -13,3 +13,4 @@ PyQtWebEngine
 loguru
 aiohttp
 aiofiles
+xxhash

@@ -331,13 +331,13 @@ class Pypdl:
             info_parts = []
             if self.total_task > 1:
                 info_parts.append(
-                    f"Total Downloads: {self.completed_task}/{self.total_task}"
+                    f"下载进度 {self.completed_task}/{self.total_task}"
                 )
             info_parts.extend(
                 [
-                    f"Size: {utils.to_mb(self.size):.2f} MB",
-                    f"Speed: {self.speed:.2f} MB/s",
-                    f"ETA: {utils.seconds_to_hms(self.eta)}",
+                    f"大小: {utils.to_mb(self.size):.2f} MB",
+                    f"速度: {self.speed:.2f} MB/s",
+                    f"预计时间: {utils.seconds_to_hms(self.eta)}",
                 ]
             )
             info_line = ", ".join(info_parts)
@@ -348,5 +348,5 @@ class Pypdl:
             else:
                 progress_bar = utils.pad_line("Downloading...")
 
-            info_line = f"Total Downloads: {self.completed_task}/{self.total_task}, Downloaded Size: {utils.to_mb(self.current_size):.2f} MB, Speed: {self.speed:.2f} MB/s"
+            info_line = f"总下载数: {self.completed_task}/{self.total_task}, 已下载大小: {utils.to_mb(self.current_size):.2f} MB, 速度: {self.speed:.2f} MB/s"
             print(f"{progress_bar}\n{utils.pad_line(info_line)}")
