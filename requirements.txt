@@ -11,3 +11,5 @@ dnspython
 PyQt5
 PyQtWebEngine
 loguru
+aiohttp
+aiofiles

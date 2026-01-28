@@ -1,15 +1,16 @@
 import json
 import os
 from pathlib import Path
-from pypdl import Pypdl,pypdl
+
+from pypdl import Pypdl
 import logging
-logging.basicConfig(level=logging.DEBUG)
+
 class GameUpdater:
     def __init__(self, download_root, concurrent_files=2):
         self.root = Path(download_root)
         # 1. 实例化官方 pypdl 对象
         # allow_reuse=True 允许在多次 start 之间复用 session
-        print(Pypdl,pypdl)
+
         self.dl = Pypdl(allow_reuse=True, max_concurrent=concurrent_files)
         
         # 用于存储 {文件路径: 期望MD5} 的映射表，供回调使用
