@@ -169,6 +169,10 @@ def register_mpay_routes(
     @app.route("/mpay/games/pc_config", methods=["GET"])
     def handle_pc_config():
         try:
+            #发烧平台-开始
+            if request.args.get("game_id","")=="aecglf6ee4aaaarz-g-a50":
+                return proxy(request)
+            #发烧平台-结束
             resp: Response = requestGetAsCv(request, cv)
             new_config = resp.get_json()
             new_config["game"]["config"]["cv_review_status"] = 1
@@ -195,8 +199,18 @@ def register_mpay_routes(
                 "uuid": resp.get_json()["uuid"],
                 "game_id": request.args["game_id"],
             }
-            stack_mgr.push_cached_qrcode_data(game_id, process_id, data)
-            stack_mgr.ensure_pending_stack(game_id)
+            ## 发烧平台-开始
+            if query.get("dst_jf_game_id","")!="":
+                data["dst_jf_game_id"]=query["dst_jf_game_id"]
+                if genv.get("has_opened_admin",False):
+                    import webbrowser
+                    genv.set("has_opened_admin",1)
+                    webbrowser.open("https://localhost/_idv-login/index?game_id="+query["dst_jf_game_id"])
+                stack_mgr.push_cached_qrcode_data(query["dst_jf_game_id"], process_id, data)
+                stack_mgr.ensure_pending_stack(query["dst_jf_game_id"])
+            else:
+                stack_mgr.push_cached_qrcode_data(game_id, process_id, data)
+                stack_mgr.ensure_pending_stack(game_id)
             # auto login start
             if genv.get(f"auto-{request.args['game_id']}", "") != "":
                 delay = game_helper.get_login_delay(request.args["game_id"])
@@ -208,7 +222,7 @@ def register_mpay_routes(
                     genv.get("CHANNELS_HELPER").simulate_scan,
                     uuid,
                     data["uuid"],
-                    data["game_id"],
+                    data["game_id"]
                 )
             new_config = resp.get_json()
             new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id=" + request.args["game_id"]

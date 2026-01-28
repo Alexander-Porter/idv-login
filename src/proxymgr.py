@@ -377,6 +377,13 @@ def toggle_httpdns_blocking():
         return jsonify({"success": False, "message": f"操作失败：{str(e)}"}), 500
 
 
+@app.before_request
+def before_request_func():
+    if "_idv-login" in request.url:
+        return
+    logger.info(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
+
+
 @app.after_request
 def after_request_func(response: Response):
     # 如果是图片响应,直接返回
@@ -385,15 +392,19 @@ def after_request_func(response: Response):
 
     # 只log出现错误的请求
     if (
-        response.status_code != 200
-        and response.status_code != 302
-        and response.status_code != 301
-        and response.status_code != 304
+        (
+            response.status_code != 200
+            and response.status_code != 302
+            and response.status_code != 301
+            and response.status_code != 304
+        )
+        # debug
+        or "_idv-login" not in request.url
     ):
-        logger.error(
+        logger.info(
             f"请求 {request.url} {request.headers} {request.get_data().decode()}"
         )
-        logger.error(
+        logger.info(
             f"发送 {response.status} {response.headers} {response.get_data().decode()}"
         )
     else:

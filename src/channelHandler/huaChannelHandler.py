@@ -21,6 +21,7 @@ import time
 import base64
 import channelmgr
 
+from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
 from channelHandler.channelUtils import getShortGameId

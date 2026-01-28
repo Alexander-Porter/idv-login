@@ -90,6 +90,15 @@ class CloudRes:
             if item.get('game_id') == shortGameId:
                 return item
         return None
+    
+    #same with data, but key is feature_game_short_ids
+    def get_feature_by_game_id(self,shortGameId):
+        data=self.local_data.get('feature_game_short_ids', [])
+        for item in data:
+            if item.get('game_id') == shortGameId:
+                return item
+        return None
+    
     def get_all_by_game_id(self,shortGameId):
         data=self.local_data.get('data', [])
         result = []
@@ -153,3 +162,21 @@ class CloudRes:
     
     def is_update_critical(self):
         return self.local_data.get('critical_update', False)
+    
+    def get_download_distributions(self,shortGameId):
+        features = self.get_feature_by_game_id(shortGameId)
+        if not features:
+            return []
+        return features.get('download_distributions', [])
+    
+    def is_convert_to_normal(self,shortGameId):
+        features = self.get_feature_by_game_id(shortGameId)
+        if not features:
+            return False
+        return features.get('convert_to_normal', False)
+    
+    def is_downloadable(self,shortGameId):
+        features = self.get_feature_by_game_id(shortGameId)
+        if not features:
+            return True
+        return features.get('downloadable', True)

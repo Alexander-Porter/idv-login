@@ -23,6 +23,8 @@ import sys
 import time
 from typing import Dict, List, Optional
 
+from channelHandler.channelUtils import getShortGameId
+from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
 
@@ -192,7 +194,17 @@ class GameManager:
         """获取指定游戏ID的游戏信息"""
         if not game_id:
             return None
-            
+        #检查后缀的三个字符是否匹配
+        if game_id not in self.games:
+            for key in self.games.keys():
+                common_len = 0
+                for a, b in zip(reversed(game_id), reversed(key)):
+                    if a == b:
+                        common_len += 1
+                    else:
+                        break
+                if common_len >= 3:
+                    return self.games.get(key)
         # 如果游戏ID不存在，则创建一个新的游戏记录
         if game_id not in self.games:
             self.games[game_id] = Game(game_id=game_id)
@@ -317,3 +329,21 @@ class GameManager:
         if game:
             return game.login_delay
         return 6
+    
+    def check_fever_convert(self, game_id: str) -> bool:
+        """检查游戏是否需要进行Fever ID转换"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(game_id)
+        return cloud_res.is_convert_to_normal(short_game_id)
+    
+    def check_fever_download(self, game_id: str) -> bool:
+        """检查游戏是否需要下载Fever版本"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(game_id)
+        return cloud_res.is_downloadable(short_game_id)
+    
+    def get_fever_download_options(self, game_id: str) -> List[dict]:
+        """获取游戏的Fever版本下载选项"""
+        cloud_res = CloudRes()
+        short_game_id = getShortGameId(game_id)
+        return cloud_res.get_download_distributions(short_game_id)

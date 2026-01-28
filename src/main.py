@@ -83,6 +83,10 @@ def handle_exit():
             backup_mgr.stop_mitmproxy()
     from httpdnsblocker import HttpDNSBlocker
     HttpDNSBlocker().unblock_all()
+    try:
+        os.remove("update_crash_flag.txt") if os.path.exists("update_crash_flag.txt") else None
+    except:
+        pass
     print("再见!")
 
 
@@ -135,10 +139,20 @@ def _check_and_copy_pyqt5_files():
         logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
 
 def handle_update():
+    #如果上次更新时程序崩溃，直接强制更新
+    if genv.get(f"{genv.get('VERSION')}_crash_flag",False):
+        print("【在线更新】检测到上次更新时程序异常退出，请直接进行更新。")
+        import webbrowser
+        url=CloudRes().get_downloadUrl()
+        webbrowser.open(url)
+        input("请按照打开的网页指引下载更新。程序将自动退出，按回车键继续。")
+        sys.exit(0)
+    genv.set(f"{genv.get('VERSION')}_crash_flag",True,True)
     from PyQt5.QtWidgets import QMessageBox, QToolButton, QMenu, QAction, QSizePolicy, QApplication
     from PyQt5.QtCore import Qt
-    #ignoredVersions=genv.get("ignoredVersions",[])
-    ignoredVersions=[]
+    
+    ignoredVersions=genv.get("ignoredVersions",[])
+    #ignoredVersions=[]
     if "dev" in genv.get("VERSION","v5.4.0").lower() or "main" in genv.get("VERSION","v5.4.0").lower():
         print("【在线更新】当前版本为开发版本，更新功能已关闭。")
         return
@@ -192,6 +206,7 @@ def handle_update():
         msg_box.setDefaultButton(yes_btn)
         
         msg_box.exec_()
+        genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
         def go_to_update():
             url=CloudRes().get_downloadUrl()
             import webbrowser
@@ -354,6 +369,8 @@ def initialize():
 
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
+        if os.path.exists("update_crash_flag.txt"):
+            os.remove("update_crash_flag.txt")
         import webbrowser
         url=CloudRes().get_guideUrl()
         genv.set("httpdns_blocking_enabled",False,True)
@@ -368,6 +385,9 @@ def initialize():
         logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")
         logger.error("如果程序出错，请将计算机名修改为纯英文后重试！具体请参见常见问题解决文档。")
 
+    #如果是windows，清空DNS缓存
+    if sys.platform=='win32':
+        os.system("ipconfig /flushdns")
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")

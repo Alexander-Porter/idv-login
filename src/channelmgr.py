@@ -168,7 +168,7 @@ class ChannelManager:
 
     def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id == game_id)],
+            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id.endswith(game_id))],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )
@@ -328,9 +328,18 @@ class ChannelManager:
                         params=data,
                         verify=should_verify_ssl()
                     )
-                    self.logger.info(f"模拟扫码请求: {r.json()}")
+                    
+                    resp=r.json()
+                    if resp.get("code",-1)==1424:
+                        data["game_id"]=resp["game"]["id"]
+                        self.logger.info(f"发烧平台游戏id:{data['game_id']}")
+                        r=requests.get(
+                            "https://service.mkey.163.com/mpay/api/qrcode/scan",
+                            params=data,
+                            verify=should_verify_ssl()
+                        )
                     if r.status_code == 200:
-                        return self.simulate_confirm(channel, scanner_uuid, game_id)
+                        return self.simulate_confirm(channel, scanner_uuid, data["game_id"])
                     else:
                         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                         return False
