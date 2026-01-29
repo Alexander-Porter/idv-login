@@ -470,10 +470,6 @@ def handle_download_task(task_file_path):
             task_data = json.load(f)
     except Exception as e:
         logger_local.exception(f"读取下载任务文件失败: {e}")
-        import traceback
-        traceback.print_exception()
-        traceback.print_stack()
-        input()
         return False
     download_root = task_data.get("download_root", "")
     directories = task_data.get("directories", [])
@@ -494,7 +490,6 @@ def handle_download_task(task_file_path):
         )
         result = updater.start()
     if result and game_id and version_code:
-        print("执行免发烧平台处理")
         from gamemgr import GameManager
         game_mgr = GameManager()
         game = game_mgr.get_game(game_id)
@@ -507,11 +502,8 @@ def handle_download_task(task_file_path):
             game_mgr._save_games()
     try:
         os.remove(task_file_path)
-    except Exception:
-        import traceback
-        traceback.print_exception()
-        traceback.print_stack()
-        input()
+    except Exception as e:
+        logger_local.exception(f"删除下载任务文件失败: {e}")
     return result
 
 
