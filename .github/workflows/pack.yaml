@@ -73,7 +73,7 @@ jobs:
       - name: Build installer
         run: |
           $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          $outputDir = "dist-installer"
+          $outputDir = ".github/inno/dist-installer"
           New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             /DAppVersion="${{github.ref_name}}" `
@@ -85,7 +85,7 @@ jobs:
       - name: Calculate Client checksum
         run: |
           $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          Get-FileHash "dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > "dist-installer\$outputBase.exe.sha256"
+          Get-FileHash ".github/inno/dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > ".github/inno/dist-installer\$outputBase.exe.sha256"
         shell: pwsh
 
       - name: Archive production artifacts
@@ -93,5 +93,5 @@ jobs:
         with:
           name: production-artifacts
           path: |
-            dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
-            dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+            .github\inno\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
+            .github\inno\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
