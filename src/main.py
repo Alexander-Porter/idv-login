@@ -37,7 +37,7 @@ if not CLI_ARGS.download:
     from gevent import monkey
     monkey.patch_all()
 
-from cloudRes import CloudRes
+
 import socket
 import os
 import sys
@@ -52,6 +52,7 @@ import string
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
 
+from cloudRes import CloudRes
 from envmgr import genv
 
 
