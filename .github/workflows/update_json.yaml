@@ -80,7 +80,7 @@ jobs:
               data['detail'] = releaseData['body']
               data['detail_html'] = markdown.markdown(releaseData.get('body','') or '')
               critical_update = os.getenv('CRITICAL_UPDATE', 'false').strip().lower() == 'true'
-              data['critical_update'] = critical_update
+              data['critical_update'] = critical_update or data['critical_update']
               
               # 读取 assets/anno 文件，得到公告
               with open('assets/anno', 'r', encoding='utf-8') as f:
