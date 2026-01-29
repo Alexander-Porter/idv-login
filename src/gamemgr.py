@@ -269,7 +269,6 @@ class Game:
         files = file_distribution_info.get("files", [])
         directories = file_distribution_info.get("directories", [])
         check_result, to_update = self.version_check(files)
-        to_update = [item for item in to_update if item.get("url","") != ""]
         if check_result:
             self.logger.info(f"游戏已是最新版本，无需更新")
             return True

@@ -75,12 +75,8 @@ directories = file_distribution_info.get("directories", [])
 check_result, to_update = game.version_check(files)
 #version_code=file_distribution_info.get("version_code", "")
 #v3_2547
-to_be_removed=[]
-for file_candidate in to_update:
-    if file_candidate.get("url","")=="":
-        to_be_removed.append(file_candidate)
-for file_candidate in to_be_removed:
-    to_update.remove(file_candidate)
+
+
 if not check_result:
     updater = game_updater.GameUpdater(
         download_root=game.get_root_path(),
