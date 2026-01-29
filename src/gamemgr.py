@@ -110,6 +110,7 @@ class Game:
         if not game_path or not os.path.exists(game_path):
             self.logger.error(f"游戏路径无效或不存在: {game_path}")
             return False
+        self.convert_to_normal()
         if sys.platform == "win32":
             # 规范化路径
             game_path = os.path.normpath(game_path)
