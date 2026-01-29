@@ -292,5 +292,5 @@
         }
     ],
     "detail_html": "<h3>idv-login登录助手 v5.8.0-beta 更新日志</h3>\n<h2>新功能</h2>\n<p>[·] 新增支持发烧平台\n[·] 新增游戏下载功能，可以绕过发烧平台下载新引擎\n[·] 新增游戏启动器功能，支持代替发烧平台多开启动游戏</p>\n<h2>BUG修复 🚀</h2>\n<p>[·] 修复了在发烧平台上，渠道服无法登录的问题\n[·] 修复了工具打开时发烧平台账号需要重新登录的问题\n[·] 修复了Arch Linux上的兼容性问题</p>\n<h2>其他 🧰</h2>\n<p>[·] <strong>本工具完全免费开源，请勿倒卖！二次开发及传播请</strong>标明出处<strong>并遵守<code>GPLv3</code>协议！</strong></p>\n<p><a href=\"https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3\">下载前必看</a></p>\n<h2>温馨提示</h2>\n<p>请按下方提示，按键决定是否更新↓ </p>",
-    "critical_update": false
+    "critical_update": true
 }
