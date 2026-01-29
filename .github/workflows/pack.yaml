@@ -73,13 +73,13 @@ jobs:
       - name: Build installer
         run: |
           $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          $outputDir = ".github/inno/dist-installer"
-          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          New-Item -ItemType Directory -Force -Path dist-installer | Out-Null
+          $outputDir = (Resolve-Path dist-installer).Path
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             /DAppVersion="${{github.ref_name}}" `
             /DOutputBaseFilename=$outputBase `
             /DOutputDir=$outputDir `
-            .github/inno/idv-login.iss
+            inno/idv-login.iss
         shell: pwsh
 
       - name: Calculate Client checksum
