@@ -26,7 +26,7 @@ import winreg
 import base64
 import shutil
 from typing import Dict, List, Optional, Tuple
-from prompt_toolkit import Application
+
 import xxhash
 from channelHandler.channelUtils import getShortGameId
 from cloudRes import CloudRes
