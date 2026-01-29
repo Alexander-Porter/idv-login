@@ -202,9 +202,9 @@ def register_mpay_routes(
             ## 发烧平台-开始
             if query.get("dst_jf_game_id","")!="":
                 data["dst_jf_game_id"]=query["dst_jf_game_id"]
-                if genv.get("has_opened_admin",False):
+                if not genv.get("has_opened_admin",False):
                     import webbrowser
-                    genv.set("has_opened_admin",1)
+                    genv.set("has_opened_admin",True)
                     webbrowser.open("https://localhost/_idv-login/index?game_id="+query["dst_jf_game_id"])
                 stack_mgr.push_cached_qrcode_data(query["dst_jf_game_id"], process_id, data)
                 stack_mgr.ensure_pending_stack(query["dst_jf_game_id"])
