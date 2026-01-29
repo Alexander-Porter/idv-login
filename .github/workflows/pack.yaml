@@ -66,17 +66,32 @@ jobs:
           Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
         shell: pwsh
 
-      - name: Compress package
-        run: Compress-Archive -Path dist/* -DestinationPath idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+        shell: pwsh
+
+      - name: Build installer
+        run: |
+          $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
+          $outputDir = "dist-installer"
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DAppVersion="${{github.ref_name}}" `
+            /DOutputBaseFilename=$outputBase `
+            /DOutputDir=$outputDir `
+            .github/inno/idv-login.iss
         shell: pwsh
 
       - name: Calculate Client checksum
-        run: Get-FileHash "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip" | select-object -ExpandProperty Hash > idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip.sha256
+        run: |
+          $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
+          Get-FileHash "dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > "dist-installer\$outputBase.exe.sha256"
+        shell: pwsh
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: production-artifacts
           path: |
-            idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip
-            idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.zip.sha256
+            dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
+            dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256

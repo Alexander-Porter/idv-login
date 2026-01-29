@@ -322,7 +322,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
             default_distribution = game.get_default_distribution() if game else -1
             fever_info = None
             for item in game_helper.list_fever_games():
-                if item.get("game_id") == game_id:
+                if item.get("game_id") == getShortGameId(game_id):
                     fever_info = item
                     break
             can_import_fever = bool(fever_info) and (not game or not game.path or (fever_info.get("path") and fever_info.get("path") != game.path))
