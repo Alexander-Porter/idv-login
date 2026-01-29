@@ -491,26 +491,34 @@ def handle_download_task(task_file_path):
     convert_to_normal = bool(task_data.get("convert_to_normal", False))
     result = True
     ui_server_process = None
+    ui_server_thread = None
+    stop_event = None
     download_process = None
     use_download_ipc = bool(content_id) and distribution_id != -1 and download_root
     if use_download_ipc:
         from download_binary import ensure_binary, PORT_SEND_HEARTBEAT, PORT_RECEIVE_PROGRESS
+        import download_binary
+        import threading
         if not ensure_binary():
             result = False
         else:
+            stop_event = threading.Event()
+            topic_bytes = str(content_id).encode("utf-8") if content_id else b""
+            ui_server_thread = threading.Thread(
+                target=download_binary.main_ui_server,
+                kwargs={
+                    "topic": topic_bytes,
+                    "sub_port": PORT_SEND_HEARTBEAT,
+                    "pub_port": PORT_RECEIVE_PROGRESS,
+                    "stop_event": stop_event
+                }
+            )
+            ui_server_thread.daemon = True
+            ui_server_thread.start()
+            #等待几秒钟，确保UI服务器启动完成
+            import time
+            time.sleep(5)
             creationflags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
-            ui_cmd = [
-                sys.executable,
-                os.path.join(script_dir, "download_binary.py"),
-                "--ui-server",
-                "--topic",
-                str(content_id),
-                "--sub-port",
-                str(PORT_SEND_HEARTBEAT),
-                "--pub-port",
-                str(PORT_RECEIVE_PROGRESS),
-            ]
-            ui_server_process = subprocess.Popen(ui_cmd, creationflags=creationflags)
             encoded_path = _encode_download_path(download_root)
             #./downloadIPC  --gameid:73 --contentid:434 --subport:1737 --pubport:1740 --path:RTpcRmV2ZXJBcHBzXGR3cmcy --env:live --oversea:0 --targetVersion:v3_3028_7e8d8ea06733136dd915a6e865440158 --originVersion:v3_2547 --scene:2 --rateLimit:0  --channel:platform --locale:zh_Hans  --isSSD:1 --isRepairMode:0
             download_cmd = [
@@ -564,6 +572,10 @@ def handle_download_task(task_file_path):
             ui_server_process.wait(timeout=5)
         except Exception:
             pass
+    if stop_event:
+        stop_event.set()
+    if ui_server_thread:
+        ui_server_thread.join(timeout=2)
     try:
         os.remove(task_file_path)
     except Exception as e:

@@ -26,7 +26,7 @@ UI_HEARTBEAT_PAYLOAD = b"4"
 # UI 发送心跳的频率
 UI_HEARTBEAT_INTERVAL_S = 1.0
 
-def main_ui_server(topic=None, sub_port=None, pub_port=None):
+def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
     if topic is None:
         topic = TOPIC
     if sub_port is None:
@@ -79,6 +79,8 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None):
 
     try:
         while True:
+            if stop_event and stop_event.is_set():
+                break
             # 1. 处理接收 (非阻塞)
             # poll 等待时间设为 10ms，保证循环能及时处理发送逻辑
             socks = dict(poller.poll(timeout=10))
