@@ -93,7 +93,6 @@ def handle_exit():
             backup_mgr.stop_mitmproxy()
     from httpdnsblocker import HttpDNSBlocker
     HttpDNSBlocker().unblock_all()
-    genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
     print("再见!")
 
 
@@ -147,7 +146,7 @@ def _check_and_copy_pyqt5_files():
 
 def handle_update():
 
-    genv.set(f"{genv.get('VERSION')}_crash_flag",True,True)
+    
     from PyQt5.QtWidgets import QMessageBox, QToolButton, QMenu, QAction, QSizePolicy, QApplication
     from PyQt5.QtCore import Qt
     
@@ -370,7 +369,7 @@ def initialize():
 
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
-        genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
+        
         import webbrowser
         url=CloudRes().get_guideUrl()
         genv.set("httpdns_blocking_enabled",False,True)
