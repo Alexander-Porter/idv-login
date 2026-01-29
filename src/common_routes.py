@@ -399,7 +399,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
             max_concurrent = int(request.args.get("concurrent", "4"))
             updated = game.try_update(distribution_id, max_concurrent)
             converted = False
-            if updated and game.can_convert_to_normal():
+            if updated and game.can_convert_to_normal() and not game.last_update_async:
                 converted = game.convert_to_normal()
             game_helper._save_games()
             return jsonify({
@@ -423,7 +423,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
             max_concurrent = int(request.args.get("concurrent", "4"))
             updated = game.try_update(distribution_id, max_concurrent)
             converted = False
-            if updated and game.can_convert_to_normal():
+            if updated and game.can_convert_to_normal() and not game.last_update_async:
                 converted = game.convert_to_normal()
             game_helper._save_games()
             return jsonify({
@@ -433,6 +433,27 @@ def register_common_idv_routes(app, *, game_helper, logger):
             })
         except Exception as e:
             logger.exception("更新启动器失败")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/_idv-login/launcher-update-info", methods=["GET"])
+    def _launcher_update_info():
+        try:
+            game_id = request.args["game_id"]
+            distribution_id = int(request.args["distribution_id"])
+            game = game_helper.get_existing_game(game_id)
+            if not game or not game.path or not os.path.exists(game.path):
+                return jsonify({"success": False, "error": "未找到已安装的游戏"}), 404
+            stats = game.get_update_stats(distribution_id)
+            if not stats:
+                return jsonify({"success": False, "error": "未找到更新信息"}), 404
+            return jsonify({
+                "success": True,
+                "game_id": game_id,
+                "distribution_id": distribution_id,
+                **stats
+            })
+        except Exception as e:
+            logger.exception("获取更新信息失败")
             return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route("/_idv-login/launcher-import-fever", methods=["GET"])

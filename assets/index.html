@@ -219,6 +219,11 @@
             animation: pulse 2s infinite;
         }
 
+        .status-light.warning {
+            background-color: #ffc107;
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+        }
+
         @keyframes pulse {
 
             0%,
@@ -1096,12 +1101,49 @@
         }
 
         let launcherState = null;
+        let updateRequired = false;
+
+        function formatSize(bytes) {
+            if (bytes === null || bytes === undefined) return '-';
+            const value = Number(bytes);
+            if (!Number.isFinite(value)) return '-';
+            if (value <= 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let size = value;
+            let idx = 0;
+            while (size >= 1024 && idx < units.length - 1) {
+                size /= 1024;
+                idx += 1;
+            }
+            return `${size.toFixed(size >= 10 || idx === 0 ? 0 : 2)} ${units[idx]}`;
+        }
+
+        function markUpdateRequired() {
+            updateRequired = true;
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            if (statusLight) statusLight.className = 'status-light warning';
+            if (statusText) statusText.textContent = '请更新工具';
+            if (statusIndicator) statusIndicator.title = '工具版本过旧，请更新';
+        }
+
+        function fetchLauncherJson(url, options) {
+            return fetch(url, options).then(response => {
+                if (response.status === 404) {
+                    markUpdateRequired();
+                    const err = new Error('not_found');
+                    err.isNotFound = true;
+                    throw err;
+                }
+                return response.json();
+            });
+        }
 
         function loadLauncherStatus() {
             const game_id = getQueryVariable("game_id");
             if (!game_id) return;
-            fetch(`/_idv-login/launcher-status?game_id=${game_id}`)
-                .then(response => response.json())
+            fetchLauncherJson(`/_idv-login/launcher-status?game_id=${game_id}`)
                 .then(data => {
                     if (!data.success) {
                         throw new Error(data.error || '获取启动器信息失败');
@@ -1110,7 +1152,10 @@
                     renderLauncherDistributionOptions();
                     updateLauncherDisplay();
                 })
-                .catch(() => {
+                .catch(error => {
+                    if (error && error.isNotFound) {
+                        return;
+                    }
                     launcherState = null;
                     document.getElementById('launcherTitle').textContent = '启动器信息加载失败';
                 });
@@ -1200,8 +1245,7 @@
                 buttons: false,
                 closeOnClickOutside: false,
             });
-            fetch(`/_idv-login/launcher-install?game_id=${launcherState.game_id}&distribution_id=${distId}`)
-                .then(response => response.json())
+            fetchLauncherJson(`/_idv-login/launcher-install?game_id=${launcherState.game_id}&distribution_id=${distId}`)
                 .then(data => {
                     swal.close();
                     if (data.success) {
@@ -1223,7 +1267,11 @@
                         });
                     }
                 })
-                .catch(() => {
+                .catch(error => {
+                    if (error && error.isNotFound) {
+                        swal.close();
+                        return;
+                    }
                     swal({
                         title: "请求失败",
                         text: "无法连接到服务器",
@@ -1237,16 +1285,35 @@
             if (!launcherState) return;
             const distId = document.getElementById('launcherDistributionSelect').value;
             if (!distId) return;
-            swal({
-                title: "正在更新",
-                text: "请稍候...",
-                icon: "info",
-                buttons: false,
-                closeOnClickOutside: false,
-            });
-            fetch(`/_idv-login/launcher-update?game_id=${launcherState.game_id}&distribution_id=${distId}`)
-                .then(response => response.json())
+            fetchLauncherJson(`/_idv-login/launcher-update-info?game_id=${launcherState.game_id}&distribution_id=${distId}`)
+                .then(info => {
+                    if (!info.success) {
+                        throw new Error(info.error || '获取更新信息失败');
+                    }
+                    const downloadText = info.needs_update
+                        ? `需要下载：${formatSize(info.download_bytes)}（${info.file_count}个文件）`
+                        : '无需下载，已是最新版本';
+                    const diskText = `磁盘剩余：${formatSize(info.disk_free_bytes)}`;
+                    return swal({
+                        title: "更新提示",
+                        text: `${downloadText}\n${diskText}`,
+                        icon: "info",
+                        buttons: ["取消", "继续更新"],
+                    });
+                })
+                .then(shouldUpdate => {
+                    if (!shouldUpdate) return;
+                    swal({
+                        title: "正在更新",
+                        text: "请稍候...",
+                        icon: "info",
+                        buttons: false,
+                        closeOnClickOutside: false,
+                    });
+                    return fetchLauncherJson(`/_idv-login/launcher-update?game_id=${launcherState.game_id}&distribution_id=${distId}`);
+                })
                 .then(data => {
+                    if (!data) return;
                     swal.close();
                     if (data.success) {
                         swal({
@@ -1266,7 +1333,10 @@
                         });
                     }
                 })
-                .catch(() => {
+                .catch(error => {
+                    if (error && error.isNotFound) {
+                        return;
+                    }
                     swal({
                         title: "请求失败",
                         text: "无法连接到服务器",
@@ -1285,8 +1355,7 @@
                 buttons: false,
                 closeOnClickOutside: false,
             });
-            fetch(`/_idv-login/launcher-import-fever?game_id=${launcherState.game_id}`)
-                .then(response => response.json())
+            fetchLauncherJson(`/_idv-login/launcher-import-fever?game_id=${launcherState.game_id}`)
                 .then(data => {
                     swal.close();
                     if (data.success) {
@@ -1307,7 +1376,11 @@
                         });
                     }
                 })
-                .catch(() => {
+                .catch(error => {
+                    if (error && error.isNotFound) {
+                        swal.close();
+                        return;
+                    }
                     swal({
                         title: "请求失败",
                         text: "无法连接到服务器",
@@ -1619,9 +1692,15 @@
                     // 连接成功
                     disconnectedCount = 0;
                     overlayDismissed = false;  // 重置关闭标记
-                    statusLight.className = 'status-light connected';
-                    statusText.textContent = '工具运行中';
-                    statusIndicator.title = '工具连接正常';
+                    if (updateRequired) {
+                        statusLight.className = 'status-light warning';
+                        statusText.textContent = '请更新工具';
+                        statusIndicator.title = '工具版本过旧，请更新';
+                    } else {
+                        statusLight.className = 'status-light connected';
+                        statusText.textContent = '工具运行中';
+                        statusIndicator.title = '工具连接正常';
+                    }
                     statusIndicator.style.cursor = 'default';
                     statusIndicator.onclick = null;
                     statusIndicator.classList.remove('disconnected-state');

@@ -22,8 +22,18 @@ import shutil
 import glob
 
 
-from gevent import monkey
-monkey.patch_all()
+def parse_command_line_args():
+    """解析命令行参数"""
+    arg_parser = argparse.ArgumentParser(description="第五人格登陆助手")
+    arg_parser.add_argument('--mitm', action='store_true', help='直接使用备用模式 (mitmproxy)')
+    arg_parser.add_argument('--download', type=str, default="", help='下载任务文件绝对路径')
+    return arg_parser.parse_args()
+
+
+CLI_ARGS = parse_command_line_args()
+if not CLI_ARGS.download:
+    from gevent import monkey
+    monkey.patch_all()
 
 from cloudRes import CloudRes
 import socket
@@ -83,10 +93,7 @@ def handle_exit():
             backup_mgr.stop_mitmproxy()
     from httpdnsblocker import HttpDNSBlocker
     HttpDNSBlocker().unblock_all()
-    try:
-        os.remove("update_crash_flag.txt") if os.path.exists("update_crash_flag.txt") else None
-    except:
-        pass
+    genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
     print("再见!")
 
 
@@ -139,14 +146,7 @@ def _check_and_copy_pyqt5_files():
         logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
 
 def handle_update():
-    #如果上次更新时程序崩溃，直接强制更新
-    if genv.get(f"{genv.get('VERSION')}_crash_flag",False):
-        print("【在线更新】检测到上次更新时程序异常退出，请直接进行更新。")
-        import webbrowser
-        url=CloudRes().get_downloadUrl()
-        webbrowser.open(url)
-        input("请按照打开的网页指引下载更新。程序将自动退出，按回车键继续。")
-        sys.exit(0)
+
     genv.set(f"{genv.get('VERSION')}_crash_flag",True,True)
     from PyQt5.QtWidgets import QMessageBox, QToolButton, QMenu, QAction, QSizePolicy, QApplication
     from PyQt5.QtCore import Qt
@@ -206,7 +206,7 @@ def handle_update():
         msg_box.setDefaultButton(yes_btn)
         
         msg_box.exec_()
-        genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
+       
         def go_to_update():
             url=CloudRes().get_downloadUrl()
             import webbrowser
@@ -292,6 +292,7 @@ def initialize():
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
     genv.set("GLOB_LOGIN_PROFILE_PATH", os.path.join(genv.get("FP_WORKDIR"), "profile"))
     genv.set("GLOB_LOGIN_CACHE_PATH", os.path.join(genv.get("FP_WORKDIR"), "cache"))
+    genv.set("SCRIPT_DIR", os.path.dirname(os.path.abspath(__file__)))
     CloudPaths = ["https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json","https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/assets/cloudRes.json"]
 
     # handle exit
@@ -369,8 +370,7 @@ def initialize():
 
     #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
-        if os.path.exists("update_crash_flag.txt"):
-            os.remove("update_crash_flag.txt")
+        genv.set(f"{genv.get('VERSION')}_crash_flag",False,True)
         import webbrowser
         url=CloudRes().get_guideUrl()
         genv.set("httpdns_blocking_enabled",False,True)
@@ -410,6 +410,25 @@ def cloudBuildInfo():
     except:
         print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
+def prepare_platform_workdir():
+    if sys.platform=='win32':
+        kernel32 = ctypes.WinDLL("kernel32")
+        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
+        handle_ctrl = HandlerRoutine(ctrl_handler)
+        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
+        genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
+    elif sys.platform=='darwin':
+        setup_signal_handlers()
+        mac_app_support = os.path.expanduser("~/Library/Application Support")
+        genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
+        os.environ["PROGRAMDATA"] = mac_app_support
+    elif sys.platform=='linux':
+        setup_signal_handlers()
+        home = os.path.expanduser("~")
+        genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
+        os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
+
 
 
 
@@ -433,12 +452,67 @@ def setup_work_directory():
     except Exception as e:
         print(f"切换到工作目录失败: {e}")
 
-
-def parse_command_line_args():
-    """解析命令行参数"""
-    arg_parser = argparse.ArgumentParser(description="第五人格登陆助手")
-    arg_parser.add_argument('--mitm', action='store_true', help='直接使用备用模式 (mitmproxy)')
-    return arg_parser.parse_args()
+def handle_download_task(task_file_path):
+    if not task_file_path:
+        print("缺少下载任务文件路径")
+        return False
+    task_file_path = os.path.abspath(task_file_path)
+    if not os.path.exists(task_file_path):
+        print(f"下载任务文件不存在: {task_file_path}")
+        return False
+    prepare_platform_workdir()
+    setup_work_directory()
+    from logutil import setup_logger
+    logger_local = setup_logger()
+    task_data = None
+    try:
+        with open(task_file_path, "r", encoding="utf-8") as f:
+            task_data = json.load(f)
+    except Exception as e:
+        logger_local.exception(f"读取下载任务文件失败: {e}")
+        import traceback
+        traceback.print_exception()
+        traceback.print_stack()
+        input()
+        return False
+    download_root = task_data.get("download_root", "")
+    directories = task_data.get("directories", [])
+    files = task_data.get("files", [])
+    concurrent_files = int(task_data.get("concurrent_files", 2))
+    game_id = task_data.get("game_id", "")
+    version_code = task_data.get("version_code", "")
+    distribution_id = int(task_data.get("distribution_id", -1))
+    convert_to_normal = bool(task_data.get("convert_to_normal", False))
+    result = True
+    if files:
+        from game_updater import GameUpdater
+        updater = GameUpdater(
+            download_root=download_root,
+            concurrent_files=concurrent_files,
+            directories=directories,
+            files=files
+        )
+        result = updater.start()
+    if result and game_id and version_code:
+        print("执行免发烧平台处理")
+        from gamemgr import GameManager
+        game_mgr = GameManager()
+        game = game_mgr.get_game(game_id)
+        if game:
+            game.version = version_code
+            if distribution_id != -1:
+                game.default_distribution = distribution_id
+            if convert_to_normal:
+                game.convert_to_normal()
+            game_mgr._save_games()
+    try:
+        os.remove(task_file_path)
+    except Exception:
+        import traceback
+        traceback.print_exception()
+        traceback.print_stack()
+        input()
+    return result
 
 
 def cleanup_expired_certificates():
@@ -632,34 +706,14 @@ def setup_signal_handlers():
     signal.signal(signal.SIGTERM, signal_handler)  # kill 命令
     if sys.platform!='win32':
         signal.signal(signal.SIGHUP, signal_handler)   # 终端关闭
-def main():
+def main(cli_args=None):
 
 
     """主函数入口"""
     global logger
-    
-    if sys.platform=='win32':
-        #setup_signal_handlers()
-        kernel32 = ctypes.WinDLL("kernel32")
-        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
-        handle_ctrl = HandlerRoutine(ctrl_handler)
-        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
-        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
-        genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-    elif sys.platform=='darwin':
-        setup_signal_handlers()
-        # 使用macOS标准的用户应用数据目录
-        mac_app_support = os.path.expanduser("~/Library/Application Support")
-        genv.set("FP_WORKDIR", os.path.join(mac_app_support, "idv-login"))
-        #设置programdata环境变量为工作目录
-        os.environ["PROGRAMDATA"] = mac_app_support
-    elif sys.platform=='linux':
-        setup_signal_handlers()
-        # 使用Linux标准的用户应用数据目录
-        home = os.path.expanduser("~")
-        genv.set("FP_WORKDIR", os.path.join(home, ".idv-login"))
-        #设置programdata环境变量为工作目录
-        os.environ["PROGRAMDATA"] = genv.get("FP_WORKDIR")
+    if cli_args is None:
+        cli_args = CLI_ARGS
+    prepare_platform_workdir()
     
     # 设置工作目录
     setup_work_directory()
@@ -668,8 +722,6 @@ def main():
     from logutil import setup_logger
     logger = setup_logger() 
 
-    # 解析命令行参数
-    cli_args = parse_command_line_args()
     force_mitm_mode = cli_args.mitm
 
     try:
@@ -694,4 +746,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        if CLI_ARGS.download:
+            success = handle_download_task(CLI_ARGS.download)
+            sys.exit(0 if success else 1)
+    except:
+        import traceback
+        traceback.print_exception()
+        traceback.print_stack()
+    main(CLI_ARGS)

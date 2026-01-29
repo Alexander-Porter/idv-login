@@ -15,7 +15,7 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
-
+import ctypes
 import hashlib
 import os
 import json
@@ -24,6 +24,7 @@ import sys
 import time
 import winreg
 import base64
+import shutil
 from typing import Dict, List, Optional, Tuple
 import xxhash
 from channelHandler.channelUtils import getShortGameId
@@ -61,6 +62,7 @@ class Game:
         self.logger = setup_logger()
         self.version = version
         self.default_distribution = default_distribution
+        self.last_update_async = False
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -252,6 +254,7 @@ class Game:
             
     def try_update(self, distribution_id: int, max_concurrent_files: int) -> bool:
         """尝试将游戏更新到指定分发ID的版本"""
+        self.last_update_async = False
         download_root = self.get_root_path()
         if not download_root or not os.path.exists(download_root):
             self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
@@ -260,35 +263,77 @@ class Game:
         if not file_distribution_info:
             self.logger.error(f"未找到分发ID {distribution_id} 的文件分发信息")
             return False
-        import game_updater
         files = file_distribution_info.get("files", [])
         directories = file_distribution_info.get("directories", [])
         check_result, to_update = self.version_check(files)
-        #version_code=file_distribution_info.get("version_code", "")
-        #v3_2547
-        to_be_removed=[]
-        for file_candidate in to_update:
-            if file_candidate.get("url","")=="":
-                to_be_removed.append(file_candidate)
-        for file_candidate in to_be_removed:
-            to_update.remove(file_candidate)
-        if not check_result:
-            updater = game_updater.GameUpdater(
-                download_root=download_root,
-                concurrent_files=max_concurrent_files,
-                directories=directories,
-                files=to_update
-            )
-            result = updater.start()
-            if result:
-                self.version = file_distribution_info.get("version_code", self.version)
-                return True
-            else:
-                self.logger.error(f"游戏更新失败")
-                return False
-        else:
+        to_update = [item for item in to_update if item.get("url","") != ""]
+        if check_result:
             self.logger.info(f"游戏已是最新版本，无需更新")
             return True
+        if not to_update:
+            self.version = file_distribution_info.get("version_code", self.version)
+            return True
+        task_data = {
+            "download_root": download_root,
+            "concurrent_files": max_concurrent_files,
+            "directories": directories,
+            "files": to_update,
+            "version_code": file_distribution_info.get("version_code", self.version),
+            "game_id": self.game_id,
+            "distribution_id": distribution_id,
+            "convert_to_normal": self.can_convert_to_normal()
+        }
+        task_file_path = self._create_download_task_file(task_data)
+        if not task_file_path:
+            self.logger.error("创建下载任务文件失败")
+            return False
+        if not self._spawn_download_process(task_file_path):
+            self.logger.error("启动下载子进程失败")
+            return False
+        self.last_update_async = True
+        return True
+
+    def _create_download_task_file(self, task_data: dict) -> Optional[str]:
+        try:
+            workdir = genv.get("FP_WORKDIR", os.getcwd())
+            os.makedirs(workdir, exist_ok=True)
+            token = base64.urlsafe_b64encode(os.urandom(6)).decode("utf-8").rstrip("=")
+            filename = f"download_task_{self.game_id}_{int(time.time())}_{token}.json"
+            task_file_path = os.path.join(workdir, filename)
+            with open(task_file_path, "w", encoding="utf-8") as f:
+                json.dump(task_data, f, ensure_ascii=False)
+            return task_file_path
+        except Exception as e:
+            self.logger.exception(f"创建下载任务文件失败: {e}")
+            return None
+
+    def _spawn_download_process(self, task_file_path: str) -> bool:
+        try:
+            if getattr(sys, 'frozen', False):
+                # 如果是PyInstaller打包的exe文件，使用sys.argv[0]
+                executable = sys.argv[0]
+            else:
+                # 如果是Python脚本，使用sys.executable
+                executable = sys.executable
+            if getattr(sys, 'frozen', False):
+                # exe文件：只传递从argv[1]开始的参数
+                args = sys.argv[1:] if len(sys.argv) > 1 else []
+                argvs = [f'"{arg}"' for arg in args]
+            else:
+                # Python脚本：需要传递完整的argv
+                args = sys.argv
+                argvs = [f'"{i}"' for i in sys.argv]
+            args.append("--download")
+            args.append(task_file_path)
+            argvs = [f'"{arg}"' for arg in args]
+            script_dir = genv.get("SCRIPT_DIR", os.path.dirname(os.path.abspath(__file__)))
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", executable, " ".join(argvs), script_dir, 1
+            )
+            return True
+        except Exception as e:
+            self.logger.exception(f"启动下载子进程失败: {e}")
+            return False
     def need_update(self, distribution_id: int) -> bool:
         """检查游戏是否需要更新到指定分发ID的版本"""
         if not self.path or not os.path.exists(self.path):
@@ -323,6 +368,39 @@ class Game:
                 to_update.append(file_info)
         return len(to_update) == 0, to_update
 
+    def _extract_file_size(self, file_info: dict) -> int:
+        for key in ["size", "file_size", "filesize", "length", "fileSize"]:
+            value = file_info.get(key)
+            if isinstance(value, (int, float)) and value >= 0:
+                return int(value)
+            if isinstance(value, str):
+                try:
+                    return int(value)
+                except ValueError:
+                    continue
+        return 0
+
+    def get_update_stats(self, distribution_id: int) -> Optional[dict]:
+        download_root = self.get_root_path()
+        if not download_root or not os.path.exists(download_root):
+            return None
+        file_distribution_info = self.get_file_distribution_info(distribution_id)
+        if not file_distribution_info:
+            return None
+        files = file_distribution_info.get("files", [])
+        check_result, to_update = self.version_check(files)
+        to_update = [item for item in to_update if item.get("url", "") != ""]
+        download_bytes = sum(self._extract_file_size(item) for item in to_update)
+        usage = shutil.disk_usage(download_root)
+        return {
+            "needs_update": not check_result,
+            "download_bytes": download_bytes,
+            "file_count": len(to_update),
+            "disk_free_bytes": usage.free,
+            "disk_total_bytes": usage.total,
+            "target_version": file_distribution_info.get("version_code", "")
+        }
+
     def convert_to_normal(self) -> bool:
         """将Fever版本转换为普通版本"""
         cloud_res = CloudRes()
@@ -338,6 +416,12 @@ class Game:
         pack_config_path=os.path.join(game_dir,"pack_config.xml")
         if os.path.exists(pack_config_path):
             bak_path=pack_config_path+".bak"
+            if os.path.exists(bak_path):
+                try:
+                    os.remove(bak_path)
+                except Exception as e:
+                    self.logger.exception(f"删除备份文件失败: {str(e)}")
+                    return False
             try:
                 os.rename(pack_config_path,bak_path)
                 self.logger.info(f"成功将 {pack_config_path} 重命名为 {bak_path}")
@@ -392,6 +476,7 @@ class Game:
         """检查游戏是否可以转换为普通版本"""
         cloud_res = CloudRes()
         short_game_id = getShortGameId(self.game_id)
+        print(f"检查游戏 {self.game_id} 是否可以转换为普通版本: {cloud_res.is_convert_to_normal(short_game_id)}")
         return cloud_res.is_convert_to_normal(short_game_id) and self.is_fever()
     
 

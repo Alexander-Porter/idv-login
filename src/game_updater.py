@@ -1,10 +1,8 @@
-import json
-import os
 from pathlib import Path
 
-from pypdl import Pypdl
 import logging
 from logutil import setup_logger
+
 
 class GameUpdater:
     def __init__(self, download_root, concurrent_files=2,           directories=[],files=[]):
@@ -12,8 +10,11 @@ class GameUpdater:
         # 1. 实例化官方 pypdl 对象
         # allow_reuse=True 允许在多次 start 之间复用 session
         self.logger = setup_logger()
+        print(directories)
+        from pypdl import Pypdl
         self.dl = Pypdl(allow_reuse=True, max_concurrent=concurrent_files,logger=self.logger)
         self.directories = directories
+        print(self.directories)
         self.files = files
         # 用于存储 {文件路径: 期望MD5} 的映射表，供回调使用
         self.md5_lookup = {}
