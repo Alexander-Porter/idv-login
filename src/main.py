@@ -495,93 +495,90 @@ def handle_download_task(task_file_path):
     stop_event = None
     download_process = None
     use_download_ipc = bool(content_id) and distribution_id != -1 and download_root
-    if use_download_ipc:
-        from download_binary import ensure_binary, PORT_SEND_HEARTBEAT, PORT_RECEIVE_PROGRESS
-        import download_binary
-        import threading
-        if not ensure_binary():
-            result = False
-        else:
-            stop_event = threading.Event()
-            topic_bytes = str(content_id).encode("utf-8") if content_id else b""
-            ui_server_thread = threading.Thread(
-                target=download_binary.main_ui_server,
-                kwargs={
-                    "topic": topic_bytes,
-                    "sub_port": PORT_SEND_HEARTBEAT,
-                    "pub_port": PORT_RECEIVE_PROGRESS,
-                    "stop_event": stop_event
-                }
-            )
-            ui_server_thread.daemon = True
-            ui_server_thread.start()
-            #等待几秒钟，确保UI服务器启动完成
-            import time
-            time.sleep(5)
-            creationflags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
-            encoded_path = _encode_download_path(download_root)
-            #./downloadIPC  --gameid:73 --contentid:434 --subport:1737 --pubport:1740 --path:RTpcRmV2ZXJBcHBzXGR3cmcy --env:live --oversea:0 --targetVersion:v3_3028_7e8d8ea06733136dd915a6e865440158 --originVersion:v3_2547 --scene:2 --rateLimit:0  --channel:platform --locale:zh_Hans  --isSSD:1 --isRepairMode:0
-            download_cmd = [
-                os.path.join(os.getcwd(), "downloadIPC.exe"),
-                f"--gameid:{distribution_id}",
-                f"--env:live",
-                f"--oversea:0",
-                f"--scene:2",
-                f"--rateLimit:0",
-                f"--channel:platform",
-                f"--locale:zh_Hans",
-                f"--isSSD:1",
-                f"--isRepairMode:0",
-                f"--contentid:{content_id}",
-                f"--subport:{PORT_SEND_HEARTBEAT}",
-                f"--pubport:{PORT_RECEIVE_PROGRESS}",
-                f"--path:{encoded_path}",
-            ]
-            if version_code:
-                download_cmd.append(f"--targetVersion:{version_code}")
-            if original_version:
-                download_cmd.append(f"--originVersion:{original_version}")
-            else:
-                download_cmd.append(f"--originVersion:")
-            download_process = subprocess.Popen(download_cmd, creationflags=creationflags)
-            exit_code = download_process.wait()
-            result = exit_code == 0
-    elif files:
-        from game_updater import GameUpdater
-        updater = GameUpdater(
-            download_root=download_root,
-            concurrent_files=concurrent_files,
-            directories=directories,
-            files=files
-        )
-        result = updater.start()
-    if result and game_id and version_code:
-        from gamemgr import GameManager
-        game_mgr = GameManager()
-        game = game_mgr.get_game(game_id)
-        if game:
-            game.version = version_code
-            if distribution_id != -1:
-                game.default_distribution = distribution_id
-            if convert_to_normal:
-                game.convert_to_normal()
-            game_mgr._save_games()
-    if ui_server_process:
-        try:
-            ui_server_process.terminate()
-            ui_server_process.wait(timeout=5)
-        except Exception:
-            pass
-    if stop_event:
-        stop_event.set()
-    if ui_server_thread:
-        ui_server_thread.join(timeout=2)
     try:
-        os.remove(task_file_path)
+        if use_download_ipc:
+            from download_binary import ensure_binary, PORT_SEND_HEARTBEAT, PORT_RECEIVE_PROGRESS
+            import download_binary
+            import threading
+            if not ensure_binary():
+                result = False
+            else:
+                stop_event = threading.Event()
+                topic_bytes = str(content_id).encode("utf-8") if content_id else b""
+                ui_server_thread = threading.Thread(
+                    target=download_binary.main_ui_server,
+                    kwargs={
+                        "topic": topic_bytes,
+                        "sub_port": PORT_SEND_HEARTBEAT,
+                        "pub_port": PORT_RECEIVE_PROGRESS,
+                        "stop_event": stop_event
+                    }
+                )
+                ui_server_thread.daemon = True
+                ui_server_thread.start()
+                #等待几秒钟，确保UI服务器启动完成
+                import time
+                time.sleep(5)
+                creationflags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+                encoded_path = _encode_download_path(download_root)
+                #./downloadIPC  --gameid:73 --contentid:434 --subport:1737 --pubport:1740 --path:RTpcRmV2ZXJBcHBzXGR3cmcy --env:live --oversea:0 --targetVersion:v3_3028_7e8d8ea06733136dd915a6e865440158 --originVersion:v3_2547 --scene:2 --rateLimit:0  --channel:platform --locale:zh_Hans  --isSSD:1 --isRepairMode:0
+                download_cmd = [
+                    os.path.join(os.getcwd(), "downloadIPC.exe"),
+                    f"--gameid:{distribution_id}",
+                    f"--env:live",
+                    f"--oversea:0",
+                    f"--scene:2",
+                    f"--rateLimit:0",
+                    f"--channel:platform",
+                    f"--locale:zh_Hans",
+                    f"--isSSD:1",
+                    f"--isRepairMode:0",
+                    f"--contentid:{content_id}",
+                    f"--subport:{PORT_SEND_HEARTBEAT}",
+                    f"--pubport:{PORT_RECEIVE_PROGRESS}",
+                    f"--path:{encoded_path}",
+                ]
+                if version_code:
+                    download_cmd.append(f"--targetVersion:{version_code}")
+                if original_version:
+                    download_cmd.append(f"--originVersion:{original_version}")
+                else:
+                    download_cmd.append(f"--originVersion:")
+                download_process = subprocess.Popen(download_cmd, creationflags=creationflags)
+                exit_code = download_process.wait()
+                result = exit_code == 0
+        if result and game_id and version_code:
+            from gamemgr import GameManager
+            game_mgr = GameManager()
+            game = game_mgr.get_game(game_id)
+            if game:
+                game.version = version_code
+                if distribution_id != -1:
+                    game.default_distribution = distribution_id
+                if convert_to_normal:
+                    game.convert_to_normal()
+                game_mgr._save_games()
+        if ui_server_process:
+            try:
+                ui_server_process.terminate()
+                ui_server_process.wait(timeout=5)
+            except Exception:
+                pass
+        if stop_event:
+            stop_event.set()
+        if ui_server_thread:
+            ui_server_thread.join(timeout=2)
+        try:
+            os.remove(task_file_path)
+        except Exception as e:
+            logger_local.exception(f"删除下载任务文件失败: {e}")
+        return result
     except Exception as e:
-        logger_local.exception(f"删除下载任务文件失败: {e}")
-    return result
-
+        logger_local.exception(f"下载任务执行失败: {e}")
+    finally:
+        from gamemgr import Game
+        game=Game(game_id=game_id,path=os.path.join(download_root,"dummy.exe"))
+        game.convert_to_normal()
 
 def cleanup_expired_certificates():
     """清理过期的证书文件"""

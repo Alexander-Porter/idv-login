@@ -26,6 +26,7 @@ import winreg
 import base64
 import shutil
 from typing import Dict, List, Optional, Tuple
+from prompt_toolkit import Application
 import xxhash
 from channelHandler.channelUtils import getShortGameId
 from cloudRes import CloudRes
@@ -66,6 +67,7 @@ class Game:
         self.version = version
         self.default_distribution = default_distribution
         self.last_update_async = False
+        self.convert_to_normal()
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -276,7 +278,31 @@ class Game:
             self.version = file_distribution_info.get("version_code", self.version)
             return True
         
-
+        #必须选择一个空文件夹作为download_root，使用PyQt打开文件夹选择对话框
+        from PyQt5.QtWidgets import QApplication, QFileDialog
+        app_inst = QApplication.instance()
+        if app_inst is None:
+                app_inst = QApplication(sys.argv)
+        download_root = QFileDialog.getExistingDirectory(
+            None,
+            "选择下载到的文件夹",
+            download_root,
+            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        )
+        #如果目录非空，则在该目录下创建一个子目录作为下载目录
+        if download_root and os.path.exists(download_root):
+            if os.listdir(download_root):
+                token = base64.urlsafe_b64encode(os.urandom(6)).decode("utf-8").rstrip("=")
+                download_root = os.path.join(download_root, f"download_{self.game_id}_{int(time.time())}_{token}")
+                os.makedirs(download_root, exist_ok=True)
+                
+        self.logger.info(f"选择的下载目录: {download_root}")
+        #更新自己的路径为下载目录下的游戏可执行文件
+        self.path = os.path.join(download_root, os.path.basename(self.path) if self.path else "")
+        if not download_root:
+            self.logger.error("未选择下载目录")
+            return False
+        
         task_data = {
             "download_root": download_root,
             "concurrent_files": max_concurrent_files,
@@ -411,13 +437,13 @@ class Game:
         cloud_res = CloudRes()
         short_game_id = getShortGameId(self.game_id)
         if not cloud_res.is_convert_to_normal(short_game_id):
-            self.logger.info(f"游戏 {self.game_id} 不需要转换")
+            #self.logger.info(f"游戏 {self.game_id} 不需要转换")
             return False
         #检查游戏exe同目录下的pack_config.xml文件，将其更名为pack_config.xml.bak
-        if not self.path or not os.path.exists(self.path):
-            self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
-            return False
         game_dir=os.path.dirname(self.path)
+        if not os.path.exists(game_dir):
+            self.logger.error(f"游戏目录不存在: {game_dir}")
+            return False
         pack_config_path=os.path.join(game_dir,"pack_config.xml")
         if os.path.exists(pack_config_path):
             bak_path=pack_config_path+".bak"
@@ -435,7 +461,7 @@ class Game:
                 self.logger.exception(f"重命名文件失败: {str(e)}")
                 return False
         else:
-            self.logger.error(f"未找到需要转换的文件: {pack_config_path}")
+            #self.logger.error(f"未找到需要转换的文件: {pack_config_path}")
             return False
         
     def is_downloadable_fever(self) -> bool:
@@ -471,7 +497,7 @@ class Game:
     def is_fever(self)-> bool:
         """检查游戏是否为Fever版本"""
         if not self.path or not os.path.exists(self.path):
-            self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
+            #self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
             return False
         game_dir=os.path.dirname(self.path)
         pack_config_path=os.path.join(game_dir,"pack_config.xml")
@@ -481,7 +507,7 @@ class Game:
         """检查游戏是否可以转换为普通版本"""
         cloud_res = CloudRes()
         short_game_id = getShortGameId(self.game_id)
-        print(f"检查游戏 {self.game_id} 是否可以转换为普通版本: {cloud_res.is_convert_to_normal(short_game_id)}")
+        #print(f"检查游戏 {self.game_id} 是否可以转换为普通版本: {cloud_res.is_convert_to_normal(short_game_id)}")
         return cloud_res.is_convert_to_normal(short_game_id) and self.is_fever()
     
 
@@ -768,7 +794,7 @@ class GameManager:
                     except OSError:
                         break
         except Exception:
-            self.logger.exception("读取Fever游戏列表失败")
+            self.logger.debug("读取Fever游戏列表失败")
         return result
 
     def import_fever_game(self, game_id: str) -> bool:

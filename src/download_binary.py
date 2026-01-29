@@ -117,11 +117,22 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
 
     except KeyboardInterrupt:
         print("\nUI Server 正在停止...")
+    except Exception as e:
+        import traceback
+        print(f"\nUI Server 发生异常: {e}")
+        traceback.print_exc()
     finally:
-        receiver.close()
-        sender.close()
-        context.term()
+        print("正在关闭 UI Server 资源...")
+        try:
+            receiver.setsockopt(zmq.LINGER, 0)
+            sender.setsockopt(zmq.LINGER, 0)
+            receiver.close()
+            sender.close()
+            context.term()
+        except Exception as e:
+            print(f"关闭资源时出错: {e}")
         print("已关闭。")
+        
 
 def download_file(filename):
     """
