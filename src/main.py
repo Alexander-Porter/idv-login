@@ -572,6 +572,18 @@ def handle_download_task(task_file_path):
             os.remove(task_file_path)
         except Exception as e:
             logger_local.exception(f"删除下载任务文件失败: {e}")
+        try:#尝试用explorer打开下载完成的目录
+            if download_root and os.path.exists(download_root):
+                #使用正斜杠避免路径问题
+                download_root = os.path.abspath(download_root)
+                if sys.platform == "win32":
+                    subprocess.Popen(["explorer", download_root])
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", download_root])
+                elif sys.platform == "linux":
+                    subprocess.Popen(["xdg-open", download_root])
+        except Exception as e:
+            logger_local.exception(f"打开下载目录失败: {e}")
         return result
     except Exception as e:
         logger_local.exception(f"下载任务执行失败: {e}")
@@ -815,8 +827,9 @@ if __name__ == "__main__":
         if CLI_ARGS.download:
             success = handle_download_task(CLI_ARGS.download)
             sys.exit(0 if success else 1)
-    except:
+    except SystemExit:
+        raise
+    except Exception:
         import traceback
-        traceback.print_exception()
-        traceback.print_stack()
+        traceback.print_exc()
     main(CLI_ARGS)
