@@ -54,7 +54,10 @@ class Game:
     ) -> None:
         self.game_id = game_id
         self.name = name if name else game_id
-        self.path = path
+        if sys.platform == "win32" and isinstance(path, str):
+            self.path = path.replace("\\", "/")
+        else:
+            self.path = path
         self.should_auto_start = should_auto_start
         self.auto_close_after_login = auto_close_after_login
         self.login_delay = login_delay
@@ -273,6 +276,8 @@ class Game:
         if not to_update:
             self.version = file_distribution_info.get("version_code", self.version)
             return True
+        
+
         task_data = {
             "download_root": download_root,
             "concurrent_files": max_concurrent_files,
@@ -281,6 +286,7 @@ class Game:
             "version_code": file_distribution_info.get("version_code", self.version),
             "game_id": self.game_id,
             "distribution_id": distribution_id,
+            "content_id":file_distribution_info.get("app_content_id"),
             "convert_to_normal": self.can_convert_to_normal()
         }
         task_file_path = self._create_download_task_file(task_data)

@@ -20,6 +20,8 @@ import sys
 import argparse
 import shutil
 import glob
+import base64
+import subprocess
 
 
 def parse_command_line_args():
@@ -451,6 +453,13 @@ def setup_work_directory():
     except Exception as e:
         print(f"切换到工作目录失败: {e}")
 
+def _encode_download_path(path):
+    if not path:
+        return ""
+    if sys.platform == "win32":
+        path = path.replace("/", "\\")
+    return base64.b64encode(path.encode("utf-8")).decode("utf-8")
+
 def handle_download_task(task_file_path):
     if not task_file_path:
         print("缺少下载任务文件路径")
@@ -477,9 +486,59 @@ def handle_download_task(task_file_path):
     game_id = task_data.get("game_id", "")
     version_code = task_data.get("version_code", "")
     distribution_id = int(task_data.get("distribution_id", -1))
+    content_id = task_data.get("content_id")
+    original_version = task_data.get("original_version", "")
     convert_to_normal = bool(task_data.get("convert_to_normal", False))
     result = True
-    if files:
+    ui_server_process = None
+    download_process = None
+    use_download_ipc = bool(content_id) and distribution_id != -1 and download_root
+    if use_download_ipc:
+        from download_binary import ensure_binary, PORT_SEND_HEARTBEAT, PORT_RECEIVE_PROGRESS
+        if not ensure_binary():
+            result = False
+        else:
+            creationflags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+            ui_cmd = [
+                sys.executable,
+                os.path.join(script_dir, "download_binary.py"),
+                "--ui-server",
+                "--topic",
+                str(content_id),
+                "--sub-port",
+                str(PORT_SEND_HEARTBEAT),
+                "--pub-port",
+                str(PORT_RECEIVE_PROGRESS),
+            ]
+            ui_server_process = subprocess.Popen(ui_cmd, creationflags=creationflags)
+            encoded_path = _encode_download_path(download_root)
+            #./downloadIPC  --gameid:73 --contentid:434 --subport:1737 --pubport:1740 --path:RTpcRmV2ZXJBcHBzXGR3cmcy --env:live --oversea:0 --targetVersion:v3_3028_7e8d8ea06733136dd915a6e865440158 --originVersion:v3_2547 --scene:2 --rateLimit:0  --channel:platform --locale:zh_Hans  --isSSD:1 --isRepairMode:0
+            download_cmd = [
+                os.path.join(os.getcwd(), "downloadIPC.exe"),
+                f"--gameid:{distribution_id}",
+                f"--env:live",
+                f"--oversea:0",
+                f"--scene:2",
+                f"--rateLimit:0",
+                f"--channel:platform",
+                f"--locale:zh_Hans",
+                f"--isSSD:1",
+                f"--isRepairMode:0",
+                f"--contentid:{content_id}",
+                f"--subport:{PORT_SEND_HEARTBEAT}",
+                f"--pubport:{PORT_RECEIVE_PROGRESS}",
+                f"--path:{encoded_path}",
+            ]
+            if version_code:
+                download_cmd.append(f"--targetVersion:{version_code}")
+            if original_version:
+                download_cmd.append(f"--originVersion:{original_version}")
+            else:
+                download_cmd.append(f"--originVersion:")
+            download_process = subprocess.Popen(download_cmd, creationflags=creationflags)
+            exit_code = download_process.wait()
+            result = exit_code == 0
+    elif files:
         from game_updater import GameUpdater
         updater = GameUpdater(
             download_root=download_root,
@@ -499,6 +558,12 @@ def handle_download_task(task_file_path):
             if convert_to_normal:
                 game.convert_to_normal()
             game_mgr._save_games()
+    if ui_server_process:
+        try:
+            ui_server_process.terminate()
+            ui_server_process.wait(timeout=5)
+        except Exception:
+            pass
     try:
         os.remove(task_file_path)
     except Exception as e:
