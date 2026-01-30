@@ -1350,8 +1350,8 @@
                     swal.close();
                     if (data.success) {
                         swal({
-                            title: "更新完成",
-                            text: data.converted ? "更新完成并已完成转换" : "更新完成",
+                            title: "更新已在后台启动",
+                            text: data.converted ? "更新完成并已完成转换" : "请留意工具的新窗口，应该会启动两个窗口，其中一个窗口会展示进度！更新完将会弹出游戏所在位置，请注意记录。",
                             icon: "success",
                             button: "确定",
                         }).then(() => {
