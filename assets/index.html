@@ -1403,6 +1403,7 @@
                     //修改当前页面查询参数
                     const url = new URL(window.location.href);
                     url.searchParams.set('game_id', "h55");
+                    url.searchParams.set('import_from_fever_now', "1");
                     window.location = url;
                 });
                 return;
@@ -1581,6 +1582,11 @@
                 // 加载自动启动设置
                 loadAutoStartSettings();
                 loadLauncherStatus();
+                import_from_fever_now = getQueryVariable("import_from_fever_now");
+                if (import_from_fever_now!="") {
+                    // 触发导入操作
+                    importFeverLauncher();
+                }
             }
         }
 
