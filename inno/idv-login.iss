@@ -55,7 +55,19 @@ var
   DDir: String;
   CDir: String;
   FallbackDir: String;
+  FlagPath: String;
+  SavedDir: String;
 begin
+  FlagPath := ExpandConstant('{commonappdata}\idv-login\install_root.flag');
+  if LoadStringFromFile(FlagPath, SavedDir) then
+  begin
+    SavedDir := Trim(SavedDir);
+    if (SavedDir <> '') and DirExists(SavedDir) then
+    begin
+      Result := SavedDir;
+      Exit;
+    end;
+  end;
   DDir := 'D:\ProgramData\IDV-Login';
   CDir := 'C:\ProgramData\IDV-Login';
   FallbackDir := ExpandConstant('{commondocs}\IDV-Login');

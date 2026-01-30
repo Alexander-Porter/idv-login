@@ -457,7 +457,14 @@ def setup_work_directory():
 def record_install_root():
     try:
         install_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
-        genv.set("INSTALL_ROOT", install_root, True)
+        program_data = os.environ.get("PROGRAMDATA", "")
+        if not program_data:
+            return
+        flag_dir = os.path.join(program_data, "idv-login")
+        os.makedirs(flag_dir, exist_ok=True)
+        flag_path = os.path.join(flag_dir, "install_root.flag")
+        with open(flag_path, "w", encoding="utf-8") as f:
+            f.write(install_root)
     except Exception:
         pass
 
