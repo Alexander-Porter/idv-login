@@ -2,6 +2,11 @@ name: Build and Package
 
 on:
     workflow_dispatch:
+    push:
+        paths:
+            - 'src/**'
+            - 'requirements.txt'
+            - '.github/workflows/pack.yaml'
 
 jobs:
   build:
