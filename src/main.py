@@ -62,6 +62,7 @@ m_hostmgr = None
 m_proxy = None
 m_cloudres=None
 logger = None # Will be initialized in __main__
+_console_ctrl_handler = None
 
 
 def get_computer_name():
@@ -237,7 +238,7 @@ def handle_update():
         return
 
 def ctrl_handler(ctrl_type):
-    if ctrl_type == 2:  # 对应CTRL_CLOSE_EVENT
+    if ctrl_type in (0, 1, 2, 5, 6):
         handle_exit()
         return False
     return True
@@ -417,8 +418,9 @@ def prepare_platform_workdir():
     if sys.platform=='win32':
         kernel32 = ctypes.WinDLL("kernel32")
         HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
-        handle_ctrl = HandlerRoutine(ctrl_handler)
-        kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+        global _console_ctrl_handler
+        _console_ctrl_handler = HandlerRoutine(ctrl_handler)
+        kernel32.SetConsoleCtrlHandler(_console_ctrl_handler, True)
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
         genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     elif sys.platform=='darwin':
