@@ -380,6 +380,26 @@
         #launcherIcon.hidden {
             display: none;
         }
+
+        /* 增强的禁用按钮样式 */
+        .btn:disabled,
+        .btn.disabled {
+            cursor: not-allowed !important;
+            opacity: 0.6 !important;
+            background-color: #e9ecef !important;
+            border-color: #dee2e6 !important;
+            color: #adb5bd !important;
+            box-shadow: none !important;
+            pointer-events: auto !important; /* 允许显示鼠标样式 */
+        }
+
+        /* 为下载和更新按钮添加特定提示 */
+        #launcherInstallBtn:disabled::after,
+        #launcherUpdateBtn:disabled::after {
+            content: ' (不可用)';
+            font-size: 0.8em;
+            margin-left: 4px;
+        }
     </style>
 </head>
 
