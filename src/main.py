@@ -163,7 +163,7 @@ def handle_update():
         return
     elif not genv.get("CLOUD_VERSION") in ignoredVersions:
         print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
-        details=CloudRes().get_detail()
+        details=CloudRes().get_detail_html()
         
         QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
         msg_box = QMessageBox()
