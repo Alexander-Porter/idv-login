@@ -85,7 +85,7 @@ jobs:
       - name: Calculate Client checksum
         run: |
           $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          Get-FileHash ".github/inno/dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > ".github/inno/dist-installer\$outputBase.exe.sha256"
+          Get-FileHash ".\dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > ".github/inno/dist-installer\$outputBase.exe.sha256"
         shell: pwsh
 
       - name: Archive production artifacts
@@ -93,5 +93,5 @@ jobs:
         with:
           name: production-artifacts
           path: |
-            .github\inno\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
-            .github\inno\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+            .\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
+            .\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
