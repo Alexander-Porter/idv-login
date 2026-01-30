@@ -18,13 +18,13 @@
 
 import os
 import json
-import random
 import time
-
-import requests
-
+from datetime import datetime
+import gevent
 from envmgr import genv
+from logutil import setup_logger
 from const import manual_login_channels
+from channelHandler.channelUtils import cmp_game_id
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 
@@ -168,7 +168,7 @@ class ChannelManager:
 
     def list_channels(self,game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id.endswith(game_id))],
+            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (cmp_game_id(channel.game_id, game_id))],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )

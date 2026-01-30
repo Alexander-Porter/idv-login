@@ -18,17 +18,15 @@
 import ctypes
 import hashlib
 import os
-import json
-import subprocess
 import sys
 import time
-import winreg
-import base64
-import shutil
-from typing import Dict, List, Optional, Tuple
-
-import xxhash
-from channelHandler.channelUtils import getShortGameId
+import json
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from envmgr import genv
+from logutil import setup_logger
+from cloudRes import CloudRes
+from channelHandler.channelUtils import getShortGameId, cmp_game_id
 from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
@@ -804,7 +802,7 @@ class GameManager:
         fever_games = self.list_fever_games()
         target = None
         for item in fever_games:
-            if item.get("game_id") == game_id:
+            if cmp_game_id(item.get("game_id"), game_id):
                 target = item
                 break
         if not target:

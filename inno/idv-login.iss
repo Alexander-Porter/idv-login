@@ -17,7 +17,7 @@
 [Setup]
 AppName={#AppName}
 AppVersion={#AppVersion}
-DefaultDirName={autodesktop}\IDV-Login
+DefaultDirName={code:GetDefaultDir}
 CreateUninstallRegKey=no
 Uninstallable=no
 OutputBaseFilename={#OutputBaseFilename}
@@ -25,6 +25,13 @@ PrivilegesRequired=lowest
 Compression=lzma
 SolidCompression=yes
 OutputDir={#OutputDir}
+SetupIconFile=..\assets\icon.ico
+LicenseFile=LICENSE.txt
+ShowLanguageDialog=no
+LanguageDetectionMethod=none
+
+[Languages]
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标"
@@ -33,11 +40,58 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Source: "..\dist\python-embed\*"; DestDir: "{app}\python-embed"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\src\*"; DestDir: "{app}\src"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\点我启动工具.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon
+Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+
+[Run]
+Filename: "{app}\点我启动工具.bat"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "查看教程"; Flags: postinstall shellexec runasoriginaluser
 
 [Code]
+function GetDefaultDir(Param: String): String;
+var
+  DDir: String;
+  CDir: String;
+  FallbackDir: String;
+begin
+  DDir := 'D:\ProgramData\IDV-Login';
+  CDir := 'C:\ProgramData\IDV-Login';
+  FallbackDir := ExpandConstant('{commondocs}\IDV-Login');
+  if CanWriteToDir(DDir) then
+    Result := DDir
+  else if CanWriteToDir(CDir) then
+    Result := CDir
+  else
+    Result := FallbackDir;
+end;
+
+function CanWriteToDir(Dir: String): Boolean;
+var
+  TestFile: String;
+begin
+  Result := False;
+  try
+    if not DirExists(Dir) then
+      if not ForceDirectories(Dir) then
+        Exit;
+    TestFile := AddBackslash(Dir) + '.__write_test';
+    if SaveStringToFile(TestFile, 'test', False) then
+    begin
+      DeleteFile(TestFile);
+      Result := True;
+    end;
+  except
+    Result := False;
+  end;
+end;
+
+procedure InitializeWizard;
+begin
+  WizardForm.DiskSpaceLabel.Visible := False;
+end;
+
 function IsASCII(s: string): Boolean;
 var
   i: Integer;

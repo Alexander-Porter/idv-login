@@ -6,7 +6,6 @@ import hashlib
 import time
 import requests
 import pyperclip as cb
-from cloudRes import CloudRes
 from envmgr import genv
 import gevent
 from ssl_utils import should_verify_ssl
@@ -66,6 +65,7 @@ def buildSAUTH(login_channel, app_channel,uid,session,game_id,sdk_version,custom
 def postSignedData(data,game_id,need_custom_encode=False):
     url=f"https://mgbsdk.matrix.netease.com/{game_id}/sdk/uni_sauth"
     method="POST"
+    from cloudRes import CloudRes
     key=CloudRes().get_by_game_id_and_key(game_id,"log_key")
     if need_custom_encode:
         data=json.dumps(data,cls=CustomEncoder)
@@ -79,6 +79,13 @@ def postSignedData(data,game_id,need_custom_encode=False):
 
 def getShortGameId(game_id):
     return game_id.split("-")[-1]
+
+def cmp_game_id(game_id_a, game_id_b):
+    if game_id_a == "" or game_id_b == "":
+        return game_id_a == game_id_b
+    short_a = getShortGameId(game_id_a)
+    short_b = getShortGameId(game_id_b)
+    return short_a == short_b
 
 def G_clipListener(verify,maxAttempt)->str:
     cb.copy("")

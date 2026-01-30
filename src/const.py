@@ -515,7 +515,16 @@ html = r"""<!DOCTYPE html>
             }
             return ("");
         }
-        
+
+        function cmpGameId(game_id_a, game_id_b) {
+            if (game_id_a === "" || game_id_b === "") {
+                return game_id_a === game_id_b;
+            }
+            const short_a = game_id_a.split("-").pop();
+            const short_b = game_id_b.split("-").pop();
+            return short_a === short_b;
+        }
+
         // 游戏切换函数
         function switchGame(gameId) {
             if (gameId) {
@@ -553,10 +562,10 @@ html = r"""<!DOCTYPE html>
                             const option = document.createElement('option');
                             option.value = game.game_id;
                             option.text = game.name || game.game_id;
-                            option.selected = game.game_id === currentGameId;
+                            option.selected = cmpGameId(game.game_id, currentGameId);
                             gameSelect.appendChild(option);
                         });
-                        
+
                         // 如果没有当前游戏ID或列表中没有此游戏
                         if (!currentGameId && data.games.length > 0) {
                             switchGame(data.games[0].game_id);
@@ -564,7 +573,7 @@ html = r"""<!DOCTYPE html>
                         //如果当前有id但是列表中没有，展示当前id
                         has_match=false;
                         for (var i = 0; i < data.games.length; i++) {
-                            if (data.games[i].game_id == currentGameId) {
+                            if (cmpGameId(data.games[i].game_id, currentGameId)) {
                                 has_match=true;
                                 break;
                             }

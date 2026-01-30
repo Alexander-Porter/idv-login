@@ -683,6 +683,15 @@
 
 
     <script>
+        function cmpGameId(game_id_a, game_id_b) {
+            if (game_id_a === "" || game_id_b === "") {
+                return game_id_a === game_id_b;
+            }
+            const short_a = game_id_a.split("-").pop();
+            const short_b = game_id_b.split("-").pop();
+            return short_a === short_b;
+        }
+
         function timeStampToLocalTime(timestamp) {
             return new Date(timestamp * 1000).toLocaleString();
         };
@@ -974,7 +983,7 @@
                             const option = document.createElement('option');
                             option.value = game.game_id;
                             option.text = game.name || game.game_id;
-                            option.selected = game.game_id === currentGameId;
+                            option.selected = cmpGameId(game.game_id, currentGameId);
                             gameSelect.appendChild(option);
                         });
 
@@ -985,7 +994,7 @@
                         //如果当前有id但是列表中没有，展示当前id
                         has_match = false;
                         for (var i = 0; i < data.games.length; i++) {
-                            if (data.games[i].game_id == currentGameId) {
+                            if (cmpGameId(data.games[i].game_id, currentGameId)) {
                                 has_match = true;
                                 break;
                             }

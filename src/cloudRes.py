@@ -6,6 +6,7 @@ from envmgr import genv
 from const import manual_login_channels
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
+from channelHandler.channelUtils import cmp_game_id
 
 logger = setup_logger()
 
@@ -123,7 +124,7 @@ class CloudRes:
     def is_game_in_qrcode_login_list(self,game_id):
         game_list = self.get_netease_qrcode_login_game_list()
         for item in game_list:
-            if item.get('game_id') == game_id:
+            if cmp_game_id(item.get('game_id'), game_id):
                 return True
         return False
 
@@ -131,7 +132,7 @@ class CloudRes:
         if self.is_game_in_qrcode_login_list(game_id):
             game_list = self.get_netease_qrcode_login_game_list()
             for item in game_list:
-                if item.get('game_id') == game_id:
+                if cmp_game_id(item.get('game_id'), game_id):
                     return item.get('app_channel')
         return None
 
