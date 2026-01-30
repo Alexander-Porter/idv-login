@@ -1323,6 +1323,16 @@
                     if (!info.success) {
                         throw new Error(info.error || '获取更新信息失败');
                     }
+                    //如果下载文件大小是96B，而且需要更新文件的数量是1，则提示用户已经完成绕过发烧平台处理，无需更新
+                    if (info.download_bytes==96 && info.file_count==1){
+                        return swal({
+                            title: "恭喜",
+                            text: "已经完成绕过发烧平台处理，无需更新。这个弹窗将在下一个更新中去除OVO",
+                            icon: "info",
+                            button: "确定",
+                        });
+                        return;
+                    }
                     const downloadText = info.needs_update
                         ? `需要下载：${formatSize(info.download_bytes)}（${info.file_count}个文件）`
                         : '无需下载，已是最新版本';
