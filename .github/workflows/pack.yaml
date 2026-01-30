@@ -87,16 +87,9 @@ jobs:
             inno/idv-login.iss
         shell: pwsh
 
-      - name: Calculate Client checksum
-        run: |
-          $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"
-          Get-FileHash ".\dist-installer\$outputBase.exe" | select-object -ExpandProperty Hash > ".github/inno/dist-installer\$outputBase.exe.sha256"
-        shell: pwsh
-
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: production-artifacts
           path: |
             .\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe
-            .\dist-installer\idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
