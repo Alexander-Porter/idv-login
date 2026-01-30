@@ -10,8 +10,8 @@ import sys
 import argparse
 
 # --- UI Server 配置 ---
-# UI 绑定的地址，通常是本机所有接口
-BIND_HOST = "0.0.0.0"
+# 防止防火墙问题
+BIND_HOST = "127.0.0.1"
 
 # 端口定义
 # 1740: UI 在这里 LISTEN (SUB)，接收 Worker 发来的进度

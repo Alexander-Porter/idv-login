@@ -454,6 +454,13 @@ def setup_work_directory():
     except Exception as e:
         print(f"切换到工作目录失败: {e}")
 
+def record_install_root():
+    try:
+        install_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
+        genv.set("INSTALL_ROOT", install_root, True)
+    except Exception:
+        pass
+
 def _encode_download_path(path):
     if not path:
         return ""
@@ -795,6 +802,7 @@ def main(cli_args=None):
     
     # 设置工作目录
     setup_work_directory()
+    record_install_root()
 
     # Initialize logger (assign to global logger variable)
     from logutil import setup_logger

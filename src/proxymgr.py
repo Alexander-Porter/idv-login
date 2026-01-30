@@ -381,8 +381,8 @@ def toggle_httpdns_blocking():
 def before_request_func():
     if "_idv-login" in request.url:
         return
-    logger.info(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
-
+    #logger.info(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
+    return
 
 @app.after_request
 def after_request_func(response: Response):
@@ -399,7 +399,7 @@ def after_request_func(response: Response):
             and response.status_code != 304
         )
         # debug
-        or "_idv-login" not in request.url
+        #or "_idv-login" not in request.url
     ):
         logger.info(
             f"请求 {request.url} {request.headers} {request.get_data().decode()}"
