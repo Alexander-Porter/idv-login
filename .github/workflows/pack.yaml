@@ -75,6 +75,11 @@ jobs:
         run: choco install innosetup -y
         shell: pwsh
 
+      - name: Download Chinese language file
+        run: |
+          Invoke-WebRequest -Uri https://github.com/jrsoftware/issrc/raw/main/Files/Languages/Unofficial/ChineseSimplified.isl -OutFile inno/ChineseSimplified.isl
+        shell: pwsh
+
       - name: Build installer
         run: |
           $outputBase = "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}"

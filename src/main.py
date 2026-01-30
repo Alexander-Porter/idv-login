@@ -370,9 +370,10 @@ def initialize():
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
     QNetworkProxyFactory.setUseSystemConfiguration(False)
 
-    #该版本首次使用会弹出教程
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
-        
+        # 记录安装根目录
+        record_install_root()
+        #该版本首次使用会弹出教程
         import webbrowser
         url=CloudRes().get_guideUrl()
         genv.set("httpdns_blocking_enabled",False,True)
@@ -809,7 +810,7 @@ def main(cli_args=None):
     
     # 设置工作目录
     setup_work_directory()
-    record_install_root()
+    
 
     # Initialize logger (assign to global logger variable)
     from logutil import setup_logger
