@@ -1330,8 +1330,7 @@
                             text: "已经完成绕过发烧平台处理，无需更新。这个弹窗将在下一个更新中去除OVO",
                             icon: "info",
                             button: "确定",
-                        });
-                        return;
+                        }).then(() => false);
                     }
                     const downloadText = info.needs_update
                         ? `需要下载：${formatSize(info.download_bytes)}（${info.file_count}个文件）`
