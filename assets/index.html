@@ -542,7 +542,7 @@
                                 <i class="bi bi-arrow-repeat me-1"></i>更新新引擎
                             </button>
                             <button id="launcherImportFeverBtn" onclick="importFeverLauncher()" class="btn btn-outline-secondary">
-                                <i class="bi bi-box-arrow-in-down me-1"></i>导入Fever
+                                <i class="bi bi-box-arrow-in-down me-1"></i>导入发烧平台已有游戏
                             </button>
                         </div>
                     </div>
@@ -1261,6 +1261,10 @@
             installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
             updateBtn.disabled = !(dist && dist.can_update);
             importBtn.disabled = !launcherState.can_import_fever;
+            //如果是第五人格新引擎，则直接显示可以导入
+            if (launcherState.game_id!='h55' && launcherState.game_id.endsWith('h55')){
+                importBtn.disabled=false;
+            }
         }
 
         function installLauncher() {
@@ -1384,6 +1388,22 @@
                 buttons: false,
                 closeOnClickOutside: false,
             });
+            //以h55结束
+            if (launcherState.game_id!='h55' && launcherState.game_id.endsWith('h55')){
+                //询问用户是否是想要导入已经安装的第五人格新引擎
+                swal({
+                    title: "从发烧平台导入第五人格新引擎",
+                    text: "是否导入已经安装的第五人格新引擎？导入后，游戏可以直接启动，也可以用工具启动，实现免扫码功能，与旧引擎的登录体验一致。",
+                    icon: "warning",
+                    buttons: ["取消", "我已经在发烧平台安装游戏，继续导入"],
+                }).then(shouldImport => {
+                    if (!shouldImport) return;
+                    //修改当前页面查询参数
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('game_id', "h55");
+                    window.location = url;
+                });
+            }
             fetchLauncherJson(`/_idv-login/launcher-import-fever?game_id=${launcherState.game_id}`)
                 .then(data => {
                     swal.close();
