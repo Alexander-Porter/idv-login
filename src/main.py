@@ -151,7 +151,7 @@ def _check_and_copy_pyqt5_files():
 def handle_update():
 
     
-    from PyQt5.QtWidgets import QMessageBox, QToolButton, QMenu, QAction, QSizePolicy, QApplication
+    from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QAction, QSizePolicy, QApplication
     from PyQt5.QtCore import Qt
     
     ignoredVersions=genv.get("ignoredVersions",[])
@@ -162,38 +162,49 @@ def handle_update():
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
-    elif not genv.get("CLOUD_VERSION") in ignoredVersions:
+    elif not genv.get("CLOUD_VERSION") in ignoredVersions or 1:#debug
         print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
         details=CloudRes().get_detail_html()
         
         QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle(f"新版本！")
-        msg_box.setText(f"{genv.get('VERSION')} -> {genv.get('CLOUD_VERSION')}")
-        # 将换行符转换为 HTML 换行符以支持富文本显示
+        dialog = QDialog()
+        dialog.setWindowTitle(f"新版本！")
+        dialog.setSizeGripEnabled(True)
+        dialog_layout = QVBoxLayout(dialog)
+        title_label = QLabel(f"{genv.get('VERSION')} -> {genv.get('CLOUD_VERSION')}")
+        dialog_layout.addWidget(title_label)
         formatted_details = details.replace('\n', '<br>')
-        msg_box.setInformativeText(f"{formatted_details}")
+        details_view = QTextBrowser()
+        details_view.setHtml(formatted_details)
+        details_view.setOpenExternalLinks(True)
+        details_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        dialog_layout.addWidget(details_view, 1)
+        screen = QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            dialog.resize(int(available.width() * 0.4), int(available.height() * 0.6))
+            dialog.setMaximumSize(int(available.width() * 0.8), int(available.height() * 0.8))
+        dialog.setMinimumSize(520, 420)
         
-        yes_btn = msg_box.addButton("现在更新", QMessageBox.AcceptRole)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch(1)
+        yes_btn = QPushButton("现在更新")
         
-        # 创建带下拉菜单的“暂时跳过”按钮 (Split Button)
         no_btn = QToolButton()
         no_btn.setText("下次提醒我")
         no_btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
         no_btn.setPopupMode(QToolButton.MenuButtonPopup)
         no_btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        # 设置最小高度以匹配普通按钮
         no_btn.setMinimumHeight(23)
         if CloudRes().is_update_critical():
             pass
         else:
-            # 创建“忽略此版本”菜单项
-            ignore_action = QAction("忽略此版本", msg_box)
+            ignore_action = QAction("忽略此版本", dialog)
             def on_ignore(checked=False):
                 print(f"【在线更新】用户选择忽略版本{genv.get('CLOUD_VERSION')}。")
                 ignoredVersions.append(genv.get("CLOUD_VERSION"))
                 genv.set("ignoredVersions",ignoredVersions,True)
-                msg_box.close() 
+                dialog.reject()
 
             ignore_action.triggered.connect(on_ignore)
         
@@ -201,14 +212,13 @@ def handle_update():
             menu.addAction(ignore_action)
             no_btn.setMenu(menu)
         
-        # 将按钮点击（主区域）连接到对话框的 reject
-        # QToolButton 的 clicked 信号在点击主区域时触发
-        no_btn.clicked.connect(msg_box.reject)
+        no_btn.clicked.connect(dialog.reject)
+        yes_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(no_btn)
+        button_layout.addWidget(yes_btn)
+        dialog_layout.addLayout(button_layout)
         
-        msg_box.addButton(no_btn, QMessageBox.RejectRole)
-        msg_box.setDefaultButton(yes_btn)
-        
-        msg_box.exec_()
+        result = dialog.exec_()
        
         def go_to_update():
             url=CloudRes().get_downloadUrl()
@@ -216,7 +226,7 @@ def handle_update():
             webbrowser.open(url)
             QMessageBox.information(None, "提示", "请按照打开的网页指引下载更新。\n程序将自动退出。")
             sys.exit(0)
-        if msg_box.clickedButton() == yes_btn:
+        if result == QDialog.Accepted:
             go_to_update()
         else:
             if CloudRes().is_update_critical():
