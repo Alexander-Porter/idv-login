@@ -162,7 +162,7 @@ def handle_update():
     if genv.get("CLOUD_VERSION")==genv.get("VERSION"):
         print("【在线更新】当前版本已是最新版本。")
         return
-    elif not genv.get("CLOUD_VERSION") in ignoredVersions or 1:#debug
+    elif not genv.get("CLOUD_VERSION") in ignoredVersions:
         print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
         details=CloudRes().get_detail_html()
         
@@ -385,10 +385,10 @@ def initialize():
         # 记录安装根目录
         record_install_root()
         #该版本首次使用会弹出教程
-        import webbrowser
-        url=CloudRes().get_guideUrl()
-        genv.set("httpdns_blocking_enabled",False,True)
-        webbrowser.open(url)
+        #import webbrowser
+        #url=CloudRes().get_guideUrl()
+        #genv.set("httpdns_blocking_enabled",False,True)
+        #webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
     try:
         setup_shortcuts()
