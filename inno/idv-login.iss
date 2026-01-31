@@ -37,6 +37,7 @@ SetupIconFile=..\assets\icon.ico
 LicenseFile=LICENSE.txt
 ShowLanguageDialog=no
 LanguageDetectionMethod=none
+DirExistsWarning=no
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "{#LangFile}"
@@ -78,6 +79,10 @@ finally
 Stream.Free;
 end;
 end;
+
+
+
+
 
 
 function CanWriteToDir(Dir: String): Boolean;

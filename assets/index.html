@@ -1275,9 +1275,9 @@
 
             const badges = [];
             badges.push({ text: launcherState.game.installed ? '已安装' : '未安装', color: launcherState.game.installed ? 'success' : 'secondary' });
-            badges.push({ text: dist && dist.can_update ? '可更新' : '无需更新', color: dist && dist.can_update ? 'warning' : 'secondary' });
+            badges.push({ text: dist && dist.can_update ? '可检查更新' : '无需更新', color: dist && dist.can_update ? 'warning' : 'secondary' });
             badges.push({ text: dist && dist.can_download ? '可下载' : '不可下载', color: dist && dist.can_download ? 'info' : 'secondary' });
-            badges.push({ text: launcherState.game.can_convert ? '可转换' : '无需转换', color: launcherState.game.can_convert ? 'primary' : 'secondary' });
+            badges.push({ text: launcherState.game.can_convert ? '可多开' : '不可多开', color: launcherState.game.can_convert ? 'primary' : 'secondary' });
             const badgeContainer = document.getElementById('launcherStatusBadges');
             badgeContainer.innerHTML = '';
             badges.forEach(item => {
