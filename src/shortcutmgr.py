@@ -21,12 +21,20 @@ class ShortcutEntry:
 class ShortcutMgr:
     def __init__(self) -> None:
         pass
+    def _get_shortcut_dir(self):
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(self._detect_current_executable_path()[0])
+        else:
+            base_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+        if os.path.exists(base_dir):
+            return base_dir
+        return os.path.dirname(self._detect_current_executable_path()[0])
     def create_shortcut(self,url,name):
         try:
             content=f'''[InternetShortcut]
     URL={url}
     '''
-            savePath=os.path.join(os.path.dirname(self._detect_current_executable_path()[0]),f"{name}.url")
+            savePath=os.path.join(self._get_shortcut_dir(),f"{name}.url")
             with open(savePath,"w") as f:
                 f.write(content)
             return True
@@ -58,7 +66,7 @@ class ShortcutMgr:
         return cloudResMgr_instance.get_shortcuts()
     
     def is_shortcut_exists(self,url,name):
-        savePath=os.path.join(os.path.dirname(self._detect_current_executable_path()[0]),f"{name}.url")
+        savePath=os.path.join(self._get_shortcut_dir(),f"{name}.url")
         return os.path.exists(savePath)
 
     def handle_shortcuts(self):

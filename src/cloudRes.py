@@ -164,6 +164,12 @@ class CloudRes:
     def is_update_critical(self):
         return self.local_data.get('critical_update', False)
     
+    def get_start_argument(self,shortGameId):
+        features = self.get_feature_by_game_id(shortGameId)
+        if not features:
+            return ""
+        return features.get('start_argument', "")
+    
     def get_download_distributions(self,shortGameId):
         features = self.get_feature_by_game_id(shortGameId)
         if not features:

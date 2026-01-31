@@ -16,12 +16,16 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 import ctypes
+import shutil
 import subprocess
 import os
 import sys
 import time
 import json
-from typing import Optional, List, Dict, Any
+import base64
+import shlex
+from typing import Optional, List, Dict, Any,Tuple
+import xxhash
 from datetime import datetime
 from envmgr import genv
 from logutil import setup_logger
@@ -65,7 +69,6 @@ class Game:
         self.version = version
         self.default_distribution = default_distribution
         self.last_update_async = False
-        self.convert_to_normal()
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -108,7 +111,9 @@ class Game:
         if not game_path or not os.path.exists(game_path):
             self.logger.error(f"游戏路径无效或不存在: {game_path}")
             return False
-        self.convert_to_normal()
+        start_args = ""
+        if self.can_convert_to_normal():
+            start_args = CloudRes().get_start_argument(getShortGameId(self.game_id)) or ""
         if sys.platform == "win32":
             # 规范化路径
             game_path = os.path.normpath(game_path)
@@ -155,6 +160,7 @@ class Game:
                 shell_info.lpVerb = "open"
                 shell_info.lpFile = game_path
                 shell_info.lpDirectory = game_dir
+                shell_info.lpParameters = start_args if start_args else None
                 shell_info.nShow = 1  # SW_SHOWNORMAL
                 
                 shell32 = ctypes.WinDLL('shell32.dll')
@@ -163,8 +169,9 @@ class Game:
                 if not result:
                     # 如果ShellExecuteEx失败，回退到使用subprocess
                     self.logger.warning("ShellExecuteEx启动失败，尝试使用subprocess作为备选方案")
+                    cmd = [game_path] + (shlex.split(start_args) if start_args else [])
                     subprocess.Popen(
-                        game_path,
+                        cmd,
                         cwd=game_dir,
                         env=env,
                         shell=False,
@@ -175,15 +182,56 @@ class Game:
             except Exception as e:
                 self.logger.exception(f"ShellExecuteEx启动失败: {str(e)}")
                 # 回退到原始方法
+                cmd = [game_path] + (shlex.split(start_args) if start_args else [])
                 subprocess.Popen(
-                    game_path,
+                    cmd,
                     cwd=game_dir,
                     env=env,
                     shell=False,
                     startupinfo=startupinfo
                 )
         else:
-            pass
+            cmd = [game_path] + (shlex.split(start_args) if start_args else [])
+            subprocess.Popen(cmd, shell=False)
+
+    def _get_shortcut_dir(self) -> Optional[str]:
+        if sys.platform != "win32":
+            return None
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+        if os.path.exists(base_dir):
+            return base_dir
+        return os.path.dirname(os.path.abspath(self.path)) if self.path else None
+
+    def create_launch_shortcut(self, start_args: str) -> bool:
+        if sys.platform != "win32":
+            return False
+        if not self.path or not os.path.exists(self.path):
+            return False
+        if not start_args:
+            return False
+        shortcut_dir = self._get_shortcut_dir()
+        if not shortcut_dir:
+            return False
+        try:
+            import win32com.client
+            name = self.name if self.name else self.game_id
+            shortcut_path = os.path.join(shortcut_dir, f"{name}.lnk")
+            shell = win32com.client.Dispatch("WScript.Shell")
+            shortcut = shell.CreateShortCut(shortcut_path)
+            normalized_path = os.path.normpath(self.path)
+            shortcut.Targetpath = normalized_path
+            shortcut.Arguments = start_args
+            shortcut.WorkingDirectory = os.path.dirname(normalized_path)
+            shortcut.Description = name
+            shortcut.IconLocation = f"{normalized_path},0"
+            shortcut.save()
+            return True
+        except Exception as e:
+            self.logger.error(f"创建游戏快捷方式失败: {e}")
+            return False
 
     def get_root_path(self) -> str:
         """获取游戏根目录"""
@@ -218,6 +266,11 @@ class Game:
         
     def get_launcher_data_for_distribution(self, distribution_id: int) -> Optional[dict]:
         """获取指定分发ID的启动器数据"""
+        cache = genv.get("launcher_data_cache", {})
+        if isinstance(cache, dict):
+            cached_data = cache.get(str(distribution_id))
+            if isinstance(cached_data, dict) and cached_data:
+                return cached_data
         cloud_res = CloudRes()
         short_game_id = getShortGameId(self.game_id)
         distributions = cloud_res.get_download_distributions(short_game_id)
@@ -234,7 +287,11 @@ class Game:
             if response.status_code!=200 or response.json().get("code")!=200:
                 self.logger.error(f"请求启动器信息失败，状态码: {response.status_code}")
                 return None
-            return response.json().get("data", {})
+            data = response.json().get("data", {})
+            if isinstance(cache, dict) and isinstance(data, dict) and data:
+                cache[str(distribution_id)] = data
+                genv.set("launcher_data_cache", cache, cached=False)
+            return data
         except Exception as e:
             self.logger.exception(f"请求启动器信息失败: {str(e)}")
         return None
@@ -277,29 +334,14 @@ class Game:
             self.version = file_distribution_info.get("version_code", self.version)
             return True
         
-        #必须选择一个空文件夹作为download_root，使用PyQt打开文件夹选择对话框
-        from PyQt5.QtWidgets import QApplication, QFileDialog
-        app_inst = QApplication.instance()
-        if app_inst is None:
-                app_inst = QApplication(sys.argv)
-        download_root = QFileDialog.getExistingDirectory(
-            None,
-            "选择下载到的文件夹",
-            download_root,
-            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
-        )
-        #如果目录非空，则在该目录下创建一个子目录作为下载目录
-        if download_root and os.path.exists(download_root):
-            if os.listdir(download_root):
-                token = base64.urlsafe_b64encode(os.urandom(6)).decode("utf-8").rstrip("=")
-                download_root = os.path.join(download_root, f"download_{self.game_id}_{int(time.time())}_{token}")
-                os.makedirs(download_root, exist_ok=True)
-                
-        self.logger.info(f"选择的下载目录: {download_root}")
-        #更新自己的路径为下载目录下的游戏可执行文件
-        self.path = os.path.join(download_root, os.path.basename(self.path) if self.path else "")
-        if not download_root:
-            self.logger.error("未选择下载目录")
+        repair_paths = []
+        for item in to_update:
+            rel_path = item.get("path", "")
+            if rel_path:
+                repair_paths.append(rel_path.replace("\\", "/"))
+        repair_list_path = self._create_repair_list_file(repair_paths)
+        if not repair_list_path:
+            self.logger.error("创建repair列表文件失败")
             return False
         
         task_data = {
@@ -311,7 +353,8 @@ class Game:
             "game_id": self.game_id,
             "distribution_id": distribution_id,
             "content_id":file_distribution_info.get("app_content_id"),
-            "convert_to_normal": self.can_convert_to_normal()
+            "repair_list_path": repair_list_path,
+            "original_version": ""
         }
         task_file_path = self._create_download_task_file(task_data)
         if not task_file_path:
@@ -335,6 +378,20 @@ class Game:
             return task_file_path
         except Exception as e:
             self.logger.exception(f"创建下载任务文件失败: {e}")
+            return None
+
+    def _create_repair_list_file(self, repair_paths: List[str]) -> Optional[str]:
+        try:
+            workdir = genv.get("FP_WORKDIR", os.getcwd())
+            os.makedirs(workdir, exist_ok=True)
+            token = base64.urlsafe_b64encode(os.urandom(6)).decode("utf-8").rstrip("=")
+            filename = f"repair_{self.game_id}_{int(time.time())}_{token}.txt"
+            file_path = os.path.join(workdir, filename)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(repair_paths))
+            return file_path
+        except Exception as e:
+            self.logger.exception(f"创建repair列表文件失败: {e}")
             return None
 
     def _spawn_download_process(self, task_file_path: str) -> bool:
@@ -431,38 +488,6 @@ class Game:
             "target_version": file_distribution_info.get("version_code", "")
         }
 
-    def convert_to_normal(self) -> bool:
-        """将Fever版本转换为普通版本"""
-        cloud_res = CloudRes()
-        short_game_id = getShortGameId(self.game_id)
-        if not cloud_res.is_convert_to_normal(short_game_id):
-            #self.logger.info(f"游戏 {self.game_id} 不需要转换")
-            return False
-        #检查游戏exe同目录下的pack_config.xml文件，将其更名为pack_config.xml.bak
-        game_dir=os.path.dirname(self.path)
-        if not os.path.exists(game_dir):
-            self.logger.error(f"游戏目录不存在: {game_dir}")
-            return False
-        pack_config_path=os.path.join(game_dir,"pack_config.xml")
-        if os.path.exists(pack_config_path):
-            bak_path=pack_config_path+".bak"
-            if os.path.exists(bak_path):
-                try:
-                    os.remove(bak_path)
-                except Exception as e:
-                    self.logger.exception(f"删除备份文件失败: {str(e)}")
-                    return False
-            try:
-                os.rename(pack_config_path,bak_path)
-                self.logger.info(f"成功将 {pack_config_path} 重命名为 {bak_path}")
-                return True
-            except Exception as e:
-                self.logger.exception(f"重命名文件失败: {str(e)}")
-                return False
-        else:
-            #self.logger.error(f"未找到需要转换的文件: {pack_config_path}")
-            return False
-        
     def is_downloadable_fever(self) -> bool:
         """检查游戏是否有Fever版本可供下载"""
         cloud_res = CloudRes()
@@ -493,21 +518,11 @@ class Game:
         """获取游戏版本号"""
         return self.version
     
-    def is_fever(self)-> bool:
-        """检查游戏是否为Fever版本"""
-        if not self.path or not os.path.exists(self.path):
-            #self.logger.error(f"游戏路径无效或不存在: {self.path if self else '未设置'}")
-            return False
-        game_dir=os.path.dirname(self.path)
-        pack_config_path=os.path.join(game_dir,"pack_config.xml")
-        return os.path.exists(pack_config_path)
-    
     def can_convert_to_normal(self) -> bool:
         """检查游戏是否可以转换为普通版本"""
         cloud_res = CloudRes()
         short_game_id = getShortGameId(self.game_id)
-        #print(f"检查游戏 {self.game_id} 是否可以转换为普通版本: {cloud_res.is_convert_to_normal(short_game_id)}")
-        return cloud_res.is_convert_to_normal(short_game_id) and self.is_fever()
+        return cloud_res.is_convert_to_normal(short_game_id)
     
 
 class GameManager:
@@ -574,6 +589,14 @@ class GameManager:
                     break
             if common_len >= 3:
                 return self.games.get(key)
+        return None
+
+    def find_matching_game_id(self, game_id: str) -> Optional[str]:
+        if not game_id:
+            return None
+        for key in self.games.keys():
+            if cmp_game_id(key, game_id):
+                return key
         return None
 
     def get_game_or_temp(self, game_id: str) -> Optional[Game]:
@@ -743,6 +766,7 @@ class GameManager:
     def list_fever_games(self) -> List[dict]:
         if sys.platform != "win32":
             return []
+        import winreg
         result = []
         try:
             base_path = r"Software\FeverGames\FeverGamesInstaller\game"
@@ -796,9 +820,9 @@ class GameManager:
             self.logger.debug("读取Fever游戏列表失败")
         return result
 
-    def import_fever_game(self, game_id: str) -> bool:
+    def import_fever_game(self, game_id: str) -> Optional[str]:
         if not game_id:
-            return False
+            return None
         fever_games = self.list_fever_games()
         target = None
         for item in fever_games:
@@ -806,11 +830,14 @@ class GameManager:
                 target = item
                 break
         if not target:
-            return False
+            return None
         executable_path = target.get("path", "")
         if not executable_path:
-            return False
-        game = self.games.get(game_id)
+            return None
+        target_game_id = target.get("game_id")
+        matched_game_id = self.find_matching_game_id(target_game_id)
+        final_game_id = matched_game_id or target_game_id
+        game = self.games.get(final_game_id)
         display_name = target.get("display_name")
         distribution_id = target.get("distribution_id", -1)
         if game:
@@ -821,15 +848,15 @@ class GameManager:
                 game.default_distribution = distribution_id
         else:
             game = Game(
-                game_id=game_id,
-                name=display_name if display_name else game_id,
+                game_id=final_game_id,
+                name=display_name if display_name else final_game_id,
                 path=executable_path
             )
             if distribution_id != -1:
                 game.default_distribution = distribution_id
-            self.games[game_id] = game
+            self.games[final_game_id] = game
         self._save_games()
-        return True
+        return final_game_id
 
     def import_from_fever(self):
         if sys.platform != "win32":
@@ -843,7 +870,9 @@ class GameManager:
                 executable_path = item.get("path", "")
                 display_name = item.get("display_name")
                 distribution_id = item.get("distribution_id", -1)
-                game = self.games.get(game_id)
+                matched_game_id = self.find_matching_game_id(game_id)
+                final_game_id = matched_game_id or game_id
+                game = self.games.get(final_game_id)
                 if game:
                     if display_name:
                         game.name = display_name
@@ -852,13 +881,13 @@ class GameManager:
                         game.default_distribution = distribution_id
                 else:
                     game = Game(
-                        game_id=game_id,
-                        name=display_name if display_name else game_id,
+                        game_id=final_game_id,
+                        name=display_name if display_name else final_game_id,
                         path=executable_path
                     )
                     if distribution_id != -1:
                         game.default_distribution = distribution_id
-                    self.games[game_id] = game
+                    self.games[final_game_id] = game
             self._save_games()
         except Exception:
             self.logger.exception("导入Fever游戏失败")

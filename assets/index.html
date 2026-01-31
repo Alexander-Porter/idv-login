@@ -185,6 +185,26 @@
             font-weight: 500;
         }
 
+        .launcher-card-body {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .launcher-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(16px);
+            opacity: 0.35;
+            transform: scale(1.1);
+        }
+
+        .launcher-content {
+            position: relative;
+            z-index: 1;
+        }
+
         /* 状态指示器样式 */
         .status-indicator {
             position: fixed;
@@ -495,8 +515,9 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-rocket-takeoff me-2"></i>游戏启动器</span>
             </div>
-            <div class="card-body">
-                <div class="row g-3 align-items-center">
+            <div class="card-body launcher-card-body">
+                <div id="launcherMainImage" class="launcher-bg"></div>
+                <div class="row g-3 align-items-center launcher-content">
                     <div class="col-md-3 text-center">
                         <img id="launcherIcon" class="hidden" alt="launcher icon">
                     </div>
@@ -543,6 +564,9 @@
                             </button>
                             <button id="launcherImportFeverBtn" onclick="importFeverLauncher()" class="btn btn-outline-secondary">
                                 <i class="bi bi-box-arrow-in-down me-1"></i>导入发烧平台已有游戏
+                            </button>
+                            <button id="launcherImportFeverListBtn" onclick="importFeverLauncherList()" class="btn btn-outline-secondary">
+                                <i class="bi bi-box-arrow-in-down me-1"></i>导入其他发烧平台游戏
                             </button>
                         </div>
                     </div>
@@ -1238,14 +1262,22 @@
                 iconEl.classList.add('hidden');
             }
 
+            const bgEl = document.getElementById('launcherMainImage');
+            const bgSrc = launcher.main_image || '';
+            if (bgEl) {
+                if (bgSrc) {
+                    bgEl.style.backgroundImage = `url('${bgSrc}')`;
+                    bgEl.style.display = 'block';
+                } else {
+                    bgEl.style.display = 'none';
+                }
+            }
+
             const badges = [];
             badges.push({ text: launcherState.game.installed ? '已安装' : '未安装', color: launcherState.game.installed ? 'success' : 'secondary' });
             badges.push({ text: dist && dist.can_update ? '可更新' : '无需更新', color: dist && dist.can_update ? 'warning' : 'secondary' });
             badges.push({ text: dist && dist.can_download ? '可下载' : '不可下载', color: dist && dist.can_download ? 'info' : 'secondary' });
             badges.push({ text: launcherState.game.can_convert ? '可转换' : '无需转换', color: launcherState.game.can_convert ? 'primary' : 'secondary' });
-            if (launcherState.game.is_fever) {
-                badges.push({ text: 'Fever版本', color: 'dark' });
-            }
             const badgeContainer = document.getElementById('launcherStatusBadges');
             badgeContainer.innerHTML = '';
             badges.forEach(item => {
@@ -1258,9 +1290,11 @@
             const installBtn = document.getElementById('launcherInstallBtn');
             const updateBtn = document.getElementById('launcherUpdateBtn');
             const importBtn = document.getElementById('launcherImportFeverBtn');
+            const importListBtn = document.getElementById('launcherImportFeverListBtn');
             installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
             updateBtn.disabled = !(dist && dist.can_update);
-            importBtn.disabled = !launcherState.can_import_fever;
+            importBtn.disabled = false;
+            importListBtn.disabled = false;
             //如果是第五人格新引擎，则直接显示可以导入
             if (launcherState.game_id!='h55' && launcherState.game_id.endsWith('h55')){
                 importBtn.disabled=false;
@@ -1284,7 +1318,7 @@
                     if (data.success) {
                         swal({
                             title: "安装完成",
-                            text: data.converted ? "下载完成并已完成转换" : "下载完成",
+                            text: "下载完成",
                             icon: "success",
                             button: "确定",
                         }).then(() => {
@@ -1360,7 +1394,7 @@
                     if (data.success) {
                         swal({
                             title: "更新已在后台启动",
-                            text: data.converted ? "更新完成并已完成转换" : "请留意工具的新窗口，应该会启动两个窗口，其中一个窗口会展示进度！更新完将会弹出游戏所在位置，请注意记录。",
+                            text: "请留意工具的新窗口，应该会启动两个窗口，其中一个窗口会展示进度！更新完将会弹出游戏所在位置，请注意记录。",
                             icon: "success",
                             button: "确定",
                         }).then(() => {
@@ -1390,9 +1424,7 @@
 
         function importFeverLauncher() {
             if (!launcherState) return;
-            //以h55结束
             if (launcherState.game_id!='h55' && launcherState.game_id.endsWith('h55')){
-                //询问用户是否是想要导入已经安装的第五人格新引擎
                 swal({
                     title: "从发烧平台导入第五人格新引擎",
                     text: "是否导入已经安装的第五人格新引擎？导入后，游戏可以直接启动，也可以用工具启动，实现免扫码功能，与旧引擎的登录体验一致。",
@@ -1400,7 +1432,6 @@
                     buttons: ["取消", "我已经在发烧平台安装游戏，继续导入"],
                 }).then(shouldImport => {
                     if (!shouldImport) return;
-                    //修改当前页面查询参数
                     const url = new URL(window.location.href);
                     url.searchParams.set('game_id', "h55");
                     url.searchParams.set('import_from_fever_now', "1");
@@ -1417,6 +1448,84 @@
             });
             fetchLauncherJson(`/_idv-login/launcher-import-fever?game_id=${launcherState.game_id}`)
                 .then(data => {
+                    swal.close();
+                    if (data.success) {
+                        swal({
+                            title: "导入完成",
+                            icon: "success",
+                            button: "确定",
+                        }).then(() => {
+                            loadGameList();
+                            loadLauncherStatus();
+                        });
+                    } else {
+                        swal({
+                            title: "导入失败",
+                            text: data.error || "未找到可导入记录",
+                            icon: "error",
+                            button: "确定",
+                        });
+                    }
+                })
+                .catch(error => {
+                    if (error && error.isNotFound) {
+                        swal.close();
+                        return;
+                    }
+                    swal({
+                        title: "请求失败",
+                        text: "无法连接到服务器",
+                        icon: "error",
+                        button: "确定",
+                    });
+                });
+        }
+
+        function importFeverLauncherList() {
+            swal({
+                title: "获取发烧平台游戏...",
+                text: "正在加载已安装游戏列表",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+            });
+            fetchLauncherJson(`/_idv-login/fever-games`)
+                .then(data => {
+                    swal.close();
+                    if (!data.success || !data.games || data.games.length === 0) {
+                        throw new Error(data.error || "未找到可导入记录");
+                    }
+                    const select = document.createElement("select");
+                    select.className = "form-select";
+                    data.games.forEach(item => {
+                        const option = document.createElement("option");
+                        const title = item.display_name || item.game_id;
+                        option.value = item.game_id;
+                        option.textContent = `${title} (${item.game_id})`;
+                        select.appendChild(option);
+                    });
+                    return swal({
+                        title: "选择要导入的游戏",
+                        content: select,
+                        buttons: ["取消", "导入"],
+                    }).then(shouldImport => {
+                        if (!shouldImport) return null;
+                        return { selectedId: select.value };
+                    });
+                })
+                .then(payload => {
+                    if (!payload) return;
+                    swal({
+                        title: "导入中...",
+                        text: "正在导入Fever平台游戏记录",
+                        icon: "info",
+                        buttons: false,
+                        closeOnClickOutside: false,
+                    });
+                    return fetchLauncherJson(`/_idv-login/launcher-import-fever?game_id=${payload.selectedId}`);
+                })
+                .then(data => {
+                    if (!data) return;
                     swal.close();
                     if (data.success) {
                         swal({

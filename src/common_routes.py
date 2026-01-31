@@ -316,8 +316,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
             game_for_remote = game_helper.get_game_or_temp(game_id)
             distribution_ids = game_for_remote.get_distributions()
             installed = bool(game and game.path and os.path.exists(game.path))
-            is_fever = bool(game and game.path and game.is_fever())
-            can_convert = bool(game and game.path and game.can_convert_to_normal())
+            can_convert = CloudRes().is_convert_to_normal(short_game_id)
             current_version = game.get_version() if game else ""
             default_distribution = game.get_default_distribution() if game else -1
             fever_info = None
@@ -332,7 +331,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 file_info = game_for_remote.get_file_distribution_info(dist_id)
                 target_version = file_info.get("version_code", "") if file_info else ""
                 can_download = CloudRes().is_downloadable(short_game_id) and file_info is not None
-                can_update = bool(game and installed and game.need_update(dist_id))
+                can_update = bool(installed)
                 distributions.append({
                     "distribution_id": dist_id,
                     "launcher": _pick_launcher_fields(launcher_data),
@@ -347,7 +346,6 @@ def register_common_idv_routes(app, *, game_helper, logger):
                     "installed": installed,
                     "path": game.path if game else "",
                     "version": current_version,
-                    "is_fever": is_fever,
                     "can_convert": can_convert,
                     "default_distribution": default_distribution
                 },
@@ -398,13 +396,14 @@ def register_common_idv_routes(app, *, game_helper, logger):
             game_helper.set_game_default_distribution(game_id, distribution_id)
             max_concurrent = int(request.args.get("concurrent", "4"))
             updated = game.try_update(distribution_id, max_concurrent)
-            converted = False
-            if updated and game.can_convert_to_normal() and not game.last_update_async:
-                converted = game.convert_to_normal()
+            if updated:
+                short_game_id = getShortGameId(game_id)
+                if CloudRes().is_convert_to_normal(short_game_id):
+                    start_args = CloudRes().get_start_argument(short_game_id)
+                    game.create_launch_shortcut(start_args)
             game_helper._save_games()
             return jsonify({
                 "success": updated,
-                "converted": converted,
                 "path": game_path,
                 "version": game.get_version()
             })
@@ -422,13 +421,14 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 return jsonify({"success": False, "error": "未找到已安装的游戏"}), 404
             max_concurrent = int(request.args.get("concurrent", "4"))
             updated = game.try_update(distribution_id, max_concurrent)
-            converted = False
-            if updated and game.can_convert_to_normal() and not game.last_update_async:
-                converted = game.convert_to_normal()
+            if updated:
+                short_game_id = getShortGameId(game_id)
+                if CloudRes().is_convert_to_normal(short_game_id):
+                    start_args = CloudRes().get_start_argument(short_game_id)
+                    game.create_launch_shortcut(start_args)
             game_helper._save_games()
             return jsonify({
                 "success": updated,
-                "converted": converted,
                 "version": game.get_version()
             })
         except Exception as e:
@@ -460,12 +460,32 @@ def register_common_idv_routes(app, *, game_helper, logger):
     def _launcher_import_fever():
         try:
             game_id = request.args["game_id"]
-            success = game_helper.import_fever_game(game_id)
-            if not success:
+            imported_game_id = game_helper.import_fever_game(game_id)
+            if not imported_game_id:
                 return jsonify({"success": False, "error": "未找到可导入的Fever游戏记录"}), 404
-            return jsonify({"success": True})
+            return jsonify({"success": True, "game_id": imported_game_id})
         except Exception as e:
             logger.exception("导入Fever游戏失败")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/_idv-login/fever-games", methods=["GET"])
+    def _list_fever_games():
+        try:
+            fever_games = game_helper.list_fever_games()
+            result = []
+            for item in fever_games:
+                short_id = item.get("game_id")
+                matched_game_id = game_helper.find_matching_game_id(short_id)
+                result.append({
+                    "game_id": short_id,
+                    "display_name": item.get("display_name"),
+                    "path": item.get("path"),
+                    "distribution_id": item.get("distribution_id", -1),
+                    "matched_game_id": matched_game_id
+                })
+            return jsonify({"success": True, "games": result})
+        except Exception as e:
+            logger.exception("获取Fever游戏列表失败")
             return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route("/_idv-login/defaultChannel", methods=["GET"])

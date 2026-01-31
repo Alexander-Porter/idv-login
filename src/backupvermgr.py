@@ -440,9 +440,14 @@ def running():
                 logger.error("无法检测当前程序路径")
                 return False
             
-            # 确定快捷方式的位置（与当前程序同目录）
             current_dir = os.path.dirname(current_path)
-            shortcut_path = os.path.join(current_dir, "idv-login 启动备用模式.lnk")
+            if is_exe:
+                shortcut_dir = current_dir
+            else:
+                shortcut_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+                if not os.path.exists(shortcut_dir):
+                    shortcut_dir = current_dir
+            shortcut_path = os.path.join(shortcut_dir, "idv-login 启动备用模式.lnk")
             
             # 如果快捷方式已存在，先删除
             if os.path.exists(shortcut_path):

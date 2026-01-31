@@ -25,7 +25,7 @@ from channelHandler.channelUtils import getShortGameId
 from cloudRes import CloudRes
 from envmgr import genv
 from logutil import setup_logger
-from gamemgr import GameManager
+from gamemgr import Game, GameManager
 import socket
 import requests
 import json
@@ -91,6 +91,26 @@ socket.getaddrinfo = new_getaddrinfo
 app = Flask(__name__)
 game_helper = GameManager()
 logger = setup_logger()
+
+def _preload_default_launcher_data():
+    cache = genv.get("launcher_data_cache", {})
+    if not isinstance(cache, dict):
+        cache = {}
+    for game in list[Game](game_helper.games.values()):
+        try:
+            dist_id = game.get_default_distribution()
+            if not dist_id or dist_id == -1:
+                continue
+            if str(dist_id) in cache:
+                continue
+            data = game.get_launcher_data_for_distribution(dist_id)
+            if isinstance(data, dict) and data:
+                cache[str(dist_id)] = data
+        except Exception:
+            continue
+    genv.set("launcher_data_cache", cache, cached=False)
+
+
 
 
 g_req = requests.session()
@@ -507,7 +527,7 @@ class proxymgr:
 
     def run(self):
         from dnsmgr import DNSResolver
-
+        gevent.spawn_later(0, _preload_default_launcher_data)
         resolver = DNSResolver()
         target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
         target_oversea = resolver.gethostbyname(genv.get("DOMAIN_TARGET_OVERSEA"))
