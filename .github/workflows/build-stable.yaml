@@ -94,7 +94,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           .\python-embed\python.exe -m pip install -r requirements.txt
-        shell: pwsh
+          .\python-embed\python.exe -m pip install pywin32
+          shell: pwsh
 
       - name: Compile Python files to .pyc
         if: runner.os == 'Windows'

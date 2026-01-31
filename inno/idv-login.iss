@@ -51,13 +51,35 @@ Source: "..\dist\点我启动工具.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"; AfterInstall: MarkShortcutRunAsAdmin(ExpandConstant('{autodesktop}\IDV Login.lnk'))
 
 [Run]
 Filename: "{app}\点我启动工具.bat"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
-Filename: "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "查看教程"; Flags: postinstall shellexec runasoriginaluser
+Filename: "https://yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "查看教程"; Flags: postinstall shellexec runasoriginaluser
 
 [Code]
+
+procedure MarkShortcutRunAsAdmin(ShortcutPath: String);
+var
+  FS: TFileStream;
+  B: Byte;
+begin
+  if not FileExists(ShortcutPath) then exit;
+
+  FS := TFileStream.Create(ShortcutPath, fmOpenReadWrite);
+  try
+    if FS.Size < $16 then exit;
+
+    FS.Position := $15;
+    FS.Read(B, 1);
+    B := B or $20;
+    FS.Position := $15;
+    FS.Write(B, 1);
+  finally
+    FS.Free;
+  end;
+end;
+
 
 function CanWriteToDir(Dir: String): Boolean;
 var

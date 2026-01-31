@@ -96,7 +96,7 @@ def _preload_default_launcher_data():
     cache = genv.get("launcher_data_cache", {})
     if not isinstance(cache, dict):
         cache = {}
-    for game in list[Game](game_helper.games.values()):
+    for game in list(game_helper.games.values()):
         try:
             dist_id = game.get_default_distribution()
             if not dist_id or dist_id == -1:

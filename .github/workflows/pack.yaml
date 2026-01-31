@@ -38,7 +38,7 @@ jobs:
       
       - name: Install pywin32 (Windows)
         if: runner.os == 'Windows'
-        run: pip install pywin32
+        run: .\python-embed\python.exe -m pip install pywin32
 
       - name: Insert build info
         run: |
