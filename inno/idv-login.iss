@@ -61,23 +61,22 @@ Filename: "https://yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "æŸ¥ç
 
 procedure MarkShortcutRunAsAdmin(ShortcutPath: String);
 var
-  FS: TFileStream;
-  B: Byte;
+Stream: TFileStream;
+Buffer: string;
 begin
-  if not FileExists(ShortcutPath) then exit;
-
-  FS := TFileStream.Create(ShortcutPath, fmOpenReadWrite);
-  try
-    if FS.Size < $16 then exit;
-
-    FS.Position := $15;
-    FS.Read(B, 1);
-    B := B or $20;
-    FS.Position := $15;
-    FS.Write(B, 1);
-  finally
-    FS.Free;
-  end;
+if not FileExists(ShortcutPath) then exit;
+Stream := TFileStream.Create(ShortcutPath, fmOpenReadWrite);
+try
+if Stream.Size < 21 then exit;
+Stream.Seek(21, soFromBeginning);
+SetLength(Buffer, 1);
+Stream.ReadBuffer(Buffer, 1);
+Buffer[1] := Chr(Ord(Buffer[1]) or $20);
+Stream.Seek(-1, soFromCurrent);
+Stream.WriteBuffer(Buffer, 1);
+finally
+Stream.Free;
+end;
 end;
 
 
