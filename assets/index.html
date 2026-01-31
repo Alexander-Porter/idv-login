@@ -1292,6 +1292,14 @@
             const importBtn = document.getElementById('launcherImportFeverBtn');
             const importListBtn = document.getElementById('launcherImportFeverListBtn');
             installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
+            //如果已经安装，且能下载，则修改按钮字样为重新安装并启用
+            if (launcherState.game.installed && dist && dist.can_download) {
+                installBtn.textContent = '重新安装';
+                installBtn.disabled = false;
+            } else if(dist && dist.can_download) {
+                installBtn.textContent = '安装新引擎';
+                installBtn.disabled=false;
+            }
             updateBtn.disabled = !(dist && dist.can_update);
             importBtn.disabled = false;
             importListBtn.disabled = false;
