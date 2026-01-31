@@ -65,10 +65,12 @@ var
   FallbackDir: String;
   FlagPath: String;
   SavedDir: String;
+  SavedDirAnsi: AnsiString;
 begin
   FlagPath := ExpandConstant('{commonappdata}\idv-login\install_root.flag');
-  if LoadStringFromFile(FlagPath, SavedDir) then
+  if LoadStringFromFile(FlagPath, SavedDirAnsi) then
   begin
+    SavedDir := String(SavedDirAnsi);
     SavedDir := Trim(SavedDir);
     if (SavedDir <> '') and DirExists(SavedDir) then
     begin
