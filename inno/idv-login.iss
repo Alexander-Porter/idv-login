@@ -58,7 +58,26 @@ Filename: "{app}\点我启动工具.bat"; Description: "{cm:LaunchProgram,{#AppN
 Filename: "https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "查看教程"; Flags: postinstall shellexec runasoriginaluser
 
 [Code]
+
 function CanWriteToDir(Dir: String): Boolean;
+var
+  TestFile: String;
+begin
+  Result := False;
+  try
+    if not DirExists(Dir) then
+      if not ForceDirectories(Dir) then
+        Exit;
+    TestFile := AddBackslash(Dir) + '.__write_test';
+    if SaveStringToFile(TestFile, 'test', False) then
+    begin
+      DeleteFile(TestFile);
+      Result := True;
+    end;
+  except
+    Result := False;
+  end;
+end;
 
 function GetDefaultDir(Param: String): String;
 var
@@ -91,25 +110,6 @@ begin
     Result := FallbackDir;
 end;
 
-function CanWriteToDir(Dir: String): Boolean;
-var
-  TestFile: String;
-begin
-  Result := False;
-  try
-    if not DirExists(Dir) then
-      if not ForceDirectories(Dir) then
-        Exit;
-    TestFile := AddBackslash(Dir) + '.__write_test';
-    if SaveStringToFile(TestFile, 'test', False) then
-    begin
-      DeleteFile(TestFile);
-      Result := True;
-    end;
-  except
-    Result := False;
-  end;
-end;
 
 procedure InitializeWizard;
 begin
