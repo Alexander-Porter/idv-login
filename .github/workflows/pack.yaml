@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.10.9]
+        python-version: [3.12.10]
 
     steps:
       - name: Checkout code
