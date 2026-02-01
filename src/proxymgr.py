@@ -601,6 +601,7 @@ class proxymgr:
             ):
                 logger.warning("国际服域名未被成功劫持。")
             # 启动自动启动游戏
+            self.check_port()
             if game_helper.list_auto_start_games():
                 should_start_text = "\n".join(
                     [i.name for i in game_helper.list_auto_start_games()]
@@ -609,7 +610,7 @@ class proxymgr:
                 for i in game_helper.list_auto_start_games():
                     i.start()
 
-            self.check_port()
+
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning(
                 "如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！"

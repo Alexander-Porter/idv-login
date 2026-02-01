@@ -33,8 +33,7 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
         sub_port = PORT_SEND_HEARTBEAT
     if pub_port is None:
         pub_port = PORT_RECEIVE_PROGRESS
-    print(f"正在启动 UI Server (模拟器)...")
-    print(f"模式: BIND (服务端)")
+
     
     context = zmq.Context()
 
@@ -52,7 +51,6 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
     addr_recv = f"tcp://{BIND_HOST}:{pub_port}"
     try:
         receiver.bind(addr_recv)
-        print(f"[*] [SUB] 已绑定于 {addr_recv} (等待 Worker 连接并汇报进度)")
     except zmq.ZMQError as e:
         print(f"[!] 无法绑定端口 {pub_port}: {e}")
         return
@@ -64,12 +62,11 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
     addr_send = f"tcp://{BIND_HOST}:{sub_port}"
     try:
         sender.bind(addr_send)
-        print(f"[*] [PUB] 已绑定于 {addr_send} (向 Worker 广播 UI 心跳)")
     except zmq.ZMQError as e:
         print(f"[!] 无法绑定端口 {sub_port}: {e}")
         return
 
-    print("\nUI Server 已就绪。等待 Worker 启动并连接...")
+    print("\nUI Server 已就绪。等待 下载核心 启动并连接...")
     
     last_heartbeat_time = 0
     
@@ -96,9 +93,37 @@ def main_ui_server(topic=None, sub_port=None, pub_port=None, stop_event=None):
                             try:
                                 data = json.loads(payload.decode('utf-8'))
                                 # 提取一些关键信息打印，避免刷屏
-                                percent = data.get("ShowDownloadPercent", 0) * 100
-                                rate = data.get("ShowDownloadRateStr", "N/A")
-                                print(f"<-- [进度]  {percent:.2f}% ({rate})")
+                                build_percent = data.get("ShowBuildPercent", 0) * 100
+                                build_total = data.get("ShowBuildSize", 0)
+                                build_rate = data.get("ShowBuildRateStr", "N/A")
+                                build_done = build_percent * build_total / 100
+                                def _format_size(size_bytes):
+                                    try:
+                                        size = float(size_bytes)
+                                    except Exception:
+                                        return "N/A"
+                                    units = ["B", "KB", "MB", "GB", "TB"]
+                                    idx = 0
+                                    while size >= 1024 and idx < len(units) - 1:
+                                        size /= 1024
+                                        idx += 1
+                                    return f"{size:.2f} {units[idx]}"
+
+                                def _bar(pct, width=28):
+                                    try:
+                                        p = max(0.0, min(100.0, float(pct)))
+                                    except Exception:
+                                        p = 0.0
+                                    filled = int(width * p / 100.0)
+                                    return f"[{('█' * filled).ljust(width, '·')}] {p:6.2f}%"
+
+                                line = (
+                                    f"[下载进度] {_bar(build_percent)}  速率 {build_rate}   "
+                                    f"{_format_size(build_done)} / {_format_size(build_total)}"
+                                )
+                                # 单行刷新输出
+                                sys.stdout.write("\r" + line + " " * 6)
+                                sys.stdout.flush()
                             except:
                                 print(f"<-- [数据] 类型: {msg_type}, 长度: {len(payload)}")
 

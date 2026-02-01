@@ -217,7 +217,15 @@ class Game:
             return False
         try:
             import win32com.client
-            name = self.name if self.name else self.game_id
+            #尝试从launcher_data中获取名称
+            name_from_launcher = ""
+            if genv.get("launcher_data_cache", {}) and isinstance(genv.get("launcher_data_cache", {}), dict):
+                launcher_data = genv.get("launcher_data_cache", {}).get(str(self.default_distribution), {})
+                if isinstance(launcher_data, dict):
+                    display_name = launcher_data.get("display_name", "")
+                    if display_name:
+                        name_from_launcher = display_name
+            name = name_from_launcher if name_from_launcher else (self.name if self.name else self.game_id)
             shortcut_path = os.path.join(shortcut_dir, f"{name}.lnk")
             shell = win32com.client.Dispatch("WScript.Shell")
             shortcut = shell.CreateShortCut(shortcut_path)

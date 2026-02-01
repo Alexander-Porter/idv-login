@@ -167,7 +167,6 @@ begin
     if not IsASCII(WizardDirValue) then
     begin
       MsgBox('为了保证软件稳定运行，安装路径只能包含英文字母和数字。' + #13#10 +
-             '检测到路径中包含非 ASCII 字符（如中文）。' + #13#10 +
              '请修改路径。', mbError, MB_OK);
       Result := False;
     end;
