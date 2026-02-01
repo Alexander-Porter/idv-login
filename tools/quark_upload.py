@@ -439,6 +439,8 @@ def main(upload_file_path):
             
     except Exception as e:
         log_step("上传失败", str(e))
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
