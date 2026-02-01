@@ -60,6 +60,16 @@ def load_config_from_env():
         try:
             cookies_json = base64.b64decode(cookies_b64).decode('utf-8')
             cookies = json.loads(cookies_json)
+            # 兼容 cookies 为列表的导出格式（如 [{"name":...,"value":...}, ...]）
+            if isinstance(cookies, list):
+                cookies_dict = {}
+                for item in cookies:
+                    if isinstance(item, dict):
+                        name = item.get("name") or item.get("key")
+                        value = item.get("value")
+                        if name is not None and value is not None:
+                            cookies_dict[name] = value
+                cookies = cookies_dict
             log_step("从环境变量加载Cookies成功")
         except Exception as e:
             log_step("加载Cookies失败", str(e))
