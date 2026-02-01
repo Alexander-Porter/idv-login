@@ -75,18 +75,6 @@ jobs:
           fi
           
           ls -la *.zip
-      - name: Release to Gitee and update cloudRes
-        id: release
-        env:
-          UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}
-          UPLOAD_URL: ${{ secrets.SECRET_UPLOAD_URL}}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
-          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
-        run: |
-          pip install requests_toolbelt
-          pip install requests
-          python tools/release_upload.py tmp
 
       - name: Upload to Quark Drive
         env:
@@ -104,4 +92,19 @@ jobs:
               python ../tools/quark_upload.py "$zip_file"
             fi
           done
+
+      - name: Release to Gitee and update cloudRes
+        id: release
+        env:
+          UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}
+          UPLOAD_URL: ${{ secrets.SECRET_UPLOAD_URL}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
+          GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+        run: |
+          pip install requests_toolbelt
+          pip install requests
+          python tools/release_upload.py tmp
+
+
       

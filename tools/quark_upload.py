@@ -95,27 +95,37 @@ def get_file_hash(file_path):
             sha1.update(data)
     return md5.hexdigest(), sha1.hexdigest()
 
-def make_request(url, method="POST", data=None, extra_headers=None):
-    """统一的请求方法"""
+def make_request(url, method="POST", data=None, extra_headers=None, max_retries=3, retry_backoff=1.0):
+    """统一的请求方法（带重试）"""
     req_headers = headers.copy()
     if extra_headers:
         req_headers.update(extra_headers)
     
     params = {"pr": "ucpro", "fr": "pc", "uc_param_str": ""}
     
-    if method == "GET":
-        response = requests.get(url, headers=req_headers, cookies=cookies, params=params)
-    else:
-        response = requests.post(url, headers=req_headers, cookies=cookies, params=params, json=data)
-    
-    if response.status_code != 200:
-        raise Exception(f"请求失败: {response.status_code}, {response.text}")
-    
-    result = response.json()
-    if result.get('code', 0) != 0:
-        raise Exception(f"API错误: {result.get('message', '未知错误')}")
-    
-    return result
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            if method == "GET":
+                response = requests.get(url, headers=req_headers, cookies=cookies, params=params, timeout=20)
+            else:
+                response = requests.post(url, headers=req_headers, cookies=cookies, params=params, json=data, timeout=20)
+
+            if response.status_code != 200:
+                raise Exception(f"请求失败: {response.status_code}, {response.text}")
+
+            result = response.json()
+            if result.get('code', 0) != 0:
+                raise Exception(f"API错误: {result.get('message', '未知错误')}")
+
+            return result
+        except (requests.RequestException, ValueError, Exception) as e:
+            last_error = e
+            if attempt >= max_retries:
+                break
+            time.sleep(retry_backoff * attempt)
+
+    raise Exception(f"请求失败(重试{max_retries}次): {last_error}")
 
 def up_pre(file_path, parent_id):
     """预上传，获取上传任务信息"""
@@ -177,8 +187,8 @@ x-oss-user-agent:aliyun-sdk-js/6.6.1 Chrome 98.0.4758.80 on Windows 10 64-bit
     result = make_request(url, "POST", data)
     return result.get('data', {}), time_str
 
-def up_part(pre_data, mime_type, part_number, part_data):
-    """上传分片到OSS"""
+def up_part(pre_data, mime_type, part_number, part_data, max_retries=3, retry_backoff=1.0):
+    """上传分片到OSS（带重试）"""
     auth_data, time_str = up_part_auth(pre_data, mime_type, part_number)
     
     # 构建OSS上传URL
@@ -204,13 +214,21 @@ def up_part(pre_data, mime_type, part_number, part_data):
     }
     
     log_step(f"上传分片 {part_number}", f"大小: {len(part_data)} bytes")
-    response = requests.put(oss_url, data=part_data, headers=oss_headers, params=params)
-    
-    if response.status_code != 200:
-        raise Exception(f"分片上传失败: {response.status_code}, {response.text}")
-    
-    etag = response.headers.get('ETag', '')
-    return etag
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.put(oss_url, data=part_data, headers=oss_headers, params=params, timeout=60)
+            if response.status_code != 200:
+                raise Exception(f"分片上传失败: {response.status_code}, {response.text}")
+            etag = response.headers.get('ETag', '')
+            return etag
+        except (requests.RequestException, Exception) as e:
+            last_error = e
+            if attempt >= max_retries:
+                break
+            time.sleep(retry_backoff * attempt)
+
+    raise Exception(f"分片上传失败(重试{max_retries}次): {last_error}")
 
 def up_commit_auth(pre_data, content_md5, callback_base64):
     """获取提交授权"""
