@@ -205,10 +205,11 @@ class Game:
             return base_dir
         return os.path.dirname(os.path.abspath(self.path)) if self.path else None
 
-    def create_launch_shortcut(self, start_args: str) -> bool:
+    def create_launch_shortcut(self, start_args: str,bypass_path_check=False) -> bool:
+        #print(f"Creating shortcut for game {self.game_id} with args: {start_args}")
         if sys.platform != "win32":
             return False
-        if not self.path or not os.path.exists(self.path):
+        if (not self.path or not os.path.exists(self.path)) and not bypass_path_check:
             return False
         if not start_args:
             return False

@@ -26,6 +26,7 @@
 AppName={#AppName}
 AppVersion={#AppVersion}
 DefaultDirName={code:GetDefaultDir}
+AppendDefaultDirName=no
 CreateUninstallRegKey=no
 Uninstallable=no
 OutputBaseFilename={#OutputBaseFilename}
@@ -51,6 +52,9 @@ Source: "..\dist\python-embed\*"; DestDir: "{app}\python-embed"; Flags: ignoreve
 Source: "..\dist\src\*"; DestDir: "{app}\src"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\点我启动工具.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\*"
 
 [Icons]
 Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"; AfterInstall: MarkShortcutRunAsAdmin(ExpandConstant('{autodesktop}\IDV Login.lnk'))
@@ -107,25 +111,35 @@ begin
   end;
 end;
 
-function GetDefaultDir(Param: String): String;
+function GetSavedInstallDir: String;
 var
-  DDir: String;
-  CDir: String;
-  FallbackDir: String;
   FlagPath: String;
   SavedDir: String;
   SavedDirAnsi: AnsiString;
 begin
+  Result := '';
   FlagPath := ExpandConstant('{commonappdata}\idv-login\install_root.flag');
   if LoadStringFromFile(FlagPath, SavedDirAnsi) then
   begin
     SavedDir := String(SavedDirAnsi);
     SavedDir := Trim(SavedDir);
-    if (SavedDir <> '') and DirExists(SavedDir) then
-    begin
+    if SavedDir <> '' then
       Result := SavedDir;
-      Exit;
-    end;
+  end;
+end;
+
+function GetDefaultDir(Param: String): String;
+var
+  DDir: String;
+  CDir: String;
+  FallbackDir: String;
+  SavedDir: String;
+begin
+  SavedDir := GetSavedInstallDir;
+  if (SavedDir <> '') and DirExists(SavedDir) then
+  begin
+    Result := SavedDir;
+    Exit;
   end;
   DDir := 'D:\ProgramData\IDV-Login';
   CDir := 'C:\ProgramData\IDV-Login';
@@ -159,7 +173,41 @@ begin
   end;
 end;
 
+function IsRootDir(Dir: String): Boolean;
+var
+  DriveRoot: String;
+begin
+  DriveRoot := AddBackslash(ExtractFileDrive(Dir));
+  Result := (CompareText(AddBackslash(Dir), DriveRoot) = 0);
+end;
+
+function DirHasContent(Dir: String): Boolean;
+var
+  FindRec: TFindRec;
+  Path: String;
+begin
+  Result := False;
+  Path := AddBackslash(Dir) + '*';
+  if FindFirst(Path, FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        begin
+          Result := True;
+          Exit;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  SelectedDir: String;
+  SavedDir: String;
 begin
   Result := True;
   if CurPageID = wpSelectDir then
@@ -169,6 +217,29 @@ begin
       MsgBox('为了保证软件稳定运行，安装路径只能包含英文字母和数字。' + #13#10 +
              '请修改路径。', mbError, MB_OK);
       Result := False;
+      Exit;
+    end;
+
+    SelectedDir := WizardDirValue;
+    if IsRootDir(SelectedDir) then
+    begin
+      WizardDirValue := AddBackslash(SelectedDir) + 'IDV-Login';
+      SelectedDir := WizardDirValue;
+    end;
+
+    if DirExists(SelectedDir) and DirHasContent(SelectedDir) then
+    begin
+      SavedDir := GetSavedInstallDir;
+      if (SavedDir <> '') and (CompareText(AddBackslash(SelectedDir), AddBackslash(SavedDir)) = 0) then
+      begin
+        if MsgBox('检测到已安装目录。继续将删除该目录下的所有文件并进行更新，是否继续？', mbConfirmation, MB_YESNO) = IDNO then
+          Result := False;
+      end
+      else
+      begin
+        if MsgBox('该目录不为空。继续将删除目录下的所有文件并进行安装，是否继续？', mbConfirmation, MB_YESNO) = IDNO then
+          Result := False;
+      end;
     end;
   end;
 end;

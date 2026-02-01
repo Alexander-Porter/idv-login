@@ -418,7 +418,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 short_game_id = getShortGameId(game_id)
                 if CloudRes().is_convert_to_normal(short_game_id):
                     start_args = CloudRes().get_start_argument(short_game_id)
-                    game.create_launch_shortcut(start_args)
+                    game.create_launch_shortcut(start_args,bypass_path_check=True)
             game_helper._save_games()
             return jsonify({
                 "success": updated,
