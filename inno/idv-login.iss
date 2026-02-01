@@ -44,6 +44,7 @@ Name: "chinesesimplified"; MessagesFile: "{#LangFile}"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标"
+Name: "desktopiconbackup"; Description: "创建备用模式快捷方式"; GroupDescription: "附加图标"
 
 [Files]
 Source: "..\dist\python-embed\*"; DestDir: "{app}\python-embed"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -53,6 +54,7 @@ Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autodesktop}\IDV Login"; Filename: "{app}\点我启动工具.bat"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"; AfterInstall: MarkShortcutRunAsAdmin(ExpandConstant('{autodesktop}\IDV Login.lnk'))
+Name: "{autodesktop}\IDV Login - 备用模式"; Filename: "{app}\点我启动工具.bat"; Parameters: "--mitm"; Tasks: desktopiconbackup; IconFilename: "{app}\icon.ico"; AfterInstall: MarkShortcutRunAsAdmin(ExpandConstant('{autodesktop}\IDV Login - 备用模式.lnk'))
 
 [Run]
 Filename: "{app}\点我启动工具.bat"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

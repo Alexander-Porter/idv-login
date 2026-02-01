@@ -684,7 +684,6 @@ def setup_backup_version_manager():
     """初始化备用版本管理器"""
     from backupvermgr import BackupVersionMgr
     backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
-    backupVerMgr_instance._create_mitm_shortcut()
     return backupVerMgr_instance
 
 def setup_shortcuts():
