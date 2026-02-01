@@ -25,9 +25,19 @@ jobs:
           Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ matrix.python-version }}/python-${{ matrix.python-version }}-embed-amd64.zip -OutFile python-embed.zip
           Expand-Archive python-embed.zip -DestinationPath python-embed
 
+          $pthFile = Get-ChildItem -Path python-embed -Filter "python*._pth" | Select-Object -First 1
+          # 读取内容，取消注释 "import site"，或者如果不存在则追加
+          $content = Get-Content $pthFile.FullName
+          if ($content -match "#\s*import site") {
+              $content = $content -replace "#\s*import site", "import site"
+          } else {
+              $content += "import site"
+          }
+          $content | Set-Content $pthFile.FullName -Encoding UTF8
+
       - name: Set up Python Embedded
         run: |
-          Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
+          Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
           .\python-embed\python.exe -m pip install --upgrade pip
         shell: pwsh
