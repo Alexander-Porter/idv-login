@@ -593,7 +593,10 @@ def handle_download_task(task_file_path):
                 if distribution_id != -1:
                     game.default_distribution = distribution_id
                 game_mgr._save_games()
-                game.create_launch_shortcut(start_args=start_args)
+                print(f"下载任务完成，准备创建游戏启动快捷方式，启动参数: {start_args}")
+                game.create_launch_shortcut(start_args=start_args,bypass_path_check=True)
+
+                
         if ui_server_process:
             try:
                 ui_server_process.terminate()
@@ -612,7 +615,9 @@ def handle_download_task(task_file_path):
             if download_root and os.path.exists(download_root):
                 #使用正斜杠避免路径问题
                 download_root = os.path.abspath(download_root)
-                if sys.platform == "win32":
+                
+                if sys.platform == "win32" and not result:
+                    logger_local.info(f"下载任务失败，请检查日志。如需重新下载，请重新发起下载任务。下载目录: {download_root}")
                     subprocess.Popen(["explorer", download_root])
                 elif sys.platform == "darwin":
                     subprocess.Popen(["open", download_root])
