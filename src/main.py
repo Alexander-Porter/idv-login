@@ -523,6 +523,7 @@ def handle_download_task(task_file_path):
     content_id = task_data.get("content_id")
     original_version = task_data.get("original_version", "")
     repair_list_path = task_data.get("repair_list_path", "")
+    start_args = task_data.get("start_args", "")
     result = True
     ui_server_process = None
     ui_server_thread = None
@@ -592,6 +593,7 @@ def handle_download_task(task_file_path):
                 if distribution_id != -1:
                     game.default_distribution = distribution_id
                 game_mgr._save_games()
+                game.create_launch_shortcut(start_args=start_args)
         if ui_server_process:
             try:
                 ui_server_process.terminate()

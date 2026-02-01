@@ -223,8 +223,8 @@ begin
     SelectedDir := WizardDirValue;
     if IsRootDir(SelectedDir) then
     begin
-      WizardDirValue := AddBackslash(SelectedDir) + 'IDV-Login';
-      SelectedDir := WizardDirValue;
+      WizardForm.DirEdit.Text := AddBackslash(SelectedDir) + 'IDV-Login';
+      SelectedDir := WizardForm.DirEdit.Text;
     end;
 
     if DirExists(SelectedDir) and DirHasContent(SelectedDir) then

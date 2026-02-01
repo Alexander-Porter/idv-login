@@ -363,7 +363,8 @@ class Game:
             "distribution_id": distribution_id,
             "content_id":file_distribution_info.get("app_content_id"),
             "repair_list_path": repair_list_path,
-            "original_version": ""
+            "original_version": "",
+            "start_args": CloudRes().get_start_argument(getShortGameId(self.game_id)) or ""
         }
         task_file_path = self._create_download_task_file(task_data)
         if not task_file_path:
