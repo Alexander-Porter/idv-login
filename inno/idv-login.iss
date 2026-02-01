@@ -33,7 +33,7 @@ PrivilegesRequired=lowest
 Compression=lzma
 SolidCompression=yes
 OutputDir={#OutputDir}
-SetupIconFile=..\assets\icon.ico
+
 LicenseFile=LICENSE.txt
 ShowLanguageDialog=no
 LanguageDetectionMethod=none
