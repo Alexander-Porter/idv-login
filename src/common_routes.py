@@ -198,7 +198,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
 
             if enabled:
                 # 使用Qt代替tkinter
-                from PyQt5.QtWidgets import QApplication, QFileDialog
+                from PyQt5.QtWidgets import QApplication, QFileDialog, QWidget
 
                 # 创建一个临时的QApplication实例
                 app_inst = QApplication.instance()
@@ -209,16 +209,23 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 from PyQt5.QtCore import Qt
 
                 # 显示文件选择对话框
+                dummy_parent = QWidget()
+                dummy_parent.setWindowFlags(Qt.Tool)   # 不出现在任务栏
+                dummy_parent.show()                    # 必须 show，OS 才承认它是窗口
+                dummy_parent.hide()                    # 再藏起来给用户看不见
+
                 desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
-                file_dialog = QFileDialog()
+
+                file_dialog = QFileDialog(dummy_parent)
                 file_dialog.setFileMode(QFileDialog.ExistingFile)
                 file_dialog.setNameFilter("可执行文件 (*.exe);;快捷方式 (*.lnk);;所有文件 (*.*)")
                 file_dialog.setWindowTitle("选择游戏启动程序或快捷方式")
                 file_dialog.setDirectory(desktop_path)
-                file_dialog.setWindowFlags(file_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-                file_dialog.setWindowModality(Qt.ApplicationModal)
-                file_dialog.setWindowState(Qt.WindowActive)
-                file_dialog.setWindowFlag(Qt.WindowStaysOnTopHint)
+
+                file_dialog.show()
+                file_dialog.raise_()
+                file_dialog.activateWindow()
+
                 if file_dialog.exec_():
                     selected_files = file_dialog.selectedFiles()
                     if selected_files:
@@ -374,18 +381,29 @@ def register_common_idv_routes(app, *, game_helper, logger):
             startup_path = launcher_data.get("startup_path", "")
             if not startup_path:
                 return jsonify({"success": False, "error": "启动器缺少启动路径"}), 400
-            from PyQt5.QtWidgets import QApplication, QFileDialog
+            from PyQt5.QtWidgets import QApplication, QFileDialog, QWidget
             from PyQt5.QtCore import Qt
+
+
             app_inst = QApplication.instance()
             if app_inst is None:
                 app_inst = QApplication(sys.argv)
+
+            # 隐形父窗口
+            dummy_parent = QWidget()
+            dummy_parent.setWindowFlags(Qt.Tool)
+            dummy_parent.show()
+            dummy_parent.hide()
+
             desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+
             target_dir = QFileDialog.getExistingDirectory(
-                None,
+                dummy_parent,  # 关键点：不再是 None
                 "选择安装目录",
                 desktop_path,
                 QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
             )
+
             if not target_dir:
                 return jsonify({"success": False, "error": "用户取消选择安装目录"}), 400
             os.makedirs(target_dir, exist_ok=True)
