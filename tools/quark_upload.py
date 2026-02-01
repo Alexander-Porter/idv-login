@@ -115,9 +115,6 @@ def make_request(url, method="POST", data=None, extra_headers=None, max_retries=
                 raise Exception(f"请求失败: {response.status_code}, {response.text}")
 
             result = response.json()
-            if result.get('code', 0) != 0:
-                raise Exception(f"API错误: {result.get('message', '未知错误')}")
-
             return result
         except (requests.RequestException, ValueError, Exception) as e:
             last_error = e
