@@ -54,6 +54,7 @@ sys.path.append(script_dir)
 
 from cloudRes import CloudRes
 from envmgr import genv
+from channelHandler.channelUtils import getShortGameId
 
 
 # Global variable declarations
@@ -390,6 +391,16 @@ def initialize():
         #genv.set("httpdns_blocking_enabled",False,True)
         #webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
+        from gamemgr import GameManager
+        try:
+            game_mgr = GameManager()
+            for game in game_mgr.games.values():
+                start_args=CloudRes().get_start_argument(getShortGameId(game.game_id)) or ""
+                logger.info(f"新建快捷方式: {game.path}，启动参数: {start_args}")
+                game.create_launch_shortcut(start_args=start_args,bypass_path_check=False)
+        except Exception as e:
+            logger.error(f"首次使用创建快捷方式失败: {e}")
+            
     try:
         setup_shortcuts()
     except:
