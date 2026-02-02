@@ -1286,7 +1286,7 @@
 
             const installBtn = document.getElementById('launcherInstallBtn');
             const updateBtn = document.getElementById('launcherUpdateBtn');
-            const importBtn = document.getElementById('launcherImportFeverBtn');
+            
             const importListBtn = document.getElementById('launcherImportFeverListBtn');
             installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
             //如果已经安装，且能下载，则修改按钮字样为重新安装并启用
@@ -1300,12 +1300,9 @@
             }
             
             updateBtn.disabled = !(dist && dist.can_update);
-            importBtn.disabled = false;
+
             importListBtn.disabled = false;
-            //如果是第五人格新引擎，则直接显示可以导入
-            if (launcherState.game_id!='h55' && launcherState.game_id.endsWith('h55')){
-                importBtn.disabled=false;
-            }
+
         }
 
         function installLauncher() {
