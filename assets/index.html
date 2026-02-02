@@ -557,10 +557,10 @@
                         <div id="launcherStatusBadges" class="d-flex flex-wrap gap-2 mt-3"></div>
                         <div class="btn-group w-100 mt-3">
                             <button id="launcherInstallBtn" onclick="installLauncher()" class="btn btn-outline-success">
-                                <i class="bi bi-download me-1"></i>安装/下载新引擎
+                                <i class="bi bi-download me-1"></i>旧包体升级到新引擎或从未安装
                             </button>
                             <button id="launcherUpdateBtn" onclick="updateLauncher()" class="btn btn-outline-primary">
-                                <i class="bi bi-arrow-repeat me-1"></i>更新新引擎
+                                <i class="bi bi-arrow-repeat me-1"></i>新引擎检查更新
                             </button>
                             <button id="launcherImportFeverBtn" onclick="importFeverLauncher()" class="btn btn-outline-secondary">
                                 <i class="bi bi-box-arrow-in-down me-1"></i>导入发烧平台已有游戏
@@ -1294,12 +1294,11 @@
             installBtn.disabled = launcherState.game.installed || !(dist && dist.can_download);
             //如果已经安装，且能下载，则修改按钮字样为重新安装并启用
             if (launcherState.game.installed && dist && dist.can_download) {
-                installBtn.textContent = '重新安装';
+                installBtn.textContent = '重新安装或从旧包体迁移';
                 updateBtn.textContent = '检查更新';
                 installBtn.disabled = false;
                 updateBtn.disabled = false;
             } else if(dist && dist.can_download) {
-                installBtn.textContent = '安装新引擎';
                 installBtn.disabled=false;
             }
             
@@ -1328,8 +1327,8 @@
                     swal.close();
                     if (data.success) {
                         swal({
-                            title: "安装完成",
-                            text: "下载完成",
+                            title: "安装开始",
+                            text: "下载已经开始",
                             icon: "success",
                             button: "确定",
                         }).then(() => {
@@ -1369,21 +1368,21 @@
                         throw new Error(info.error || '获取更新信息失败');
                     }
                     //如果下载文件大小是96B，而且需要更新文件的数量是1，则提示用户已经完成绕过发烧平台处理，无需更新
-                    if (info.download_bytes==96 && info.file_count==1){
-                        return swal({
-                            title: "恭喜",
-                            text: "已经完成绕过发烧平台处理，无需更新。这个弹窗将在下一个更新中去除OVO",
-                            icon: "info",
-                            button: "确定",
-                        }).then(() => false);
-                    }
+                    //if (info.download_bytes==96 && info.file_count==1){
+                    //    return swal({
+                    //        title: "恭喜",
+                    //        text: "已经完成绕过发烧平台处理，无需更新。这个弹窗将在下一个更新中去除OVO",
+                    //        icon: "info",
+                    //        button: "确定",
+                    //    }).then(() => false);
+                    //}
                     const downloadText = info.needs_update
                         ? `需要下载：${formatSize(info.download_bytes)}（${info.file_count}个文件）`
                         : '无需下载，已是最新版本';
                     const diskText = `磁盘剩余：${formatSize(info.disk_free_bytes)}`;
                     return swal({
                         title: "更新提示",
-                        text: `${downloadText}\n${diskText}`,
+                        text: `${downloadText}\n${diskText}\n如果您是旧包体，请选择“重新安装或从旧包体迁移”，并且在一个空目录下下载新引擎`,
                         icon: "info",
                         buttons: ["取消", "继续更新"],
                     });
