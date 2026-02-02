@@ -1376,7 +1376,7 @@
                     const diskText = `磁盘剩余：${formatSize(info.disk_free_bytes)}`;
                     return swal({
                         title: "更新提示",
-                        text: `${downloadText}\n${diskText}\n如果您是旧包体，请选择“重新安装或从旧包体迁移”，并且在一个空目录下下载新引擎`,
+                        text: `${downloadText}\n${diskText}\n如果您是旧包体，请选择“重新安装或从旧包体迁移”，并且在一个空目录下下载新引擎\n如果您是新包体，点击继续更新，将会校验并更新本地已有的新引擎，并且创建快捷方式`,
                         icon: "info",
                         buttons: ["取消", "继续更新"],
                     });
