@@ -562,11 +562,8 @@
                             <button id="launcherUpdateBtn" onclick="updateLauncher()" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-repeat me-1"></i>新引擎检查更新
                             </button>
-                            <button id="launcherImportFeverBtn" onclick="importFeverLauncher()" class="btn btn-outline-secondary">
-                                <i class="bi bi-box-arrow-in-down me-1"></i>导入发烧平台已有游戏
-                            </button>
                             <button id="launcherImportFeverListBtn" onclick="importFeverLauncherList()" class="btn btn-outline-secondary">
-                                <i class="bi bi-box-arrow-in-down me-1"></i>导入其他发烧平台游戏
+                                <i class="bi bi-box-arrow-in-down me-1"></i>导入发烧平台已有游戏
                             </button>
                         </div>
                     </div>
@@ -1075,7 +1072,7 @@
 
             setBtn.disabled = enabled;
             disableBtn.disabled = !enabled;
-            startBtn.disabled = !enabled || !path;
+            startBtn.disabled =  !path;
         }
 
         function setAutoStart(enabled) {
