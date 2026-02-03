@@ -211,8 +211,7 @@ class Game:
             return False
         if (not self.path or not os.path.exists(self.path)) and not bypass_path_check:
             return False
-        if not start_args:
-            return False
+
         shortcut_dir = self._get_shortcut_dir()
         if not shortcut_dir:
             return False
@@ -865,45 +864,22 @@ class GameManager:
             if distribution_id != -1:
                 game.default_distribution = distribution_id
             self.games[final_game_id] = game
+        start_args = ""
+        try:
+            if CloudRes().is_convert_to_normal(getShortGameId(final_game_id)):
+                start_args = CloudRes().get_start_argument(getShortGameId(final_game_id)) or ""
+
+            game.create_launch_shortcut(start_args)
+            game.should_auto_start=True
+        except Exception:
+            self.logger.exception("导入Fever游戏后创建快捷方式失败")
         self._save_games()
         return final_game_id
 
-    def import_from_fever(self):
-        if sys.platform != "win32":
-            return
-        try:
-            fever_games = self.list_fever_games()
-            for item in fever_games:
-                game_id = item.get("game_id")
-                if not game_id:
-                    continue
-                executable_path = item.get("path", "")
-                display_name = item.get("display_name")
-                distribution_id = item.get("distribution_id", -1)
-                matched_game_id = self.find_matching_game_id(game_id)
-                final_game_id = matched_game_id or game_id
-                game = self.games.get(final_game_id)
-                if game:
-                    if display_name:
-                        game.name = display_name
-                    game.path = executable_path
-                    if distribution_id != -1:
-                        game.default_distribution = distribution_id
-                else:
-                    game = Game(
-                        game_id=final_game_id,
-                        name=display_name if display_name else final_game_id,
-                        path=executable_path
-                    )
-                    if distribution_id != -1:
-                        game.default_distribution = distribution_id
-                    self.games[final_game_id] = game
-            self._save_games()
-        except Exception:
-            self.logger.exception("导入Fever游戏失败")
+
 if __name__ == "__main__":
     game_mgr = GameManager()
-    game_mgr.import_from_fever()
+
     game_mgr._save_games()
     g=game_mgr.get_game("h55")
     g.try_update(g.default_distribution,max_concurrent_files=1)

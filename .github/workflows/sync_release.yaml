@@ -14,6 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Delete binaries
+        run: |
+          rm -rf binaries
+          
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -62,9 +67,9 @@ jobs:
             fi
           done
           
-          # 压缩所有.exe文件
+          # 压缩所有.exe文件（含说明文本）
           if ls *.exe 1> /dev/null 2>&1; then
-            zip -r "最新版-${current_date}.zip" *.exe
+            zip -r -j "最新版-${current_date}.zip" *.exe "../assets/工具不见了或者报毒点我解决.txt"
             echo "Created 最新版-${current_date}.zip"
           fi
           

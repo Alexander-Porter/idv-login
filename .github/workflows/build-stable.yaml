@@ -152,6 +152,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Delete binaries
+        run: |
+          rm -rf binaries
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:

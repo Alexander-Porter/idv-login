@@ -439,11 +439,13 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 return jsonify({"success": False, "error": "未找到已安装的游戏"}), 404
             max_concurrent = int(request.args.get("concurrent", "4"))
             updated = game.try_update(distribution_id, max_concurrent)
-            if updated:
+            try:
                 short_game_id = getShortGameId(game_id)
                 if CloudRes().is_convert_to_normal(short_game_id):
                     start_args = CloudRes().get_start_argument(short_game_id)
                     game.create_launch_shortcut(start_args)
+            except Exception:
+                logger.exception("更新后创建快捷方式失败")
             game_helper._save_games()
             return jsonify({
                 "success": updated,
