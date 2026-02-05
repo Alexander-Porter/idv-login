@@ -998,7 +998,21 @@
 
                         // 获取当前选中的游戏ID
                         const currentGameId = getQueryVariable("game_id");
-
+                        //如果当前选中id为空，远端返回的游戏列表也为空，则通过localstorage 一次性地用swal询问用户是否要跳转到https://localhost/_idv-login/index?game_id=aecfrt3rmaaaaajl-g-h55
+                        const has_ask_for_jump_20260205 = localStorage.getItem('has_ask_for_jump_20260205');
+                        if (!currentGameId && data.games.length === 0 && !has_ask_for_jump_20260205) {
+                            swal({
+                                title: "游戏ID为空",
+                                text: "您是否要前往安装第五人格新引擎？",
+                                icon: "info",
+                                buttons: ["取消", "跳转"],
+                            }).then((willJump) => {
+                                if (willJump) {
+                                    localStorage.setItem('has_ask_for_jump_20260205', 'true');
+                                    window.location.href = 'https://localhost/_idv-login/index?game_id=aecfrt3rmaaaaajl-g-h55';
+                                }
+                            });
+                        }
                         // 添加游戏选项
                         data.games.forEach(game => {
                             const option = document.createElement('option');
