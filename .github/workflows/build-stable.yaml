@@ -10,7 +10,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      PYTHON_VERSION: "3.8.4"
+      PYTHON_VERSION: "3.12.10"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,9 +34,10 @@ jobs:
 
       - name: Set up Python Embedded
         run: |
-          Invoke-WebRequest -Uri https://bootstrap.pypa.io/pip/3.8/get-pip.py -OutFile get-pip.py
+          Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
           .\python-embed\python.exe -m pip install --upgrade pip
+          .\python-embed\python.exe -m pip install setuptools wheel
         shell: pwsh
 
       - name: Install dependencies

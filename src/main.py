@@ -121,11 +121,6 @@ def _check_and_copy_pyqt5_files():
             logger.info(f"检测到_MEIPASS路径包含非ASCII字符: {meipass}")
             logger.info("正在复制PyQt5文件到程序目录...")
             exe_dir = os.path.dirname(sys.executable)
-            if not all(ord(char) < 128 for char in exe_dir):
-                logger.error(f"程序exe目录包含非ASCII字符: {exe_dir}")
-                input("程序exe目录包含非ASCII字符，可能导致程序异常。请将程序移动到仅包含英文路径的目录后重试，具体请参看《常见问题解决方案》问题十八。按回车键退出。")
-                sys.exit(1)
-
             
             # 只复制Qt5目录下的bin和resources两个子文件夹到exe目录下的Qt5目录
             qt5_source = os.path.join(meipass, "PyQt5", "Qt5")
@@ -406,12 +401,7 @@ def initialize():
     except:
         logger.error("创建快捷方式失败")
     computer_name = get_computer_name()
-    if computer_name is not None and not all(ord(char) < 128 for char in computer_name):
-        logger.error(f"计算机名包含非ASCII字符: {computer_name}，可能导致程序异常！")
-        logger.error("如果程序出错，请将计算机名修改为纯英文后重试！具体请参见常见问题解决文档问题二十二。")
-        import webbrowser
-        webbrowser.open("https://www.yuque.com/keygen/kg2r5k/sni3150i6dfykkt1#Uxzuh")
-        input("按回车键退出程序。")
+
     #如果是windows，清空DNS缓存
     if sys.platform=='win32':
         os.system("ipconfig /flushdns")
