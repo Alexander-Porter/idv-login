@@ -43,7 +43,7 @@ class HttpDNSBlocker:
         self.blocked = []
         self.dns_url = "https://dns.update.netease.com/hdserver"
         self.timeout = 2  # 2 seconds timeout
-        self.update_dns_ips()
+        
         self.__initialized = True
         self.logger = setup_logger()
         
@@ -151,7 +151,9 @@ class HttpDNSBlocker:
     def update_dns_ips(self):
         try:
             # Get the latest DNS IPs without proxy
-            response = requests.get(self.dns_url, timeout=self.timeout)
+            session = requests.Session()
+            session.trust_env = False
+            response = session.get(self.dns_url, timeout=self.timeout)
             if response.status_code == 200:
                 # Decode the base64 content
                 decoded_content = base64.b64decode(response.text).decode('utf-8')
@@ -166,6 +168,7 @@ class HttpDNSBlocker:
 
     def apply_blocking(self):
         # First unblock any previously blocked IPs that are no longer in the list
+        self.update_dns_ips()
         for ip in list(self.blocked):
             if ip not in self.to_be_blocked:
                 if self.unblock_ip(ip):
