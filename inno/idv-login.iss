@@ -43,6 +43,9 @@ DirExistsWarning=no
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "{#LangFile}"
 
+[Messages]
+ErrorReplacingExistingFile=尝试替换现有文件时出错，请关闭正在运行的旧版工具后点击重试。原始信息：
+
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标"
 Name: "desktopiconbackup"; Description: "创建备用模式快捷方式"; GroupDescription: "附加图标"
