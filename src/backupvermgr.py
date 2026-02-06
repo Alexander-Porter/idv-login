@@ -49,7 +49,9 @@ class BackupVersionMgr:
         """测试URL的响应速度"""
         try:
             start_time = time.time()
-            response = requests.head(url, timeout=5, verify=should_verify_ssl())
+            session = requests.Session()
+            session.trust_env = False
+            response = session.head(url, timeout=5, verify=should_verify_ssl())
             end_time = time.time()
             
             if response.status_code < 400:
@@ -77,7 +79,9 @@ class BackupVersionMgr:
         """下载文件"""
         try:
             logger.info(f"正在从 {url} 下载文件到 {save_path}")
-            response = requests.get(url, stream=True, verify=should_verify_ssl())
+            session = requests.Session()
+            session.trust_env = False
+            response = session.get(url, stream=True, verify=should_verify_ssl())
             response.raise_for_status()
             
             with open(save_path, 'wb') as f:

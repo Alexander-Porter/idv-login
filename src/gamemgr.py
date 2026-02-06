@@ -291,7 +291,9 @@ class Game:
             headers={
                 "User-Agent": "",
             }
-            response=requests.get(url,headers=headers,timeout=10)
+            session = requests.Session()
+            session.trust_env = False
+            response=session.get(url,headers=headers,timeout=10)
             if response.status_code!=200 or response.json().get("code")!=200:
                 self.logger.error(f"请求启动器信息失败，状态码: {response.status_code}")
                 return None
@@ -313,7 +315,9 @@ class Game:
             headers={
                 "User-Agent": "",
             }
-            response=requests.get(url,headers=headers,timeout=10)
+            session = requests.Session()
+            session.trust_env = False
+            response=session.get(url,headers=headers,timeout=10)
             if response.status_code!=200 or response.json().get("code")!=200:
                 return None
             return response.json().get("data", {}).get("main_content", {})
