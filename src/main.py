@@ -100,50 +100,6 @@ def handle_exit():
     HttpDNSBlocker().unblock_all()
     print("再见!")
 
-
-
-
-def _check_and_copy_pyqt5_files():
-    """
-    在frozen模式下检查_MEIPASS路径，如果包含非ASCII字符，
-    复制PyQt5相关文件到程序exe所在目录
-    """
-    try:
-        meipass = getattr(sys, '_MEIPASS', None)
-        
-        if not meipass:
-            return
-        
-        # 检查_MEIPASS路径是否包含非ASCII字符
-        has_non_ascii = not all(ord(char) < 128 for char in meipass)
-        
-        if has_non_ascii:
-            logger.info(f"检测到_MEIPASS路径包含非ASCII字符: {meipass}")
-            logger.info("正在复制PyQt5文件到程序目录...")
-            exe_dir = os.path.dirname(sys.executable)
-            
-            # 只复制Qt5目录下的bin和resources两个子文件夹到exe目录下的Qt5目录
-            qt5_source = os.path.join(meipass, "PyQt5", "Qt5")
-            qt5_target = os.path.join(exe_dir, "Qt5")
-
-            for subfolder in ["bin", "resources"]:
-                src = os.path.join(qt5_source, subfolder)
-                dst = os.path.join(qt5_target, subfolder)
-                if os.path.exists(src):
-                    if os.path.exists(dst):
-                        shutil.rmtree(dst)
-                    shutil.copytree(src, dst)
-                    logger.info(f"已复制Qt5子文件夹: {src} -> {dst}")
-                else:
-                    logger.warning(f"Qt5子文件夹不存在: {src}")
-                
-            logger.info("PyQt5文件复制完成")
-        else:
-            logger.debug("_MEIPASS路径仅包含ASCII字符，无需复制PyQt5文件")
-            
-    except Exception as e:
-        logger.error(f"检查和复制PyQt5文件时发生错误: {e}")
-
 def handle_update():
 
     
@@ -365,9 +321,6 @@ def initialize():
     else:
         # 确保之前的屏蔽规则被清除
         HttpDNSBlocker().unblock_all()
-    # frozen模式下检查_MEIPASS路径，如果包含非ASCII字符则复制PyQt5文件
-    if getattr(sys, 'frozen', False):
-        _check_and_copy_pyqt5_files()
 
     logger.info("初始化内置浏览器")
     from PyQt5.QtWidgets import QApplication
