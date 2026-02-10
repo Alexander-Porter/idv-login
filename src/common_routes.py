@@ -226,7 +226,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 file_dialog.raise_()
                 file_dialog.activateWindow()
 
-                if file_dialog.exec_():
+                if file_dialog.exec():
                     selected_files = file_dialog.selectedFiles()
                     if selected_files:
                         game_path = selected_files[0]

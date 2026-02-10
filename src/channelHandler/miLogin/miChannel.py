@@ -103,7 +103,7 @@ class MiBrowser(WebBrowser):
         
         dialog.setLayout(layout)
         #dialog.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             url = url_input.text().strip()
             if url and self.verify(url):
                 if self.parseReslt(url):
