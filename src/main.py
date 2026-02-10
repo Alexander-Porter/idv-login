@@ -103,8 +103,8 @@ def handle_exit():
 def handle_update():
 
     
-    from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QAction, QSizePolicy, QApplication
-    from PyQt5.QtCore import Qt
+    from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QAction, QSizePolicy, QApplication
+    from PyQt6.QtCore import Qt
     
     ignoredVersions=genv.get("ignoredVersions",[])
     #ignoredVersions=[]
@@ -118,7 +118,7 @@ def handle_update():
         print(f"【在线更新】工具有新版本：{genv.get('CLOUD_VERSION')}。")
         details=CloudRes().get_detail_html()
         
-        QApplication.setAttribute(Qt.AA_DontUseNativeDialogs, True)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs, True)
         dialog = QDialog()
         dialog.setWindowTitle(f"新版本！")
         dialog.setSizeGripEnabled(True)
@@ -129,7 +129,7 @@ def handle_update():
         details_view = QTextBrowser()
         details_view.setHtml(formatted_details)
         details_view.setOpenExternalLinks(True)
-        details_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        details_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         dialog_layout.addWidget(details_view, 1)
         screen = QApplication.primaryScreen()
         if screen:
@@ -144,9 +144,9 @@ def handle_update():
         
         no_btn = QToolButton()
         no_btn.setText("下次提醒我")
-        no_btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
-        no_btn.setPopupMode(QToolButton.MenuButtonPopup)
-        no_btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        no_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        no_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        no_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         no_btn.setMinimumHeight(23)
         if CloudRes().is_update_critical():
             pass
@@ -170,7 +170,7 @@ def handle_update():
         button_layout.addWidget(yes_btn)
         dialog_layout.addLayout(button_layout)
         
-        result = dialog.exec_()
+        result = dialog.exec()
        
         def go_to_update():
             url=CloudRes().get_downloadUrl()
@@ -178,17 +178,17 @@ def handle_update():
             webbrowser.open(url)
             QMessageBox.information(None, "提示", "请按照打开的网页指引下载更新。\n程序将自动退出。")
             sys.exit(0)
-        if result == QDialog.Accepted:
+        if result == QDialog.DialogCode.Accepted:
             go_to_update()
         else:
             if CloudRes().is_update_critical():
                 info_box = QMessageBox()
                 info_box.setWindowTitle("提示")
                 info_box.setText("本次更新为安全相关更新，为了保护你的账号安全，请及时更新。")
-                update_btn = info_box.addButton("现在更新", QMessageBox.AcceptRole)
-                remind_btn = info_box.addButton("我知道了，下次提醒我", QMessageBox.RejectRole)
+                update_btn = info_box.addButton("现在更新", QMessageBox.ButtonRole.AcceptRole)
+                remind_btn = info_box.addButton("我知道了，下次提醒我", QMessageBox.ButtonRole.RejectRole)
                 info_box.setDefaultButton(update_btn)
-                info_box.exec_()
+                info_box.exec()
                 if info_box.clickedButton() == update_btn:
                     go_to_update()
                 else:
@@ -323,9 +323,9 @@ def initialize():
         HttpDNSBlocker().unblock_all()
 
     logger.info("初始化内置浏览器")
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtWebEngineCore import QWebEngineUrlScheme
-    from PyQt5.QtNetwork import QNetworkProxyFactory
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
+    from PyQt6.QtNetwork import QNetworkProxyFactory
     genv.set("APP",QApplication([]))
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
     QNetworkProxyFactory.setUseSystemConfiguration(False)
