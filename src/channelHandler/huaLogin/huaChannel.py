@@ -24,7 +24,6 @@ from PyQt6.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlR
 from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
-from PyQt6.QtWidgets import QPushButton
 DEVICE_RECORD = 'huawei_device.json'
 
 
