@@ -1,10 +1,10 @@
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtCore
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
-from PyQt5.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
-from PyQt5.QtCore import QUrl, QTimer
-from PyQt5.QtCore import pyqtSlot
+from PyQt6.QtCore import QUrl
+from PyQt6.QtWidgets import QApplication
+from PyQt6 import QtCore
+from PyQt6.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
+from PyQt6.QtCore import QUrl, QTimer
+from PyQt6.QtCore import pyqtSlot
 from envmgr import genv
 from logutil import setup_logger
 import os
@@ -66,7 +66,7 @@ class WebBrowser(QWidget):
         self.setLayout(self.layout)
 
         #窗口置顶
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
         #设置窗口大小
         self.resize(1000, 1000)
 
@@ -106,7 +106,7 @@ class WebBrowser(QWidget):
 
     def run(self):
         self.show()
-        self.app.exec_()
+        self.app.exec()
         return self.result
 
     def cleanup(self):

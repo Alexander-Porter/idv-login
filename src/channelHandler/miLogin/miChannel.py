@@ -10,8 +10,8 @@ from faker import Faker
 import random
 import webbrowser
 import pyperclip as cb
-from PyQt5.QtWidgets import QPushButton, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QPushButton, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
+from PyQt6.QtCore import Qt
 
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
 from channelHandler.channelUtils import G_clipListener
@@ -75,9 +75,9 @@ class MiBrowser(WebBrowser):
     def manual_login(self):
         """手动登录方法"""
         login_url = f"http://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}"
-        from PyQt5 import QtCore
+        from PyQt6 import QtCore
         # 移除窗口置顶标志
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowType.WindowStaysOnTopHint)
         # 使用webbrowser打开登录URL
         webbrowser.open(login_url)
         
@@ -103,7 +103,7 @@ class MiBrowser(WebBrowser):
         
         dialog.setLayout(layout)
         #dialog.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             url = url_input.text().strip()
             if url and self.verify(url):
                 if self.parseReslt(url):

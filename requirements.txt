@@ -8,8 +8,8 @@ pyperclip
 Requests
 requests_toolbelt
 dnspython
-PyQt5
-PyQtWebEngine
+PyQt6
+PyQt6-WebEngine
 loguru
 aiohttp
 aiofiles
