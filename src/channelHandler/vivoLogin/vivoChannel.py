@@ -16,7 +16,7 @@ from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt5.QtWebEngineCore import (
+from PyQt6.QtWebEngineCore import (
     QWebEngineUrlRequestInterceptor,
     QWebEngineUrlRequestJob,
     QWebEngineUrlSchemeHandler,

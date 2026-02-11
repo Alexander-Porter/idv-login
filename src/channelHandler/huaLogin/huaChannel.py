@@ -20,11 +20,10 @@ from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri
 from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
 from channelHandler.channelUtils import G_clipListener
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
-from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
+from PyQt6.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
+from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
-from PyQt5.QtWidgets import QPushButton
 DEVICE_RECORD = 'huawei_device.json'
 
 
@@ -236,7 +235,7 @@ class HuaweiBrowser(WebBrowser):
             self.show()
             # 等待用户完成解除授权
             while not self.deauth_completed:
-                from PyQt5.QtWidgets import QApplication
+                from PyQt6.QtWidgets import QApplication
                 QApplication.processEvents()
         
         # 调用父类的run方法
