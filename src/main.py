@@ -103,7 +103,8 @@ def handle_exit():
 def handle_update():
 
     
-    from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QAction, QSizePolicy, QApplication
+    from PyQt6.QtGui import QAction
+    from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QSizePolicy, QApplication
     from PyQt6.QtCore import Qt
     
     ignoredVersions=genv.get("ignoredVersions",[])
@@ -326,7 +327,8 @@ def initialize():
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
     from PyQt6.QtNetwork import QNetworkProxyFactory
-    genv.set("APP",QApplication([]))
+    argv = sys.argv if sys.argv else ["idv-login"]
+    genv.set("APP",QApplication(argv))
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
     QNetworkProxyFactory.setUseSystemConfiguration(False)
 

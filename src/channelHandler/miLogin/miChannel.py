@@ -96,7 +96,10 @@ class MiBrowser(WebBrowser):
         url_input.setPlaceholderText("粘贴登录完成后的URL...例如http://game.xiaomi.com/oauthcallback/mioauth?code=123")
         layout.addWidget(url_input)
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box)

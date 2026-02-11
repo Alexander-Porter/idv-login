@@ -1,10 +1,8 @@
-from PyQt6.QtCore import QUrl
-from PyQt6.QtWidgets import QApplication
 from PyQt6 import QtCore
-from PyQt6.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile,QWebEnginePage
+from PyQt6.QtCore import QUrl, QTimer, pyqtSlot
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
-from PyQt6.QtCore import QUrl, QTimer
-from PyQt6.QtCore import pyqtSlot
 from envmgr import genv
 from logutil import setup_logger
 import os
@@ -110,8 +108,15 @@ class WebBrowser(QWidget):
         return self.result
 
     def cleanup(self):
-        #self.view.setPage(None)
-        self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
+        try:
+            self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
+        except Exception:
+            pass
+        self.view.setPage(None)
+        self.view.close()
         self.close()
+        app_inst = QApplication.instance()
+        if app_inst:
+            app_inst.quit()
 
     
