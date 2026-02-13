@@ -141,11 +141,11 @@ def register_common_idv_routes(app, *, game_helper, logger):
         def _run_pull():
             try:
                 if direction in ["pull", "bidirectional"]:
-                    logger.info("启动时自动同步：后台拉取云端账号中")
-                    print("[CloudSync] 启动时自动同步：后台拉取云端账号")
+                    #logger.info("启动时自动同步：后台拉取云端账号中")
+                    #print("[CloudSync] 启动时自动同步：后台拉取云端账号")
                     cloud_sync_mgr.pull(master_key)
                     _refresh_channels_helper_after_pull()
-                    logger.info("启动时自动同步：云端拉取完成")
+                    logger.debug("启动时自动同步：云端拉取完成")
             except Exception:
                 logger.debug("启动时自动拉取云同步失败")
 

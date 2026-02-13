@@ -350,6 +350,7 @@ def initialize():
                 start_args=CloudRes().get_start_argument(getShortGameId(game.game_id)) or ""
                 logger.info(f"新建快捷方式: {game.path}，启动参数: {start_args}")
                 game.create_launch_shortcut(start_args=start_args,bypass_path_check=False)
+                
         except Exception as e:
             logger.error(f"首次使用创建快捷方式失败: {e}")
             
@@ -552,6 +553,7 @@ def handle_download_task(task_file_path):
                 game.version = version_code
                 if distribution_id != -1:
                     game.default_distribution = distribution_id
+                    game.should_auto_start=True
                 game_mgr._save_games()
                 print(f"下载任务完成，准备创建游戏启动快捷方式，启动参数: {start_args}")
                 game.create_launch_shortcut(start_args=start_args,bypass_path_check=True)
