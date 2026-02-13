@@ -571,14 +571,13 @@
             </div>
         </div>
 
-        <!-- 操作区域 -->
-        <div class="row">
-            <!-- 登录操作 -->
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-box-arrow-in-right me-2"></i>账号登录</span>
-                    </div>
+    <div class="row">
+        <!-- 登录操作 -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-box-arrow-in-right me-2"></i>账号登录</span>
+                </div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="channelSelect" class="form-label">渠道选择:</label>
@@ -651,6 +650,90 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4" id="cloudSyncCard">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cloud-arrow-up me-2"></i>渠道服账号云同步</span>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary" id="cloudSyncToggleBtn" onclick="toggleCloudSyncPanel()">
+                        <i class="bi bi-chevron-right me-1"></i>展开
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showCloudSyncWizard()">
+                        <i class="bi bi-magic me-1"></i>配置向导
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="cloudSyncCardBody" style="display:none;">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">主密钥</label>
+                        <input id="cloudSyncMasterKey" type="password" class="form-control" placeholder="建议16位以上，包含大小写/数字/符号">
+                        <small id="cloudSyncKeyStrength" class="text-muted">强度：未检测</small>
+                    </div>
+
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-3">
+                        <label class="form-label">记住密码级别</label>
+                        <select id="cloudSyncRememberLevel" class="form-select">
+                            <option value="none">不记住主密钥</option>
+                            <option value="master_key">记住主密钥</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">同步方向</label>
+                        <select id="cloudSyncDirection" class="form-select">
+                            <option value="push">单向上传（本地→云端）</option>
+                            <option value="pull">单向下载（云端→本地）</option>
+                            <option value="bidirectional">双向同步</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">账号范围</label>
+                        <select id="cloudSyncScopeType" class="form-select">
+                            <option value="all">全部账号</option>
+                            <option value="current_game">当前游戏</option>
+                            <option value="selected">仅勾选账号</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">云端过期时间</label>
+                        <select id="cloudSyncExpireAt" class="form-select">
+                            <option value="3600">1小时</option>
+                            <option value="21600">6小时</option>
+                            <option value="86400">1天</option>
+                            <option value="259200" selected>3天 (默认)</option>
+                            <option value="604800">1周</option>
+                            <option value="2592000">1个月</option>
+                            <option value="7776000">3个月</option>
+                            <option value="15552000">半年</option>
+                            <option value="31536000">1年</option>
+                            <option value="63072000">2年</option>
+                            <option value="94608000">3年</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="small text-muted" id="cloudSyncPolicyStateText">
+                        许可状态：未同意（请先完成配置向导第一步）
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="cloudSyncAutoSync">
+                        <label class="form-check-label" for="cloudSyncAutoSync">自动同步</label>
+                    </div>
+                </div>
+                <div class="btn-group w-100 mt-3">
+                    <button class="btn btn-outline-primary" onclick="saveCloudSyncSettings()"><i class="bi bi-save me-1"></i>保存同步设置</button>
+                    <button class="btn btn-outline-success" onclick="runCloudSync('push')"><i class="bi bi-upload me-1"></i>手动上传</button>
+                    <button class="btn btn-outline-info" onclick="runCloudSync('pull')"><i class="bi bi-download me-1"></i>手动下载</button>
+                    <button class="btn btn-outline-secondary" onclick="runCloudSync('sync')"><i class="bi bi-arrow-left-right me-1"></i>按方向执行同步</button>
+                </div>
+                <div class="btn-group w-100 mt-2">
+                    <button class="btn btn-outline-dark" onclick="viewCloudSyncLogs()"><i class="bi bi-clock-history me-1"></i>访问日志</button>
+                    <button class="btn btn-outline-danger" onclick="deleteCloudSync()"><i class="bi bi-trash me-1"></i>删除云端同步</button>
                 </div>
             </div>
         </div>
@@ -1577,10 +1660,415 @@
                 });
         }
 
+        function showCloudSyncPolicy() {
+            fetch('/_idv-login/cloud-sync/policy')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error('加载说明失败');
+                    }
+                    const p = data.policy || {};
+                    const text = [
+                        `存储原理：${p.storage || ''}`,
+                        '',
+                        '记住密码级别：',
+                        `- 不记住主密钥：${(p.credential_levels || {}).none || ''}`,
+                        `- 记住主密钥：${(p.credential_levels || {}).master_key || ''}`,
+                        '',
+                        '权限说明：',
+                        `- 主密钥：${(p.permissions || {}).master_key || ''}`,
+                    ].join('\n');
+                    swal({
+                        title: '云同步说明',
+                        text,
+                        icon: 'info',
+                        button: '我已了解',
+                    });
+                })
+                .catch(() => {
+                    swal({ title: '加载失败', text: '无法加载云同步说明', icon: 'error', button: '确定' });
+                });
+        }
+
+        function _collectCloudSyncScopeUuids(scopeType) {
+            if (scopeType !== 'selected') return [];
+            const selectedUuids = [];
+            document.querySelectorAll('.account-checkbox:checked').forEach(checkbox => {
+                selectedUuids.push(checkbox.value);
+            });
+            return selectedUuids;
+        }
+
+        const CLOUD_SYNC_POLICY_ACK_KEY = 'cloudSyncWizardPolicyAck';
+
+        function _isCloudSyncPolicyAcked() {
+            return localStorage.getItem(CLOUD_SYNC_POLICY_ACK_KEY) === '1';
+        }
+
+        function _syncCloudSyncPolicyStateText() {
+            const stateEl = document.getElementById('cloudSyncPolicyStateText');
+            if (!stateEl) return;
+            const acked = _isCloudSyncPolicyAcked();
+            stateEl.className = acked ? 'small text-success' : 'small text-muted';
+            stateEl.textContent = acked
+                ? '许可状态：已同意（来自向导第一步）'
+                : '许可状态：未同意（请先完成配置向导第一步）';
+        }
+
+        function applyCloudSyncCardAvailability() {
+            const bodyEl = document.getElementById('cloudSyncCardBody');
+            if (!bodyEl) return;
+            const acked = _isCloudSyncPolicyAcked();
+
+            let lockTip = document.getElementById('cloudSyncLockTip');
+            if (!lockTip) {
+                lockTip = document.createElement('div');
+                lockTip.id = 'cloudSyncLockTip';
+                lockTip.className = 'alert alert-warning mb-3';
+                bodyEl.prepend(lockTip);
+            }
+            lockTip.textContent = '请先点击右上角“配置向导”，在第一步勾选并点击“下一步”后，才可使用云同步面板。';
+            lockTip.style.display = acked ? 'none' : 'block';
+
+            const controls = bodyEl.querySelectorAll('input, select, textarea, button');
+            controls.forEach(control => {
+                control.disabled = !acked;
+            });
+
+            _syncCloudSyncPolicyStateText();
+        }
+
+        function _setCloudSyncPolicyAcked(acked) {
+            localStorage.setItem(CLOUD_SYNC_POLICY_ACK_KEY, acked ? '1' : '0');
+            applyCloudSyncCardAvailability();
+        }
+
+        function _ensureCloudSyncPolicyAcked(silent = false) {
+            const acked = _isCloudSyncPolicyAcked();
+            if (!acked && !silent) {
+                swal({
+                    title: '请先完成向导许可',
+                    text: '请先打开“配置向导”，在第一步勾选并点击“下一步”后再使用云同步。',
+                    icon: 'warning',
+                    button: '确定',
+                });
+            }
+            return acked;
+        }
+
+        function _buildCloudSyncPayload() {
+            const scopeType = document.getElementById('cloudSyncScopeType').value;
+            const expireSeconds = parseInt(document.getElementById('cloudSyncExpireAt').value) || 259200;
+
+            const payload = {
+                master_key: document.getElementById('cloudSyncMasterKey').value,
+                remember_level: document.getElementById('cloudSyncRememberLevel').value,
+                sync_direction: document.getElementById('cloudSyncDirection').value,
+                auto_sync: document.getElementById('cloudSyncAutoSync').checked,
+                consent_ack: _isCloudSyncPolicyAcked(),
+                scope_type: scopeType,
+                scope_game_id: getQueryVariable('game_id'),
+                scope_uuids: _collectCloudSyncScopeUuids(scopeType),
+                expire_time: expireSeconds,
+            };
+            return payload;
+        }
+
+        function _setCloudSyncExpireAtFromSeconds(expireSeconds) {
+            const val = String(expireSeconds || 259200);
+            const el = document.getElementById('cloudSyncExpireAt');
+            let found = false;
+            for (let i = 0; i < el.options.length; i++) {
+                if (el.options[i].value === val) {
+                    el.value = val;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                 el.value = "259200"; 
+            }
+        }
+
+        function _downloadCloudSyncMasterKeyTxt(masterKey) {
+            const key = String(masterKey || '').trim();
+            if (!key) {
+                swal('无法下载', '主密钥为空，请先生成或输入主密钥', 'error');
+                return;
+            }
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const fileName = `idv-login-master-key-${timestamp}.txt`;
+            const content = [
+                'IDV Login 云同步主密钥',
+                '请妥善保管，泄露将导致云端密文可被解密。',
+                '',
+                `master_key=${key}`,
+                ''
+            ].join('\n');
+
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = fileName;
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                if (document.body.contains(downloadLink)) {
+                    document.body.removeChild(downloadLink);
+                }
+            }, 1000);
+        }
+
+        function _getCloudSyncPanelCollapsed() {
+            const val = localStorage.getItem('cloudSyncPanelCollapsed');
+            if (val === null) {
+                return true;
+            }
+            return val === '1';
+        }
+
+        function _setCloudSyncPanelCollapsed(collapsed) {
+            localStorage.setItem('cloudSyncPanelCollapsed', collapsed ? '1' : '0');
+        }
+
+        function applyCloudSyncPanelState() {
+            const collapsed = _getCloudSyncPanelCollapsed();
+            const bodyEl = document.getElementById('cloudSyncCardBody');
+            const btnEl = document.getElementById('cloudSyncToggleBtn');
+            if (bodyEl) {
+                bodyEl.style.display = collapsed ? 'none' : 'block';
+            }
+            if (btnEl) {
+                btnEl.innerHTML = collapsed
+                    ? '<i class="bi bi-chevron-right me-1"></i>展开'
+                    : '<i class="bi bi-chevron-down me-1"></i>收起';
+            }
+            applyCloudSyncCardAvailability();
+        }
+
+        function toggleCloudSyncPanel() {
+            const collapsed = _getCloudSyncPanelCollapsed();
+            _setCloudSyncPanelCollapsed(!collapsed);
+            applyCloudSyncPanelState();
+        }
+
+        function _evaluateMasterKeyStrength(masterKey) {
+            const key = masterKey || '';
+            const hasUpper = /[A-Z]/.test(key);
+            const hasLower = /[a-z]/.test(key);
+            const hasDigit = /\d/.test(key);
+            const hasSymbol = /[^A-Za-z0-9]/.test(key);
+            const classes = [hasUpper, hasLower, hasDigit, hasSymbol].filter(Boolean).length;
+            const valid = key.length >= 12 && classes >= 3;
+            return { valid, length: key.length, classes, hasUpper, hasLower, hasDigit, hasSymbol };
+        }
+
+        function updateCloudSyncMasterKeyStrength() {
+            const key = document.getElementById('cloudSyncMasterKey').value;
+            const info = _evaluateMasterKeyStrength(key);
+            const hintEl = document.getElementById('cloudSyncKeyStrength');
+            if (!key) {
+                hintEl.textContent = '强度：未检测';
+                hintEl.className = 'text-muted';
+                return;
+            }
+            if (info.valid) {
+                hintEl.textContent = `强度：合格（长度${info.length}，字符类${info.classes}/4）`;
+                hintEl.className = 'text-success';
+            } else {
+                hintEl.textContent = `强度：不足（至少12位且包含3类字符，当前长度${info.length}，字符类${info.classes}/4）`;
+                hintEl.className = 'text-danger';
+            }
+        }
+
+
+        function loadCloudSyncSettings() {
+            fetch('/_idv-login/cloud-sync/settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) return;
+                    const settings = data.settings || {};
+                    document.getElementById('cloudSyncMasterKey').value = settings.saved_master_key || '';
+                    document.getElementById('cloudSyncRememberLevel').value = settings.remember_level || 'none';
+                    document.getElementById('cloudSyncDirection').value = settings.sync_direction || 'bidirectional';
+                    document.getElementById('cloudSyncAutoSync').checked = !!settings.auto_sync;
+                    document.getElementById('cloudSyncScopeType').value = settings.scope_type || 'all';
+                    _setCloudSyncExpireAtFromSeconds(settings.expire_time || 259200);
+                    updateCloudSyncMasterKeyStrength();
+                    applyCloudSyncCardAvailability();
+
+                    if (settings.auto_sync) {
+                        runCloudSync('auto', true);
+                    }
+                });
+        }
+
+        function saveCloudSyncSettings(options) {
+            const opts = options || {};
+            if (!_ensureCloudSyncPolicyAcked()) {
+                return;
+            }
+            const payload = _buildCloudSyncPayload();
+            const keyInfo = _evaluateMasterKeyStrength(payload.master_key);
+            if (payload.master_key && !keyInfo.valid) {
+                swal({ title: '主密钥强度不足', text: '至少12位，且包含大小写字母/数字/符号中的3类', icon: 'warning', button: '确定' });
+                return;
+            }
+            fetch('/_idv-login/cloud-sync/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (opts.silentSuccess) {
+                            if (typeof opts.onSuccess === 'function') {
+                                opts.onSuccess();
+                            }
+                        } else {
+                            swal({ title: '已保存', text: '云同步设置已更新', icon: 'success', button: '确定' }).then(() => {
+                                if (typeof opts.onSuccess === 'function') {
+                                    opts.onSuccess();
+                                }
+                            });
+                        }
+                    } else {
+                        swal({ title: '保存失败', text: data.error || '未知错误', icon: 'error', button: '确定' });
+                    }
+                })
+                .catch(() => {
+                    swal({ title: '请求失败', text: '无法保存云同步设置', icon: 'error', button: '确定' });
+                });
+        }
+
+        function runCloudSync(action, silent = false) {
+            if (!_ensureCloudSyncPolicyAcked(silent)) {
+                return;
+            }
+            const payload = _buildCloudSyncPayload();
+            if (payload.scope_type === 'selected' && (!payload.scope_uuids || payload.scope_uuids.length === 0)) {
+                if (!silent) {
+                    swal({ title: '请先勾选账号', text: '当前范围为“仅勾选账号”，请先在账号列表勾选后再同步。', icon: 'warning', button: '确定' });
+                }
+                return;
+            }
+            payload.action = action;
+            if (!silent) {
+                swal({ title: '同步中', text: '请稍候...', icon: 'info', buttons: false, closeOnClickOutside: false });
+            }
+            fetch('/_idv-login/cloud-sync/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!silent) swal.close();
+                    if (data.success) {
+                        if (!silent) {
+                            swal({ title: '同步完成', text: `操作成功：${data.action || action}`, icon: 'success', button: '确定' })
+                                .then(() => location.reload());
+                        }
+                    } else if (!data.skipped) {
+                        if (!silent) {
+                            swal({ title: '同步失败', text: data.error || '未知错误', icon: 'error', button: '确定' });
+                        }
+                    }
+                })
+                .catch(() => {
+                    if (!silent) {
+                        swal.close();
+                        swal({ title: '请求失败', text: '云同步请求失败', icon: 'error', button: '确定' });
+                    }
+                });
+        }
+
+        function deleteCloudSync() {
+            if (!_ensureCloudSyncPolicyAcked()) {
+                return;
+            }
+            const payload = _buildCloudSyncPayload();
+            if (!payload.master_key) {
+                swal({ title: '参数不足', text: '删除云同步需要主密钥', icon: 'warning', button: '确定' });
+                return;
+            }
+            swal({
+                title: '确认删除云同步？',
+                text: '该操作会删除云端已有同步记录，无法恢复。',
+                icon: 'warning',
+                buttons: ['取消', '确认删除'],
+                dangerMode: true,
+            }).then(willDelete => {
+                if (!willDelete) return;
+                fetch('/_idv-login/cloud-sync/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            _setCloudSyncPolicyAcked(false);
+                            swal({ title: '删除成功', text: '已撤销云同步许可，请重新通过配置向导确认。', icon: 'success', button: '确定' });
+                        } else {
+                            swal({ title: '删除失败', text: data.error || '未知错误', icon: 'error', button: '确定' });
+                        }
+                    });
+            });
+        }
+
+        function viewCloudSyncLogs() {
+            if (!_ensureCloudSyncPolicyAcked()) {
+                return;
+            }
+            const payload = _buildCloudSyncPayload();
+            if (!payload.master_key) {
+                swal({ title: '参数不足', text: '查看日志需要主密钥', icon: 'warning', button: '确定' });
+                return;
+            }
+            fetch('/_idv-login/cloud-sync/access-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        swal({ title: '读取失败', text: data.error || '未知错误', icon: 'error', button: '确定' });
+                        return;
+                    }
+                    const logs = (data.logs || []).slice(-20).reverse();
+                    const text = logs.length
+                        ? logs.map(item => {
+                            const actionText = item.action || 'unknown';
+                            const atText = item.at ? new Date(item.at * 1000).toLocaleString() : '-';
+                            const hostText = (((item.device || {}).hostname) || '-');
+                            return `${atText} | ${actionText} | ${hostText}`;
+                        }).join('\n')
+                        : '暂无访问日志';
+                    swal({ title: '最近访问日志', text, icon: 'info', button: '确定' });
+                })
+                .catch(() => {
+                    swal({ title: '请求失败', text: '无法读取访问日志', icon: 'error', button: '确定' });
+                });
+        }
+
         // 在页面加载时获取账号列表
         window.onload = function () {
             //获得query参数game_id
             game_id = getQueryVariable("game_id");
+
+            const masterKeyInput = document.getElementById('cloudSyncMasterKey');
+            if (masterKeyInput) {
+                masterKeyInput.addEventListener('input', updateCloudSyncMasterKeyStrength);
+            }
+            applyCloudSyncPanelState();
 
             // 启动工具状态检查
             startStatusCheck();
@@ -1708,6 +2196,7 @@
 
                 // 加载自动启动设置
                 loadAutoStartSettings();
+                loadCloudSyncSettings();
                 loadLauncherStatus();
                 import_from_fever_now = getQueryVariable("import_from_fever_now");
                 if (import_from_fever_now!="") {
@@ -2086,6 +2575,447 @@
                         button: "确定",
                     });
                 });
+        }
+    </script>
+
+    <!-- Cloud Sync Wizard Modal -->
+    <div class="modal fade" id="cloudSyncWizardModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title"><i class="bi bi-magic me-2"></i>云同步配置向导</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Progress Bar -->
+                    <div class="progress mb-4" style="height: 5px;">
+                        <div class="progress-bar" role="progressbar" id="wizardProgressBar" style="width: 25%"></div>
+                    </div>
+
+                    <!-- Step 1: Intro + Mode -->
+                    <div class="wizard-step" id="wizardStep1">
+                        <div class="text-center mb-4">
+                            <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 3rem;"></i>
+                            <h3 class="mt-3">欢迎使用云同步</h3>
+                            <p class="text-muted">本向导将帮助您快速配置渠道服账号同步功能。</p>
+                        </div>
+                        <div class="alert alert-info border-0 bg-soft-info">
+                            <div class="d-flex">
+                                <i class="bi bi-shield-lock-fill fs-4 me-3"></i>
+                                <div>
+                                    <h5>使用须知</h5>
+                                    <p class="mb-0 small">系统使用高强度 AES-SIV 加密方案。您的所有数据在发送到云端前都会被加密。云端服务器（WebNote）仅存储密文，无法查看您的账号信息。</p>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="wizardPolicyAck">
+                                        <label class="form-check-label small" for="wizardPolicyAck">
+                                            我已阅读并同意
+                                            <a href="https://www.yuque.com/keygen/kg2r5k/pvb2mdma2zpq442g" target="_blank" class="text-decoration-none">详细说明和隐私政策</a>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">请选择使用场景</label>
+                            <select class="form-select" id="wizardMode" onchange="wizardOnModeChange()">
+                                <option value="import_existing">导入已有同步（我在其他设备上已配置过）</option>
+                                <option value="new_setup">我还未设置过同步</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Master Key -->
+                    <div class="wizard-step" id="wizardStep2" style="display:none;">
+                        <h4 class="mb-3">设置主密钥</h4>
+                        <p class="text-muted small">主密钥是解密数据的唯一凭证。为了安全，我们不存储主密钥明文（除非您选择本地记住）。</p>
+                        
+                        <div class="card bg-light border-0 mb-4" id="wizardGenerateCard">
+                            <div class="card-body text-center">
+                                <button class="btn btn-primary btn-lg mb-3" onclick="wizardGenKey()">
+                                    <i class="bi bi-dice-5 me-2"></i>生成高强度随机密钥
+                                </button>
+                                <div id="wizardKeyDisplayArea" style="display:none;" class="mt-2 text-start">
+                                    <p class="text-danger fw-bold mb-2 text-center"><i class="bi bi-exclamation-triangle me-1"></i>请务必立即复制并保存下方密钥：</p>
+                                    <div class="p-3 bg-white border rounded shadow-sm position-relative">
+                                        <h4 class="font-monospace text-break mb-0 text-primary user-select-all text-center" id="wizardKeyText"></h4>
+                                        <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-2" onclick="copyWizardKey()">
+                                            <i class="bi bi-clipboard"></i> 复制
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 text-center">
+                                        <button class="btn btn-link btn-sm text-decoration-none" onclick="wizardTriggerTxtDownload()">
+                                            <i class="bi bi-file-earmark-arrow-down"></i> 下载为文本文件
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">或手动输入密钥：</label>
+                            <input type="text" class="form-control" id="wizardKeyInput" placeholder="在此粘贴或输入主密钥" oninput="validateWizardKey()">
+                            <div id="wizardKeyFeedback" class="form-text"></div>
+                            <div class="mt-2">
+                                <input type="file" id="wizardKeyFileInput" accept=".txt,text/plain" style="display:none;" onchange="wizardImportKeyFile(event)">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('wizardKeyFileInput').click()">
+                                    <i class="bi bi-upload me-1"></i>从文本文件导入主密钥
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-secondary py-2" id="wizardProbeResult" style="display:none;"></div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">是否在本地记住主密钥？</label>
+                            <select class="form-select" id="wizardRemember">
+                                <option value="master_key">是，记住主密钥 (推荐个人电脑使用)</option>
+                                <option value="none">否，每次同步都需要手动输入 (公用电脑推荐)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Options -->
+                    <div class="wizard-step" id="wizardStep3" style="display:none;">
+                        <h4 class="mb-3">同步选项设置</h4>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">账号范围</label>
+                                <select class="form-select" id="wizardScope">
+                                    <option value="all">所有游戏的所有账号</option>
+                                    <option value="current_game" selected>仅当前选择的游戏</option>
+                                    <option value="selected">仅列表勾选的账号</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">云端数据保留时长</label>
+                                <select class="form-select" id="wizardExpire">
+                                    <option value="3600">1小时</option>
+                                    <option value="21600">6小时</option>
+                                    <option value="86400">1天</option>
+                                    <option value="259200" selected>3天 (默认)</option>
+                                    <option value="604800">1周</option>
+                                    <option value="2592000">1个月</option>
+                                    <option value="7776000">3个月</option>
+                                    <option value="15552000">半年</option>
+                                    <option value="31536000">1年</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">同步方向</label>
+                                <select class="form-select" id="wizardDirection">
+                                    <option value="pull">单向下载（云端→本地）</option>
+                                    <option value="push">单向上传（本地→云端）</option>
+                                    <option value="bidirectional" selected>双向同步</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mt-4">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="wizardAutoSync" checked>
+                                            <label class="form-check-label fw-bold" for="wizardAutoSync">启用自动同步</label>
+                                        </div>
+                                        <p class="text-muted small mb-0 mt-1">开启后，每次“登录游戏”成功时自动上传，启动工具时自动尝试下载更新。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Confirm -->
+                    <div class="wizard-step" id="wizardStep4" style="display:none;">
+                        <div class="text-center mb-4">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <h3 class="mt-3">准备就绪</h3>
+                        </div>
+                        <div class="alert alert-warning">
+                            <h6 class="alert-heading"><i class="bi bi-exclamation-circle me-1"></i>最后确认</h6>
+                            <ul class="mb-0 small">
+                                <li>请确认您已经保存好了主密钥。如果丢失，没人能帮您找回数据。</li>
+                                <li>配置完成后，您可以随时在主界面调整这些设置。</li>
+                            </ul>
+                        </div>
+                        <div class="form-check mb-3 d-flex justify-content-center">
+                            <div>
+                                <input class="form-check-input" type="checkbox" id="wizardRunNow" checked>
+                                <label class="form-check-label" for="wizardRunNow">完成后立即执行一次同步</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" id="btnWizardPrev" onclick="wizardMove(-1)" disabled>上一步</button>
+                    <button type="button" class="btn btn-primary px-4" id="btnWizardNext" onclick="wizardMove(1)">下一步</button>
+                    <button type="button" class="btn btn-success px-4" id="btnWizardFinish" onclick="wizardFinish()" style="display:none;">完成并保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let wizardCurrentStep = 1;
+        let wizardDownloadToken = null;
+        let wizardRemoteProbe = null;
+
+        function showCloudSyncWizard() {
+            const modalEl = document.getElementById('cloudSyncWizardModal');
+            if (!modalEl) {
+                swal('错误', '未找到云同步向导窗口，请刷新页面后重试', 'error');
+                return;
+            }
+            const modal = new bootstrap.Modal(modalEl);
+            wizardCurrentStep = 1;
+            wizardDownloadToken = null;
+            wizardRemoteProbe = null;
+            document.getElementById('wizardMode').value = 'import_existing';
+            document.getElementById('wizardKeyInput').value = '';
+            document.getElementById('wizardKeyFileInput').value = '';
+            document.getElementById('wizardKeyDisplayArea').style.display = 'none';
+            document.getElementById('wizardKeyText').innerText = '';
+            document.getElementById('wizardProbeResult').style.display = 'none';
+            document.getElementById('wizardProbeResult').innerText = '';
+            document.getElementById('wizardPolicyAck').checked = false;
+            document.getElementById('wizardRunNow').checked = true;
+            wizardOnModeChange();
+            _updateWizardUI();
+            modal.show();
+        }
+
+        function wizardOnModeChange() {
+            const mode = document.getElementById('wizardMode').value;
+            const generateCard = document.getElementById('wizardGenerateCard');
+            const keyDisplayArea = document.getElementById('wizardKeyDisplayArea');
+            if (mode === 'import_existing') {
+                if (generateCard) generateCard.style.display = 'none';
+                if (keyDisplayArea) keyDisplayArea.style.display = 'none';
+            } else {
+                if (generateCard) generateCard.style.display = '';
+            }
+        }
+
+        function wizardImportKeyFile(event) {
+            const file = event && event.target && event.target.files ? event.target.files[0] : null;
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function (loadEvent) {
+                const raw = String((loadEvent && loadEvent.target && loadEvent.target.result) || '');
+                const match = raw.match(/master_key\s*=\s*([^\r\n]+)/i);
+                let parsedKey = '';
+                if (match && match[1]) {
+                    parsedKey = match[1].trim();
+                } else {
+                    parsedKey = raw.trim();
+                }
+                if (!parsedKey) {
+                    swal('导入失败', '未在文本中解析到主密钥，请检查文件内容', 'error');
+                    return;
+                }
+                document.getElementById('wizardKeyInput').value = parsedKey;
+                const valid = validateWizardKey();
+                if (valid) {
+                    swal('导入成功', '已从文件中读取主密钥', 'success');
+                } else {
+                    swal('已导入', '已读取到主密钥，但强度不符合要求，请确认文件是否正确', 'warning');
+                }
+            };
+            reader.onerror = function () {
+                swal('导入失败', '读取文件失败，请重试', 'error');
+            };
+            reader.readAsText(file, 'utf-8');
+        }
+
+        function _updateWizardUI() {
+            // Hide all steps
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = document.getElementById(`wizardStep${i}`);
+                if (stepEl) {
+                    stepEl.style.display = 'none';
+                }
+            }
+            // Show current
+            const currentStepEl = document.getElementById(`wizardStep${wizardCurrentStep}`);
+            if (currentStepEl) {
+                currentStepEl.style.display = 'block';
+            }
+            
+            // Update Progress
+            const progressEl = document.getElementById('wizardProgressBar');
+            if (progressEl) {
+                progressEl.style.width = `${wizardCurrentStep * 25}%`;
+            }
+
+            // Update Buttons
+            document.getElementById('btnWizardPrev').disabled = (wizardCurrentStep === 1);
+            
+            if (wizardCurrentStep === 4) {
+                document.getElementById('btnWizardNext').style.display = 'none';
+                document.getElementById('btnWizardFinish').style.display = 'inline-block';
+            } else {
+                document.getElementById('btnWizardNext').style.display = 'inline-block';
+                document.getElementById('btnWizardFinish').style.display = 'none';
+            }
+        }
+
+        function validateWizardKey() {
+            const key = document.getElementById('wizardKeyInput').value;
+            const info = _evaluateMasterKeyStrength(key);
+            const fb = document.getElementById('wizardKeyFeedback');
+            if (!key) {
+                fb.innerText = '';
+                fb.className = 'form-text';
+                return false;
+            }
+            if (info.valid) {
+                fb.innerText = '密钥强度合格';
+                fb.className = 'form-text text-success';
+                return true;
+            } else {
+                fb.innerText = '密钥强度不足 (需12位以上且含3类字符)';
+                fb.className = 'form-text text-danger';
+                return false;
+            }
+        }
+
+        function wizardGenKey() {
+             fetch('/_idv-login/cloud-sync/generate-master-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ length: 16 }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const key = data.master_key;
+                    document.getElementById('wizardKeyInput').value = key;
+                    document.getElementById('wizardKeyText').innerText = key;
+                    document.getElementById('wizardKeyDisplayArea').style.display = 'block';
+                    wizardDownloadToken = null;
+                    validateWizardKey();
+                }
+            });
+        }
+
+        function wizardTriggerTxtDownload() {
+            const key = document.getElementById('wizardKeyInput').value;
+            _downloadCloudSyncMasterKeyTxt(key);
+        }    
+
+        function copyWizardKey() {
+            const text = document.getElementById('wizardKeyText').innerText;
+            if(!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                swal('已复制', '密钥已复制到剪贴板', 'success');
+            });
+        }
+
+        function wizardMove(delta) {
+            if (delta > 0) {
+                // Validation before moving next
+                if (wizardCurrentStep === 1) {
+                    const policyAck = document.getElementById('wizardPolicyAck');
+                    if (!policyAck || !policyAck.checked) {
+                        swal('提示', '请仔细阅读详细说明和隐私政策，如果您不同意，我们无法为您提供服务。', 'warning');
+                        return;
+                    }
+                    _setCloudSyncPolicyAcked(true);
+                    const mode = document.getElementById('wizardMode').value;
+                    document.getElementById('wizardDirection').value = mode === 'import_existing' ? 'pull' : 'bidirectional';
+                }
+                if (wizardCurrentStep === 2) {
+                    const isValid = validateWizardKey();
+                    if (!isValid) {
+                        swal('密钥无效', '请输入或生成一个符合强度要求的主密钥', 'warning');
+                        return;
+                    }
+                    const mode = document.getElementById('wizardMode').value;
+                    if (mode === 'import_existing') {
+                        const key = document.getElementById('wizardKeyInput').value;
+                        const probeEl = document.getElementById('wizardProbeResult');
+                        probeEl.style.display = 'block';
+                        probeEl.className = 'alert alert-secondary py-2';
+                        probeEl.innerText = '正在探测云端已有同步，请稍候...';
+                        fetch('/_idv-login/cloud-sync/probe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ master_key: key }),
+                        })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    probeEl.className = 'alert alert-danger py-2';
+                                    probeEl.innerText = `探测失败：${data.error || '未知错误'}`;
+                                    throw new Error(data.error || 'probe_failed');
+                                }
+                                wizardRemoteProbe = data;
+                                if (data.exists) {
+                                    probeEl.className = 'alert alert-success py-2';
+                                    probeEl.innerText = `已找到云端同步记录，云端账号约 ${data.remote_channels_count || 0} 个。建议先执行“单向下载（云端→本地）”。`;
+                                    if ((data.remote_channels_count || 0) > 0) {
+                                        document.getElementById('wizardDirection').value = 'pull';
+                                    }
+                                    wizardCurrentStep += delta;
+                                    if (wizardCurrentStep < 1) wizardCurrentStep = 1;
+                                    if (wizardCurrentStep > 4) wizardCurrentStep = 4;
+                                    _updateWizardUI();
+                                } else {
+                                    probeEl.className = 'alert alert-warning py-2';
+                                    probeEl.innerText = (data.message || '未发现云端同步记录') + '。当前是“导入已有同步”，请改选“我还未设置过同步”后继续。';
+                                    document.getElementById('wizardDirection').value = 'push';
+                                    swal('未找到已有同步', '云端不存在该主密钥对应的同步记录。请切换到“我还未设置过同步”继续。', 'warning');
+                                }
+                            })
+                            .catch(() => {
+                                probeEl.className = 'alert alert-danger py-2';
+                                if (!probeEl.innerText) {
+                                    probeEl.innerText = '探测失败，请稍后重试';
+                                }
+                            });
+                        return;
+                    }
+                }
+            }
+            wizardCurrentStep += delta;
+            if (wizardCurrentStep < 1) wizardCurrentStep = 1;
+            if (wizardCurrentStep > 4) wizardCurrentStep = 4;
+            _updateWizardUI();
+        }
+
+        function wizardFinish() {
+            if (!_ensureCloudSyncPolicyAcked()) {
+                return;
+            }
+
+            // Fill main form
+            document.getElementById('cloudSyncMasterKey').value = document.getElementById('wizardKeyInput').value;
+            // set remember level to master_key if user selected it
+            document.getElementById('cloudSyncRememberLevel').value = document.getElementById('wizardRemember').value;
+            document.getElementById('cloudSyncScopeType').value = document.getElementById('wizardScope').value;
+            document.getElementById('cloudSyncDirection').value = document.getElementById('wizardDirection').value;
+            
+            const expireSec = document.getElementById('wizardExpire').value;
+            _setCloudSyncExpireAtFromSeconds(expireSec);
+
+            document.getElementById('cloudSyncAutoSync').checked = document.getElementById('wizardAutoSync').checked;
+            const runNow = document.getElementById('wizardRunNow').checked;
+
+            // Trigger Save
+            saveCloudSyncSettings({
+                onSuccess: () => {
+                    if (runNow) {
+                        runCloudSync('sync');
+                    }
+                }
+            });
+            
+            // Hide Modal
+            const modalEl = document.getElementById('cloudSyncWizardModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            
+            // Optional: Trigger Strength Update on main UI
+            updateCloudSyncMasterKeyStrength();
         }
     </script>
 </body>

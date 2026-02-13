@@ -167,6 +167,12 @@ class ChannelManager:
                     del channel_data[key]
             json.dump(data, file)
         self.logger.info("渠道服登录信息已更新")
+        callback = genv.get("CHANNELS_UPDATED_CALLBACK", None)
+        if callable(callback):
+            try:
+                callback("channel_records_updated")
+            except Exception:
+                self.logger.exception("触发账号记录更新回调失败")
 
     def list_channels(self,game_id: str):
         return sorted(

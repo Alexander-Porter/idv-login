@@ -19,6 +19,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 import time
+import json
+import gevent
 
 from flask import request, jsonify, Response, send_file
 from channelHandler.channelUtils import getShortGameId
@@ -26,10 +28,128 @@ from cloudRes import CloudRes
 from envmgr import genv
 import const
 from login_stack_mgr import LoginStackManager
+from cloudSync import CloudSyncManager
 
 
 def register_common_idv_routes(app, *, game_helper, logger):
     stack_mgr = LoginStackManager.get_instance()
+    cloud_sync_mgr = CloudSyncManager(logger)
+    auto_push_generation = {"value": 0}
+
+    def _default_cloud_sync_settings():
+        return {
+            "consent_ack": False,
+            "remember_level": "none",
+            "saved_master_key": "",
+            "auto_sync": False,
+            "sync_direction": "bidirectional",
+            "scope_type": "all",
+            "scope_game_id": "",
+            "scope_uuids": [],
+            "expire_time": 259200,
+        }
+
+    def _get_cloud_sync_settings():
+        settings = genv.get("CLOUD_SYNC_SETTINGS", {})
+        if not isinstance(settings, dict):
+            settings = {}
+        merged = _default_cloud_sync_settings()
+        merged.update(settings)
+        return merged
+
+    def _save_cloud_sync_settings(settings):
+        genv.set("CLOUD_SYNC_SETTINGS", settings, True)
+
+    def _resolve_cloud_sync_master_key(payload):
+        settings = _get_cloud_sync_settings()
+        master_key = payload.get("master_key", "")
+        if master_key:
+            return master_key
+        return settings.get("saved_master_key", "")
+
+    def _resolve_scope(payload):
+        settings = _get_cloud_sync_settings()
+        scope_type = payload.get("scope_type", settings.get("scope_type", "all"))
+        scope_game_id = payload.get("scope_game_id", settings.get("scope_game_id", ""))
+        scope_uuids = payload.get("scope_uuids", settings.get("scope_uuids", []))
+        if not isinstance(scope_uuids, list):
+            scope_uuids = []
+        return {
+            "type": scope_type,
+            "game_id": scope_game_id,
+            "uuids": scope_uuids,
+        }
+
+    def _refresh_channels_helper_after_pull():
+        try:
+            from channelmgr import ChannelManager
+            genv.set("CHANNELS_HELPER", ChannelManager())
+        except Exception:
+            logger.exception("云同步拉取后刷新账号管理器失败")
+
+    def _try_resolve_auto_sync_runtime():
+        settings = _get_cloud_sync_settings()
+        if not settings.get("auto_sync", False):
+            return None, None, None, None
+        if not settings.get("consent_ack", False):
+            return None, None, None, None
+        master_key = str(settings.get("saved_master_key", "") or "")
+        if not master_key:
+            return None, None, None, None
+        strength = cloud_sync_mgr.evaluate_master_key_strength(master_key)
+        if not strength.get("valid", False):
+            return None, None, None, None
+        scope = {
+            "type": str(settings.get("scope_type", "all") or "all"),
+            "game_id": str(settings.get("scope_game_id", "") or ""),
+            "uuids": settings.get("scope_uuids", []) if isinstance(settings.get("scope_uuids", []), list) else [],
+        }
+        expire_time = int(settings.get("expire_time", 259200) or 259200)
+        direction = str(settings.get("sync_direction", "bidirectional") or "bidirectional")
+        return master_key, scope, expire_time, direction
+
+    def _schedule_auto_push(reason: str):
+        master_key, scope, expire_time, _ = _try_resolve_auto_sync_runtime()
+        if not master_key:
+            return
+
+        auto_push_generation["value"] += 1
+        current_generation = auto_push_generation["value"]
+
+        def _delayed_push():
+            logger.info(f"检测到账号记录更新，准备在5秒后自动上传云同步（原因: {reason}）")
+            print(f"[CloudSync] 检测到账号记录更新，准备在5秒后自动上传（原因: {reason}）")
+            gevent.sleep(5)
+            if current_generation != auto_push_generation["value"]:
+                logger.info("自动上传任务已被新的更新事件覆盖，跳过本次上传")
+                return
+            try:
+                result = cloud_sync_mgr.push(master_key, scope, expire_time)
+                logger.info(f"自动上传完成：{result.get('action', 'push')}")
+            except Exception:
+                #清空本地同步记录，避免重复上传失败的记录
+                
+                logger.exception("自动上传云同步失败")
+
+        gevent.spawn(_delayed_push)
+
+    def _spawn_auto_pull_on_startup():
+        master_key, _, _, direction = _try_resolve_auto_sync_runtime()
+        if not master_key:
+            return
+
+        def _run_pull():
+            try:
+                if direction in ["pull", "bidirectional"]:
+                    logger.info("启动时自动同步：后台拉取云端账号中")
+                    print("[CloudSync] 启动时自动同步：后台拉取云端账号")
+                    cloud_sync_mgr.pull(master_key)
+                    _refresh_channels_helper_after_pull()
+                    logger.info("启动时自动同步：云端拉取完成")
+            except Exception:
+                logger.debug("启动时自动拉取云同步失败")
+
+        gevent.spawn(_run_pull)
 
     def _pick_wechat_qrcode(game_id):
         cache = genv.get("WECHAT_QRCODE_CACHE", {})
@@ -106,6 +226,8 @@ def register_common_idv_routes(app, *, game_helper, logger):
             "timestamp": data.get("timestamp", 0),
         })
 
+    genv.set("CHANNELS_UPDATED_CALLBACK", _schedule_auto_push)
+
     @app.route("/_idv-login/switch", methods=["GET"])
     def _switch_channel():
         genv.set("CHANNEL_ACCOUNT_SELECTED", request.args["uuid"])
@@ -120,23 +242,20 @@ def register_common_idv_routes(app, *, game_helper, logger):
 
     @app.route("/_idv-login/del", methods=["GET"])
     def _del_channel():
-        resp = {
-            "success": genv.get("CHANNELS_HELPER").delete(request.args["uuid"])
-        }
+        success = genv.get("CHANNELS_HELPER").delete(request.args["uuid"])
+        resp = {"success": success}
         return jsonify(resp)
 
     @app.route("/_idv-login/rename", methods=["GET"])
     def _rename_channel():
-        resp = {
-            "success": genv.get("CHANNELS_HELPER").rename(request.args["uuid"], request.args["new_name"])
-        }
+        success = genv.get("CHANNELS_HELPER").rename(request.args["uuid"], request.args["new_name"])
+        resp = {"success": success}
         return jsonify(resp)
 
     @app.route("/_idv-login/import", methods=["GET"])
     def _import_channel():
-        resp = {
-            "success": genv.get("CHANNELS_HELPER").manual_import(request.args["channel"], request.args["game_id"])
-        }
+        success = genv.get("CHANNELS_HELPER").manual_import(request.args["channel"], request.args["game_id"])
+        resp = {"success": success}
         return jsonify(resp)
 
     @app.route("/_idv-login/setDefault", methods=["GET"])
@@ -575,6 +694,200 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 "error": str(e)
             })
 
+    @app.route("/_idv-login/cloud-sync/policy", methods=["GET"])
+    def _cloud_sync_policy():
+        return jsonify({
+            "success": True,
+            "policy": {
+                "storage": "云端仅保存密文，不保存主密钥。系统使用主密钥+不同盐值派生 note_id、note密码、AES密钥。",
+                "credential_levels": {
+                    "none": "不记住主密钥；每次同步手动输入。",
+                    "master_key": "记住主密钥；可用于自动同步。"
+                },
+                "permissions": {
+                    "master_key": "主密钥是唯一凭证，可访问/修改/删除记录，并解密云端密文。"
+                }
+            }
+        })
+
+    @app.route("/_idv-login/cloud-sync/generate-master-key", methods=["POST"])
+    def _cloud_sync_generate_master_key():
+        try:
+            payload = request.get_json(silent=True) or {}
+            length = int(payload.get("length", 16) or 16)
+            master_key = cloud_sync_mgr.generate_master_key(length)
+            result = {
+                "success": True,
+                "master_key": master_key,
+                "strength": cloud_sync_mgr.evaluate_master_key_strength(master_key),
+            }
+            return jsonify(result)
+        except Exception as e:
+            logger.exception("生成主密钥失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/settings", methods=["GET", "POST"])
+    def _cloud_sync_settings():
+        if request.method == "GET":
+            settings = _get_cloud_sync_settings()
+            return jsonify({"success": True, "settings": settings})
+
+        try:
+            payload = request.get_json(silent=True) or {}
+            settings = _get_cloud_sync_settings()
+
+            consent_ack = bool(payload.get("consent_ack", False))
+            remember_level = str(payload.get("remember_level", "none"))
+            if remember_level not in ["none", "master_key"]:
+                return jsonify({"success": False, "error": "记住密码级别无效"})
+
+            auto_sync = bool(payload.get("auto_sync", False))
+
+            settings["consent_ack"] = consent_ack
+            if auto_sync and not consent_ack:
+                return jsonify({"success": False, "error": "启用自动同步前请先同意存储与权限说明"})
+            settings["remember_level"] = remember_level
+            settings["auto_sync"] = auto_sync
+            settings["sync_direction"] = str(payload.get("sync_direction", "bidirectional"))
+            settings["scope_type"] = str(payload.get("scope_type", "all"))
+            settings["scope_game_id"] = str(payload.get("scope_game_id", ""))
+            settings["scope_uuids"] = payload.get("scope_uuids", []) if isinstance(payload.get("scope_uuids", []), list) else []
+            settings["expire_time"] = int(payload.get("expire_time", 259200) or 259200)
+
+            master_key = str(payload.get("master_key", ""))
+
+            if master_key:
+                strength = cloud_sync_mgr.evaluate_master_key_strength(master_key)
+                if not strength.get("valid", False):
+                    return jsonify({"success": False, "error": "主密钥强度不足：至少12位且包含3类字符"})
+
+            if remember_level == "master_key" and not master_key:
+                return jsonify({"success": False, "error": "选择记住主密钥时，必须提供主密钥"})
+
+            settings["saved_master_key"] = master_key if remember_level == "master_key" else ""
+
+            _save_cloud_sync_settings(settings)
+            return jsonify({"success": True, "settings": settings})
+        except Exception as e:
+            logger.exception("保存云同步设置失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/accounts", methods=["GET"])
+    def _cloud_sync_accounts():
+        try:
+            channels_path = genv.get("FP_CHANNEL_RECORD", "")
+            channels = []
+            if channels_path and os.path.exists(channels_path):
+                with open(channels_path, "r", encoding="utf-8") as file:
+                    raw = json.load(file)
+                    if isinstance(raw, list):
+                        for item in raw:
+                            channels.append({
+                                "uuid": item.get("uuid", ""),
+                                "name": item.get("name", ""),
+                                "game_id": item.get("game_id", ""),
+                                "channel": (item.get("login_info", {}) or {}).get("login_channel", ""),
+                            })
+            return jsonify({"success": True, "accounts": channels})
+        except Exception as e:
+            logger.exception("读取云同步账号范围失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/probe", methods=["POST"])
+    def _cloud_sync_probe():
+        try:
+            payload = request.get_json(silent=True) or {}
+            master_key = str(payload.get("master_key", ""))
+            if not master_key:
+                return jsonify({"success": False, "error": "主密钥不能为空"})
+            result = cloud_sync_mgr.probe_remote(master_key)
+            return jsonify(result)
+        except Exception as e:
+            logger.exception("探测云端同步信息失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/run", methods=["POST"])
+    def _cloud_sync_run():
+        try:
+            payload = request.get_json(silent=True) or {}
+            settings = _get_cloud_sync_settings()
+
+            if not settings.get("consent_ack", False) and not bool(payload.get("consent_ack", False)):
+                return jsonify({"success": False, "error": "请先同意云同步存储与权限说明"})
+
+            action = str(payload.get("action", "sync"))
+            if action == "auto" and not settings.get("auto_sync", False):
+                return jsonify({"success": True, "skipped": True, "reason": "auto_sync_disabled"})
+
+            master_key = _resolve_cloud_sync_master_key(payload)
+            if not master_key:
+                return jsonify({"success": False, "error": "主密钥不能为空"})
+            strength = cloud_sync_mgr.evaluate_master_key_strength(master_key)
+            if not strength.get("valid", False):
+                return jsonify({"success": False, "error": "主密钥强度不足：至少12位且包含3类字符"})
+
+            scope = _resolve_scope(payload)
+            expire_time = int(payload.get("expire_time", settings.get("expire_time", 259200)) or 259200)
+
+            if action == "push":
+                result = cloud_sync_mgr.push(master_key, scope, expire_time)
+                return jsonify(result)
+
+            if action == "pull":
+                result = cloud_sync_mgr.pull(master_key)
+                _refresh_channels_helper_after_pull()
+                return jsonify(result)
+
+            direction = str(payload.get("sync_direction", settings.get("sync_direction", "bidirectional")))
+            if direction not in ["push", "pull", "bidirectional"]:
+                return jsonify({"success": False, "error": "同步方向无效"})
+
+            steps = []
+            if direction in ["pull", "bidirectional"]:
+                try:
+                    pull_result = cloud_sync_mgr.pull(master_key)
+                    _refresh_channels_helper_after_pull()
+                    steps.append(pull_result)
+                except Exception as e:
+                    logger.debug("云同步拉取失败，继续执行后续步骤", exc_info=e)
+            if direction in ["push", "bidirectional"]:
+                try:
+                    push_result = cloud_sync_mgr.push(master_key, scope, expire_time)
+                    steps.append(push_result)
+                except Exception as e:
+                    logger.debug("云同步推送失败，继续执行后续步骤", exc_info=e)
+
+            return jsonify({"success": True, "action": "sync", "direction": direction, "steps": steps})
+        except Exception as e:
+            logger.exception("执行云同步失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/delete", methods=["POST"])
+    def _cloud_sync_delete():
+        try:
+            payload = request.get_json(silent=True) or {}
+            master_key = _resolve_cloud_sync_master_key(payload)
+            if not master_key:
+                return jsonify({"success": False, "error": "删除云同步需要主密钥"})
+            result = cloud_sync_mgr.delete_remote(master_key)
+            return jsonify(result)
+        except Exception as e:
+            logger.exception("删除云同步失败")
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/_idv-login/cloud-sync/access-logs", methods=["POST"])
+    def _cloud_sync_access_logs():
+        try:
+            payload = request.get_json(silent=True) or {}
+            master_key = _resolve_cloud_sync_master_key(payload)
+            if not master_key:
+                return jsonify({"success": False, "error": "查看访问日志需要主密钥"})
+            logs = cloud_sync_mgr.fetch_access_logs(master_key)
+            return jsonify({"success": True, "logs": logs})
+        except Exception as e:
+            logger.exception("获取云同步访问日志失败")
+            return jsonify({"success": False, "error": str(e)})
+
     @app.route("/_idv-login/index", methods=['GET'])
     def _handle_switch_page():
         try:
@@ -591,3 +904,5 @@ def register_common_idv_routes(app, *, game_helper, logger):
             return Response(cloudRes.get_login_page())
         except Exception:
             return Response(const.html)
+
+    _spawn_auto_pull_on_startup()

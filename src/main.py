@@ -301,13 +301,15 @@ def initialize():
         os.makedirs(genv.get("GLOB_LOGIN_PROFILE_PATH"))
     
     from certmgr import certmgr
-    from proxymgr import proxymgr
-    from macProxyMgr import macProxyMgr
+    
+    
     from channelmgr import ChannelManager
     m_certmgr = certmgr()
     if sys.platform=='darwin':
+        from macProxyMgr import macProxyMgr
         m_proxy = macProxyMgr()
     else:
+        from proxymgr import proxymgr
         m_proxy = proxymgr()
     genv.set("CHANNELS_HELPER", ChannelManager())
     #blocks httpdns ips

@@ -1,4 +1,5 @@
 cryptography==42.0.8
+argon2-cffi
 Faker
 Flask
 gevent
