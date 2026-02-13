@@ -106,7 +106,7 @@ class wechatChannel(channelmgr.channel):
         self.wx_appid = res.get(self.channel_name).get("wx_appid")
         self.channel = res.get(self.channel_name).get("channel")
 
-        self.wechatLogin = WechatLogin(self.wx_appid, self.channel)
+        self.wechatLogin = WechatLogin(self.wx_appid, self.channel, game_id=game_id)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None

@@ -7,6 +7,7 @@ import hmac
 
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
+from envmgr import genv
 
 #1106682786 is offerid
 def sig_helper(magicValue="5C2F##3[6$^(68#%#D3E96;]35q#FB46",ts="1"):
@@ -17,14 +18,28 @@ def sig_helper(magicValue="5C2F##3[6$^(68#%#D3E96;]35q#FB46",ts="1"):
 
 
 class WechatLogin:
-    def __init__(self,wx_appid,channel,refreshToken=""):
+    def __init__(self,wx_appid,channel,refreshToken="", game_id=""):
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
         self.logger = setup_logger()
         self.wx_appid=wx_appid
         self.channel=channel
         self.refreshToken = refreshToken
+        self.game_id = game_id
+
+    def _update_qrcode_cache(self, status, qrcode_base64="", uuid=""):
+        cache = genv.get("WECHAT_QRCODE_CACHE", {})
+        if not isinstance(cache, dict):
+            cache = {}
+        cache[self.game_id if self.game_id else "_default"] = {
+            "status": status,
+            "qrcode_base64": qrcode_base64,
+            "uuid": uuid,
+            "timestamp": int(time.time()),
+        }
+        genv.set("WECHAT_QRCODE_CACHE", cache)
 
     def webLogin(self):
+        self._update_qrcode_cache("loading")
         ts=str(int(time.time()*1000))
         qrcodeData = {
             "noncestr":"!!freeSoftwareDoNOTSell-idv-login!!"+ts,
@@ -53,13 +68,7 @@ class WechatLogin:
         #get qrcode img
         qrcode=r.json().get("qrcode").get("qrcodebase64")
         uuid=r.json().get("uuid")
-
-        with open("qrcode.png","wb") as f:
-            f.write(base64.b64decode(qrcode))
-        gevent.sleep(0.5)
-        #不要阻塞
-        import webbrowser
-        webbrowser.open("qrcode.png")
+        self._update_qrcode_cache("ready", qrcode_base64=qrcode, uuid=uuid)
 
 
         while True:
@@ -67,6 +76,7 @@ class WechatLogin:
             print(r.text)
             if r.json().get("wx_code") != "":
                 self.logger.info(f"扫码成功{r.json().get('wx_code')}")
+                self._update_qrcode_cache("scanned", uuid=uuid)
                 break
             gevent.sleep(1)
 
@@ -87,7 +97,9 @@ class WechatLogin:
         self.logger.debug(f"扫码校验结果: {r.text}")
         if not r.status_code==200 or not r.json()['ret']==0:
             self.logger.error(f"扫码校验失败: {r.text}")
+            self._update_qrcode_cache("failed", uuid=uuid)
             return None
+        self._update_qrcode_cache("verified", uuid=uuid)
         return r.json()
 
 

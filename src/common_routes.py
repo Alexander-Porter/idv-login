@@ -20,7 +20,7 @@ import os
 import sys
 import time
 
-from flask import request, jsonify, Response
+from flask import request, jsonify, Response, send_file
 from channelHandler.channelUtils import getShortGameId
 from cloudRes import CloudRes
 from envmgr import genv
@@ -30,6 +30,24 @@ from login_stack_mgr import LoginStackManager
 
 def register_common_idv_routes(app, *, game_helper, logger):
     stack_mgr = LoginStackManager.get_instance()
+
+    def _pick_wechat_qrcode(game_id):
+        cache = genv.get("WECHAT_QRCODE_CACHE", {})
+        if not isinstance(cache, dict) or not cache:
+            return None
+        if game_id and game_id in cache:
+            return cache.get(game_id)
+        if game_id:
+            for key, value in cache.items():
+                common_len = 0
+                for a, b in zip(reversed(game_id), reversed(key)):
+                    if a == b:
+                        common_len += 1
+                    else:
+                        break
+                if common_len >= 3:
+                    return value
+        return cache.get("_default")
     def _pick_launcher_fields(launcher_data):
         if not launcher_data:
             return {}
@@ -69,6 +87,24 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 "error": str(e)
             }
         return jsonify(body)
+
+    @app.route("/_idv-login/qrcode", methods=["GET"])
+    def _wechat_qrcode():
+        game_id = request.args.get("game_id", "")
+        data = _pick_wechat_qrcode(game_id)
+        if not data:
+            return jsonify({
+                "success": False,
+                "status": "idle",
+                "qrcode_base64": "",
+            })
+        return jsonify({
+            "success": True,
+            "status": data.get("status", "idle"),
+            "qrcode_base64": data.get("qrcode_base64", ""),
+            "uuid": data.get("uuid", ""),
+            "timestamp": data.get("timestamp", 0),
+        })
 
     @app.route("/_idv-login/switch", methods=["GET"])
     def _switch_channel():
@@ -542,6 +578,13 @@ def register_common_idv_routes(app, *, game_helper, logger):
     @app.route("/_idv-login/index", methods=['GET'])
     def _handle_switch_page():
         try:
+            version = genv.get("VERSION", "")
+            if not version:
+                local_index_path = os.path.normpath(
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "index.html")
+                )
+                if os.path.exists(local_index_path):
+                    return send_file(local_index_path, mimetype="text/html")
             cloudRes = CloudRes()
             if cloudRes.get_login_page() == "":
                 return Response(const.html)
