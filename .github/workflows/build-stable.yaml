@@ -80,7 +80,7 @@ jobs:
 
       - name: Build installer
         run: |
-          $outputBase = "idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}"
+          $outputBase = "idv-login-${{github.ref_name}}"
           New-Item -ItemType Directory -Force -Path dist-installer | Out-Null
           $outputDir = (Resolve-Path dist-installer).Path
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
@@ -93,9 +93,9 @@ jobs:
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer-${{ env.PYTHON_VERSION }}
+          name: windows-installer
           path: |
-            .\dist-installer\idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}.exe
+            .\dist-installer\idv-login-${{github.ref_name}}.exe
 
 
   build-macos:
@@ -125,7 +125,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          NAME="idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}-mac"
+          NAME="idv-login-${{github.ref_name}}-mac"
           pyinstaller -F src/main.py -n "$NAME" -i assets/icon.ico --version-file assets/version.txt
         shell: bash
 
@@ -134,16 +134,16 @@ jobs:
         continue-on-error: true
         run: |
           echo "尝试运行程序，将在60秒后自动终止..."
-          chmod +x "dist/idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}-mac"
-          timeout 60s "dist/idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}-mac" || echo "程序已超时或异常退出"
+          chmod +x "dist/idv-login-${{github.ref_name}}-mac"
+          timeout 60s "dist/idv-login-${{github.ref_name}}-mac" || echo "程序已超时或异常退出"
           echo "测试运行完成，继续下一步"
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-pyinstaller-${{ env.PYTHON_VERSION }}
+          name: macos-pyinstaller
           path: |
-            dist/idv-login-${{github.ref_name}}-Py${{ env.PYTHON_VERSION }}-mac
+            dist/idv-login-${{github.ref_name}}-mac
 
   release:
     needs: [build-windows, build-macos]
