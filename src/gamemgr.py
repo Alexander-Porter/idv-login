@@ -205,6 +205,56 @@ class Game:
             return base_dir
         return os.path.dirname(os.path.abspath(self.path)) if self.path else None
 
+    def _build_unique_shortcut_path(self, shortcut_dir: str, base_name: str) -> str:
+        safe_name = str(base_name or "").strip() or self.game_id
+        candidate = os.path.join(shortcut_dir, f"{safe_name}.lnk")
+        if not os.path.exists(candidate):
+            return candidate
+        suffix = 2
+        while True:
+            candidate = os.path.join(shortcut_dir, f"{safe_name}-{suffix}.lnk")
+            if not os.path.exists(candidate):
+                return candidate
+            suffix += 1
+
+    def _verify_created_shortcut(self, shortcut_path: str, expected_target: str, expected_args: str, expected_working_dir: str) -> bool:
+        if not os.path.exists(shortcut_path):
+            self.logger.error(f"快捷方式创建后不存在: {shortcut_path}")
+            return False
+        try:
+            import win32com.client
+            shell = win32com.client.Dispatch("WScript.Shell")
+
+            game_path = shortcut_path
+            if game_path.lower().endswith(".lnk"):
+                shortcut = shell.CreateShortcut(game_path)
+                game_path = (shortcut.Targetpath or "").strip()
+                shortcut_args = (shortcut.Arguments or "").strip()
+                shortcut_working_dir = (shortcut.WorkingDirectory or "").strip()
+            else:
+                shortcut_args = ""
+                shortcut_working_dir = ""
+
+            expected_target_norm = os.path.normcase(os.path.normpath(expected_target or ""))
+            actual_target_norm = os.path.normcase(os.path.normpath(game_path or ""))
+            expected_working_norm = os.path.normcase(os.path.normpath(expected_working_dir or ""))
+            actual_working_norm = os.path.normcase(os.path.normpath(shortcut_working_dir or ""))
+
+            if actual_target_norm != expected_target_norm:
+                self.logger.error(f"快捷方式目标不匹配: expected={expected_target}, actual={game_path}")
+                return False
+            expected_args_normalized = (expected_args or "").strip()
+            if (shortcut_args or "") != expected_args_normalized:
+                self.logger.error(f"快捷方式参数不匹配: expected={expected_args_normalized}, actual={shortcut_args}")
+                return False
+            if actual_working_norm != expected_working_norm:
+                self.logger.error(f"快捷方式工作目录不匹配: expected={expected_working_dir}, actual={shortcut_working_dir}")
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"验证快捷方式失败: {e}")
+            return False
+
     def create_launch_shortcut(self, start_args: str,bypass_path_check=False) -> bool:
         #print(f"Creating shortcut for game {self.game_id} with args: {start_args}")
         if sys.platform != "win32":
@@ -226,16 +276,20 @@ class Game:
                     if display_name:
                         name_from_launcher = display_name
             name = name_from_launcher if name_from_launcher else (self.name if self.name else self.game_id)
-            shortcut_path = os.path.join(shortcut_dir, f"{name}.lnk")
+            shortcut_path = self._build_unique_shortcut_path(shortcut_dir, name)
             shell = win32com.client.Dispatch("WScript.Shell")
             shortcut = shell.CreateShortCut(shortcut_path)
             normalized_path = os.path.normpath(self.path)
+            normalized_working_dir = os.path.dirname(normalized_path)
             shortcut.Targetpath = normalized_path
             shortcut.Arguments = start_args
-            shortcut.WorkingDirectory = os.path.dirname(normalized_path)
+            shortcut.WorkingDirectory = normalized_working_dir
             shortcut.Description = name
             shortcut.IconLocation = f"{normalized_path},0"
             shortcut.save()
+            if not self._verify_created_shortcut(shortcut_path, normalized_path, start_args, normalized_working_dir):
+                return False
+            self.logger.info(f"创建游戏快捷方式成功: {shortcut_path}")
             return True
         except Exception as e:
             self.logger.error(f"创建游戏快捷方式失败: {e}")
