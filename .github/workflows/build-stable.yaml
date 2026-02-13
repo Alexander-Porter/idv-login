@@ -15,21 +15,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pywin32
-        run: pip install pywin32
-
-      - name: Insert build info
-        shell: pwsh
-        run: |
-          $buildInfo = 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"'
-          $versionInfo = 'VERSION="${{github.ref_name}}"'
-          $buildInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8
-          $versionInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8 -Append
-
       - name: Download Python Embedded
         run: |
           Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ env.PYTHON_VERSION }}/python-${{ env.PYTHON_VERSION }}-embed-amd64.zip -OutFile python-embed.zip
           Expand-Archive python-embed.zip -DestinationPath python-embed
+
+          $pthFile = Get-ChildItem -Path python-embed -Filter "python*._pth" | Select-Object -First 1
+          # 读取内容，取消注释 "import site"，或者如果不存在则追加
+          $content = Get-Content $pthFile.FullName
+          if ($content -match "#\s*import site") {
+              $content = $content -replace "#\s*import site", "import site"
+          } else {
+              $content += "import site"
+          }
+          $content | Set-Content $pthFile.FullName -Encoding UTF8
         shell: pwsh
 
       - name: Set up Python Embedded
@@ -43,8 +42,19 @@ jobs:
       - name: Install dependencies
         run: |
           .\python-embed\python.exe -m pip install -r requirements.txt
-          .\python-embed\python.exe -m pip install pywin32
         shell: pwsh
+
+      - name: Install pywin32 (Windows)
+        if: runner.os == 'Windows'
+        run: .\python-embed\python.exe -m pip install pywin32
+
+      - name: Insert build info
+        shell: pwsh
+        run: |
+          $buildInfo = 'BUILD_INFO="Build in ${{github.run_id}}(${{github.sha}})"'
+          $versionInfo = 'VERSION="${{github.ref_name}}"'
+          $buildInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8
+          $versionInfo | Out-File -FilePath src/buildinfo.py -Encoding utf8 -Append
 
       - name: Compile Python files to .pyc
         run: |
