@@ -124,7 +124,7 @@ class certmgr:
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(days=3))#avoid using UTC
             .not_valid_after(
-                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=360)#for chrome
+                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=198)#for chrome
             )
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
