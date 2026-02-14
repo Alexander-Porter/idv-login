@@ -1,8 +1,11 @@
 import json
 import os
 import random
+import sqlite3
 import string
+import tempfile
 import time
+import shutil
 import channelHandler.miLogin.utils as utils
 import requests
 import sys
@@ -32,12 +35,43 @@ class VivoBrowser(WebBrowser):
     def verify(self, url: str) -> bool:
         return "openid" in self.parse_url_query(url).keys()
 
+    def export_cookie(self):
+        cookie_map = self.cookies.copy()
+        db_path = os.path.join(self.profile.persistentStoragePath(), "Cookies")
+        if not os.path.exists(db_path):
+            return cookie_map
+
+        tmp_db = None
+        conn = None
+        try:
+            tmp_fd, tmp_db = tempfile.mkstemp(prefix="vivo_cookies_", suffix=".sqlite")
+            os.close(tmp_fd)
+            shutil.copy2(db_path, tmp_db)
+            conn = sqlite3.connect(tmp_db)
+            cursor = conn.execute("SELECT host_key, name, value FROM cookies")
+            for _, name, value in cursor:
+                if name and value is not None:
+                    self.logger.debug(f"读取cookie: {name}")
+                    cookie_map[name] = value
+        except Exception as e:
+            self.logger.warning(f"从SQLite读取cookie失败，回退内存cookie: {e}")
+        finally:
+            if conn is not None:
+                conn.close()
+            if tmp_db and os.path.exists(tmp_db):
+                try:
+                    os.remove(tmp_db)
+                except Exception:
+                    pass
+        self.cookies = cookie_map
+        return cookie_map
+
     def parseReslt(self, url):
         # get cookies
         u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
         self.logger.info(u)
         try:
-            r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
+            r = requests.get(u, cookies=self.export_cookie(), verify=should_verify_ssl())
             self.result = r.json()
             return True
         except Exception as e:
@@ -67,7 +101,7 @@ class VivoLogin:
         resp = miBrowser.run()
         try:
             if resp.get("code") == 0:
-                self.cookies = miBrowser.cookies.copy()
+                self.cookies = miBrowser.export_cookie().copy()
                 return resp.get("data")
             else:
                 self.logger.error(resp.get("msg"))

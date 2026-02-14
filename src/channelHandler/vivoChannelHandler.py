@@ -44,7 +44,7 @@ class vivoLoginResp:
         self.phone = data.get("phone", "")
         self.subMax = data.get("subMax", 4)
         self.subAccounts = [vivoSubAccount(x) for x in data.get("subAccounts", [])]
-
+        self.nickName = data.get("nickName", "")
 
 class vivoChannel(channelmgr.channel):
 
@@ -101,7 +101,7 @@ class vivoChannel(channelmgr.channel):
             self.session=None
             return False
         self.session:vivoLoginResp=vivoLoginResp(resp)
-        print(len(self.session.subAccounts))
+
         if len(self.session.subAccounts)==0:
             return False
         elif len(self.session.subAccounts)==1:
@@ -128,7 +128,9 @@ class vivoChannel(channelmgr.channel):
             if self.session.subAccounts[i].subOpenId==self.chosenAccount:
                 self.activeAccount=self.session.subAccounts[i]
                 self.activeAccount.openToken=self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
-        self.uuid=f"{self.session.phone}-{self.activeAccount.nickName}"
+        #如果自己的uuid等于name，则说明是默认名字，登录成功后用昵称更新名字
+        if self.name==self.uuid:
+            self.name=f"{self.session.nickName}-{self.activeAccount.nickName}"
         return self.session!=None
 
     def is_token_valid(self):
