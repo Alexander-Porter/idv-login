@@ -35,6 +35,46 @@ class VivoBrowser(WebBrowser):
     def verify(self, url: str) -> bool:
         return "openid" in self.parse_url_query(url).keys()
 
+    def _snapshot_cookie_db(self, db_path: str):
+        tmp_fd, tmp_db = tempfile.mkstemp(prefix="vivo_cookies_", suffix=".sqlite")
+        os.close(tmp_fd)
+        try:
+            src_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=0.5)
+            try:
+                dst_conn = sqlite3.connect(tmp_db)
+                try:
+                    src_conn.backup(dst_conn)
+                    return tmp_db
+                finally:
+                    dst_conn.close()
+            finally:
+                src_conn.close()
+        except Exception as e:
+            self.logger.debug(f"SQLite backup快照失败，尝试文件拷贝快照: {e}")
+
+        copied = False
+        for _ in range(6):
+            try:
+                shutil.copy2(db_path, tmp_db)
+                wal_src = db_path + "-wal"
+                shm_src = db_path + "-shm"
+                if os.path.exists(wal_src):
+                    shutil.copy2(wal_src, tmp_db + "-wal")
+                if os.path.exists(shm_src):
+                    shutil.copy2(shm_src, tmp_db + "-shm")
+                copied = True
+                break
+            except Exception:
+                time.sleep(0.1)
+        if copied:
+            return tmp_db
+        if os.path.exists(tmp_db):
+            try:
+                os.remove(tmp_db)
+            except Exception:
+                pass
+        return None
+
     def export_cookie(self):
         cookie_map = self.cookies.copy()
         db_path = os.path.join(self.profile.persistentStoragePath(), "Cookies")
@@ -44,14 +84,13 @@ class VivoBrowser(WebBrowser):
         tmp_db = None
         conn = None
         try:
-            tmp_fd, tmp_db = tempfile.mkstemp(prefix="vivo_cookies_", suffix=".sqlite")
-            os.close(tmp_fd)
-            shutil.copy2(db_path, tmp_db)
+            tmp_db = self._snapshot_cookie_db(db_path)
+            if not tmp_db:
+                return cookie_map
             conn = sqlite3.connect(tmp_db)
             cursor = conn.execute("SELECT host_key, name, value FROM cookies")
             for _, name, value in cursor:
                 if name and value is not None:
-                    self.logger.debug(f"读取cookie: {name}")
                     cookie_map[name] = value
         except Exception as e:
             self.logger.warning(f"从SQLite读取cookie失败，回退内存cookie: {e}")
@@ -61,6 +100,16 @@ class VivoBrowser(WebBrowser):
             if tmp_db and os.path.exists(tmp_db):
                 try:
                     os.remove(tmp_db)
+                except Exception:
+                    pass
+            if tmp_db and os.path.exists(tmp_db + "-wal"):
+                try:
+                    os.remove(tmp_db + "-wal")
+                except Exception:
+                    pass
+            if tmp_db and os.path.exists(tmp_db + "-shm"):
+                try:
+                    os.remove(tmp_db + "-shm")
                 except Exception:
                     pass
         self.cookies = cookie_map
