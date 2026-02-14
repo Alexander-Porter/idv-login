@@ -6,6 +6,8 @@ import string
 import tempfile
 import time
 import shutil
+
+import gevent
 import channelHandler.miLogin.utils as utils
 import requests
 import sys
@@ -116,17 +118,8 @@ class VivoBrowser(WebBrowser):
         return cookie_map
 
     def parseReslt(self, url):
-        # get cookies
-        u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
-        self.logger.info(u)
-        try:
-            r = requests.get(u, cookies=self.export_cookie(), verify=should_verify_ssl())
-            self.result = r.json()
-            return True
-        except Exception as e:
-            self.logger.error(e)
-            self.result = {"code": -1, "msg": e}
-            return False
+        self.result = {"code": 0, "data": {"redirect_url": url}}
+        return True
 
     def parse_url_query(self, url):
         from urllib.parse import urlparse, parse_qs
@@ -150,8 +143,17 @@ class VivoLogin:
         resp = miBrowser.run()
         try:
             if resp.get("code") == 0:
+                # 浏览器退出后再读取Cookies数据库，显著降低Windows文件锁概率
                 self.cookies = miBrowser.export_cookie().copy()
-                return resp.get("data")
+                print(self.cookies)
+                u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
+                self.logger.info(u)
+                r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
+                j = r.json()
+                if j.get("code") == 0:
+                    return j.get("data")
+                self.logger.error(j.get("msg"))
+                return None
             else:
                 self.logger.error(resp.get("msg"))
                 return None
