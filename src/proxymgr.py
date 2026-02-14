@@ -427,7 +427,7 @@ def after_request_func(response: Response):
         logger.info(
             f"发送 {response.status} {response.headers} {response.get_data().decode()}"
         )
-    else:
+    elif not "list-games" in request.url:
         logger.debug(f"请求 {request.url} {response.status}")
     return response
 
