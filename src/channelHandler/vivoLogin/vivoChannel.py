@@ -21,11 +21,7 @@ from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt6.QtWebEngineCore import (
-    QWebEngineUrlRequestInterceptor,
-    QWebEngineUrlRequestJob,
-    QWebEngineUrlSchemeHandler,
-)
+
 
 
 class VivoBrowser(WebBrowser):
@@ -67,7 +63,7 @@ class VivoBrowser(WebBrowser):
                 copied = True
                 break
             except Exception:
-                time.sleep(0.1)
+                gevent.sleep(0.1)
         if copied:
             return tmp_db
         if os.path.exists(tmp_db):
