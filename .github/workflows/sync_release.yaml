@@ -98,7 +98,7 @@ jobs:
             fi
           done
 
-      - name: Release to Gitee and update cloudRes
+      - name: Release to Gitee
         id: release
         env:
           UPLOAD_PRE_URL: ${{ secrets.SECRET_UPLOAD_PRE_URL }}

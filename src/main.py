@@ -448,7 +448,7 @@ def hotfix_pre_start_check_and_rollback_if_needed():
     if prev_state == "crash":
         for hid in list(pending_ids):
             ok, msg = _hotfix_rollback_one(hid)
-            print(f"【热更新】检测到上次崩溃，回滚 {hid}: {msg}")
+            print(f"【热更新】检测到上次热更新后崩溃，回滚 {hid}: {msg}")
             _hotfix_record_update(hid, {"status": "skipped", "skip_reason": "rollback_after_crash"})
         _hotfix_add_skipped(pending_ids)
         _hotfix_set_pending_ids([])
@@ -514,7 +514,7 @@ def handle_hotfix_if_needed():
         commit = item.get("target_commit", "")
         note = item.get("note", "")
         print(f"- [{idx}] 模块: {module_name}")
-        print(f"      commit: {commit}")
+        print(f"      云端版本: {commit}")
         if note:
             print(f"      更新原因: {note}")
     print("===========================================\n")
@@ -773,8 +773,8 @@ def initialize():
     genv.set("GLOB_LOGIN_CACHE_PATH", os.path.join(genv.get("FP_WORKDIR"), "cache"))
     genv.set("SCRIPT_DIR", os.path.dirname(os.path.abspath(__file__)))
     CloudPaths = [
-        "https://gitee.com/opguess/idv-login/raw/hotfix/assets/cloudRes.json",
-        "https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@hotfix/assets/cloudRes.json",
+        "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json",
+        "https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/assets/cloudRes.json",
     ]
 
     # 无版本信息时：优先使用本地 assets\cloudRes.json；仅当本地不存在时才使用云端
@@ -899,7 +899,11 @@ def initialize():
     except:
         logger.error("创建快捷方式失败")
     computer_name = get_computer_name()
-
+    from run_once import run_once
+    try:
+        run_once()
+    except Exception as e:
+        logger.error(f"运行一次性任务失败: {e}")
     #如果是windows，清空DNS缓存
     if sys.platform=='win32':
         os.system("ipconfig /flushdns")
@@ -1381,10 +1385,8 @@ def main(cli_args=None):
         setup_network_proxy(force_mitm_mode)
         
         # Start proxy server (m_proxy is global, initialized in initialize())
-        logger.info("正在启动代理服务器...请稍等")
-        handle_error_and_exit("模拟崩溃")
+        logger.info("正在启动代理服务器...")
         m_proxy.run()
-
     except Exception as e:
         handle_error_and_exit(e)
 

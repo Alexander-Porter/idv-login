@@ -191,7 +191,7 @@ class CloudRes:
     def get_hotfixes(self):
         """返回云端下发的热更新配置列表。
 
-        兼容字段名：hotfix / hotfixes / hotfix_list。
+        兼容字段名：hotfix。
         期望每个元素包含：need_hotfix_version, target_module, target_commit, note。
         """
         data = self.local_data or {}

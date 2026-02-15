@@ -93,43 +93,6 @@ def releaseToGitee(releaseData,fileList=[]):
     giteeReleaseId=str(giteeData["id"])
     for i in fileList:
         upload_asset(i, giteeReleaseId)
-    
-def updateCloudRes():
-    #get now cloud res
-    url="https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json"
-    headers={"Authorization":"token "+github_token}
-    r=requests.get(url,headers=headers)
-    fileInfo=r.json()
-    sha=fileInfo["sha"]
-    import base64
-    import json
-    content=base64.b64decode(fileInfo["content"]).decode()
-    data=json.loads(content)
-    #update cloud res
-    releaseData=getLatestRelease()
-    data["version"]=releaseData["tag_name"]
-    import time
-    data["lastModified"]=int(time.time())
-    #获取assets/index.html
-    with open("assets/index.html", "r", encoding="utf-8") as f:
-        html=f.read()
-    data["login_base64_page"]=base64.b64encode(html.encode()).decode()
-    data["downloadUrl"]=f"https://gitee.com/{os.getenv('GITEE_ROPE')}/releases/tag/{releaseData['tag_name']}"
-    data["detail"]=releaseData["body"]
-    #读取assets/anno文件，得到公告
-    with open("assets/anno", "r", encoding="utf-8") as f:
-        anno=f.read()
-    data["announcement"]=anno
-    commitMessage=f"Update cloudRes.json to {releaseData['tag_name']}"
-    dataStr=json.dumps(data)
-    dataStr=base64.b64encode(dataStr.encode()).decode()
-    data={
-        "message":commitMessage,
-        "content":dataStr,
-        "sha":sha
-    }
-    r=requests.put(url,headers=headers,json=data)
-    print(r.json())
 
 if __name__=='__main__':
     requests.packages.urllib3.disable_warnings()
@@ -150,4 +113,4 @@ if __name__=='__main__':
     except:
         traceback.print_exc()
         traceback.print_stack()
-    updateCloudRes()
+

@@ -5,6 +5,11 @@ on:
     paths:
       - 'assets/anno'
       - 'assets/index.html'
+  workflow_run:
+    workflows:
+      - Sync Release
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       critical_update:
@@ -14,6 +19,7 @@ on:
 
 jobs:
   update_json:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
