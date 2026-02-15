@@ -452,6 +452,8 @@ def hotfix_pre_start_check_and_rollback_if_needed():
             _hotfix_record_update(hid, {"status": "skipped", "skip_reason": "rollback_after_crash"})
         _hotfix_add_skipped(pending_ids)
         _hotfix_set_pending_ids([])
+        #回滚完毕后，重启。
+        _hotfix_restart_self("已回滚所有待验证热更新")
         return
 
     # 若上次正常退出，则确认 hotfix 生效
