@@ -1,6 +1,14 @@
 {
-    "lastModified": 1771077337,
+    "lastModified": 1771077341,
     "version": "v5.8.3-beta",
+    "hotfix": [
+        {
+            "need_hotfix_version": ["hotfix"],
+            "target_module": "main",
+            "target_commit": "85402fe46837109cb5d73fd34fc61d59bbd9a334",
+            "note": "模拟崩溃和main替换"
+        }
+    ],
     "shortcuts": [
         {
             "name": "官服教程",
