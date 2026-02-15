@@ -51,7 +51,8 @@ class VivoBrowser(WebBrowser):
             self.logger.debug(f"SQLite backup快照失败，尝试文件拷贝快照: {e}")
 
         copied = False
-        for _ in range(6):
+        last_copy_error = None
+        for _ in range(60):
             try:
                 shutil.copy2(db_path, tmp_db)
                 wal_src = db_path + "-wal"
@@ -62,10 +63,13 @@ class VivoBrowser(WebBrowser):
                     shutil.copy2(shm_src, tmp_db + "-shm")
                 copied = True
                 break
-            except Exception:
+            except Exception as e:
+                last_copy_error = e
                 gevent.sleep(0.1)
         if copied:
             return tmp_db
+        if last_copy_error is not None:
+            self.logger.debug(f"文件拷贝快照仍失败(可能句柄未释放): {last_copy_error}")
         if os.path.exists(tmp_db):
             try:
                 os.remove(tmp_db)
@@ -75,7 +79,8 @@ class VivoBrowser(WebBrowser):
 
     def export_cookie(self):
         cookie_map = self.cookies.copy()
-        db_path = os.path.join(self.profile.persistentStoragePath(), "Cookies")
+        base_path = getattr(self, "_persistent_storage_path", "")
+        db_path = os.path.join(base_path, "Cookies") if base_path else ""
         if not os.path.exists(db_path):
             return cookie_map
 

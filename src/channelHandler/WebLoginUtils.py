@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHB
 from envmgr import genv
 from logutil import setup_logger
 import os
+import typing
 class WebBrowser(QWidget):
     class WebEngineView(QWebEngineView):
         def createWindow(self, QWebEnginePage_WebWindowType):
@@ -24,11 +25,14 @@ class WebBrowser(QWidget):
         tmpName=genv.get("GLOB_LOGIN_UUID","")
         name=tmpName if tmpName!="" else name
         try:
-            self.profile:QWebEngineProfile =  QWebEngineProfile(name)
+            # 绑定到当前 QWidget，确保窗口销毁时 profile 能被一并释放（避免 Cookies 文件句柄长期占用）
+            self.profile:QWebEngineProfile =  QWebEngineProfile(name, self)
             profile_base_path = genv.get("GLOB_LOGIN_PROFILE_PATH", name)
             cache_base_path = genv.get("GLOB_LOGIN_CACHE_PATH", name)
-            self.profile.setPersistentStoragePath(os.path.join(profile_base_path, tmpName))
-            self.profile.setCachePath(os.path.join(cache_base_path, tmpName))
+            self._persistent_storage_path = os.path.join(profile_base_path, tmpName)
+            self._cache_path = os.path.join(cache_base_path, tmpName)
+            self.profile.setPersistentStoragePath(self._persistent_storage_path)
+            self.profile.setCachePath(self._cache_path)
             self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
             self.logger.info(f"Profile创建成功: {name}")
         except Exception as e:
@@ -108,15 +112,47 @@ class WebBrowser(QWidget):
         return self.result
 
     def cleanup(self):
+        # 目标：尽快释放 QtWebEngine 对 profile/Cookies 文件的占用。
         try:
             self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
         except Exception:
             pass
-        self.view.setPage(None)
-        self.view.close()
-        self.close()
+
+        try:
+            self.page.loadFinished.disconnect(self.on_load_finished)
+        except Exception:
+            pass
+        try:
+            self.page.urlChanged.disconnect(self.handle_url_change)
+        except Exception:
+            pass
+
+        try:
+            self.view.setPage(None)
+        except Exception:
+            pass
+
+        for attr in ("page", "view", "profile"):
+            obj: typing.Any = getattr(self, attr, None)
+            if obj is not None:
+                try:
+                    obj.deleteLater()
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+
+        try:
+            self.close()
+        except Exception:
+            pass
+        try:
+            self.deleteLater()
+        except Exception:
+            pass
+
         app_inst = QApplication.instance()
         if app_inst:
-            app_inst.quit()
+            # 延迟到下一轮事件循环再 quit，让 deleteLater 有机会被处理
+            QTimer.singleShot(0, app_inst.quit)
 
     

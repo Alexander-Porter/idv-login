@@ -251,8 +251,11 @@ class HuaweiBrowser(WebBrowser):
     def notify(self, url):
         if self.verify(url.toString()):
             if self.parseReslt(url.toString()):
+                try:
+                    self.profile.removeAllUrlSchemeHandlers()
+                except Exception:
+                    pass
                 self.cleanup()
-                self.profile.removeAllUrlSchemeHandlers()
 
 class HuaweiLogin:
 
