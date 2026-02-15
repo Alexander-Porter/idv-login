@@ -187,3 +187,15 @@ class CloudRes:
         if not features:
             return True
         return features.get('downloadable', True)
+
+    def get_hotfixes(self):
+        """返回云端下发的热更新配置列表。
+
+        兼容字段名：hotfix / hotfixes / hotfix_list。
+        期望每个元素包含：need_hotfix_version, target_module, target_commit, note。
+        """
+        data = self.local_data or {}
+        hotfixes = data.get("hotfix") or []
+        if not isinstance(hotfixes, list):
+            return []
+        return hotfixes
