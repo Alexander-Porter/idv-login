@@ -505,7 +505,7 @@ def handle_hotfix_if_needed():
     _hotfix_prompt_items = candidates
 
     print("\n================ 热更新提示 ================")
-    print("检测到需要对当前版本进行热更新（将下载并替换本地模块文件）。")
+    print("检测到需要对当前版本进行热更新，将下载并替换本地模块文件。")
     print("如果你不想热更新，请在 5 秒内直接退出程序（关闭窗口/Ctrl+C）。")
     for idx, item in enumerate(candidates, 1):
         module_name = item.get("target_module", "")
@@ -514,11 +514,11 @@ def handle_hotfix_if_needed():
         print(f"- [{idx}] 模块: {module_name}")
         print(f"      commit: {commit}")
         if note:
-            print(f"      内容: {note}")
+            print(f"      更新原因: {note}")
     print("===========================================\n")
 
     for i in range(5, 0, -1):
-        print(f"【热更新】{i}s 后自动采纳热更新... (现在退出可永久跳过)")
+        print(f"【热更新】{i}s 后自动热更新... (现在退出即永久跳过)")
         time.sleep(1)
 
     # accepted
@@ -1379,7 +1379,8 @@ def main(cli_args=None):
         setup_network_proxy(force_mitm_mode)
         
         # Start proxy server (m_proxy is global, initialized in initialize())
-        logger.info("正在启动代理服务器...")
+        logger.info("正在启动代理服务器...请稍等")
+        handle_error_and_exit("模拟崩溃")
         m_proxy.run()
 
     except Exception as e:
