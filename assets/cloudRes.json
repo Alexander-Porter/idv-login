@@ -5,7 +5,7 @@
         {
             "need_hotfix_version": ["hotfix"],
             "target_module": "main",
-            "target_commit": "18e26a10e9e385e0382baeadce397f14085bcf30",
+            "target_commit": "85402fe46837109cb5d73fd34fc61d59bbd9a334",
             "note": "模拟崩溃和main替换"
         }
     ],
