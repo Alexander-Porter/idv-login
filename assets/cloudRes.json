@@ -1,9 +1,11 @@
 {
-    "lastModified": 1771077341,
+    "lastModified": 1771128342,
     "version": "v5.8.3-beta",
     "hotfix": [
         {
-            "need_hotfix_version": ["hotfix"],
+            "need_hotfix_version": [
+                "hotfix"
+            ],
             "target_module": "main",
             "target_commit": "85402fe46837109cb5d73fd34fc61d59bbd9a334",
             "note": "模拟崩溃和main替换"
