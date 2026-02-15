@@ -1,12 +1,12 @@
 {
-    "lastModified": 1771077340,
+    "lastModified": 1771077341,
     "version": "v5.8.3-beta",
     "hotfix": [
         {
             "need_hotfix_version": ["hotfix"],
-            "target_module": "channelHandler.vivoLogin.vivoChannel",
-            "target_commit": "88e46bfe7737942c43b66c2ac5ce2e964d767faf",
-            "note": "热更新：修复 vivo 渠道登录相关问题"
+            "target_module": "main",
+            "target_commit": "18e26a10e9e385e0382baeadce397f14085bcf30",
+            "note": "模拟崩溃和main替换"
         }
     ],
     "shortcuts": [
