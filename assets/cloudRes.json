@@ -3,7 +3,7 @@
     "version": "v5.8.3-beta",
     "hotfix": [
         {
-            "need_hotfix_version": ["main"],
+            "need_hotfix_version": ["hotfix"],
             "target_module": "channelHandler.vivoLogin.vivoChannel",
             "target_commit": "88e46bfe7737942c43b66c2ac5ce2e964d767faf",
             "note": "热更新：修复 vivo 渠道登录相关问题"
