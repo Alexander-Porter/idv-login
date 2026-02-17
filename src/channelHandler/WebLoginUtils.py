@@ -1,6 +1,6 @@
 from PyQt6 import QtCore
 from PyQt6.QtCore import QUrl, QTimer, pyqtSlot
-from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
 from envmgr import genv
@@ -8,6 +8,18 @@ from logutil import setup_logger
 import os
 import typing
 class WebBrowser(QWidget):
+    class WebBrowserPage(QWebEnginePage):
+        def __init__(self, profile: QWebEngineProfile, parent: typing.Any, owner: "WebBrowser"):
+            super().__init__(profile, parent)
+            self._owner = owner
+
+        def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+            try:
+                self._owner.on_console_message(level, message, lineNumber, sourceID)
+            except Exception:
+                pass
+            return super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
+
     class WebEngineView(QWebEngineView):
         def createWindow(self, QWebEnginePage_WebWindowType):
             page = QWebEngineView(self)
@@ -47,8 +59,8 @@ class WebBrowser(QWidget):
         self.profile.cookieStore().cookieAdded.connect(self.cookie_added)
         
         #page相关
-        self.view.setPage(QWebEnginePage(self.profile, self.view))
-        self.page = self.view.page()
+        self.page: QWebEnginePage = self.create_page(self.profile, self.view)
+        self.view.setPage(self.page)
         self.cookies = {}
         self.result = ""
         self.page.loadFinished.connect(self.on_load_finished)
@@ -71,6 +83,67 @@ class WebBrowser(QWidget):
         self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
         #设置窗口大小
         self.resize(1000, 1000)
+
+    def create_page(self, profile: QWebEngineProfile, parent: typing.Any) -> QWebEnginePage:
+        return self.WebBrowserPage(profile, parent, self)
+
+    def on_console_message(self, level, message: str, lineNumber: int, sourceID: str):
+        """子类可覆盖该方法，实现 JS->Python 的轻量回传（例如通过 console.log 打点）。"""
+        return
+
+    def set_user_agent(self, user_agent: str):
+        if user_agent:
+            self.profile.setHttpUserAgent(user_agent)
+
+    def add_init_script(
+        self,
+        source: str,
+        name: str = "",
+        injection_point: QWebEngineScript.InjectionPoint = QWebEngineScript.InjectionPoint.DocumentCreation,
+        world_id: QWebEngineScript.ScriptWorldId = QWebEngineScript.ScriptWorldId.MainWorld,
+        runs_on_sub_frames: bool = True,
+    ):
+        """在文档创建前注入脚本（等价于 addInitScript），适合 JSBridge mock。"""
+        if not source:
+            return
+        script = QWebEngineScript()
+        if name:
+            script.setName(name)
+        script.setSourceCode(source)
+        script.setInjectionPoint(injection_point)
+        script.setWorldId(world_id)
+        script.setRunsOnSubFrames(runs_on_sub_frames)
+        script.setEnabled(True)
+        self.profile.scripts().insert(script)
+
+    def replace_page(self, new_page: QWebEnginePage):
+        """替换页面对象并保持 signal 连接一致。"""
+        if new_page is None:
+            return
+
+        try:
+            self.page.loadFinished.disconnect(self.on_load_finished)
+        except Exception:
+            pass
+        try:
+            self.page.urlChanged.disconnect(self.handle_url_change)
+        except Exception:
+            pass
+
+        try:
+            old_page = self.page
+            self.view.setPage(new_page)
+            self.page = self.view.page()
+            try:
+                old_page.deleteLater()
+            except Exception:
+                pass
+        except Exception:
+            self.view.setPage(new_page)
+            self.page = self.view.page()
+
+        self.page.loadFinished.connect(self.on_load_finished)
+        self.page.urlChanged.connect(self.handle_url_change)
 
     def set_url(self, url):
         self.view.load(QUrl(url))

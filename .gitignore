@@ -9,3 +9,4 @@ main.build/
 src/buildinfo.py
 .vscode/
 src/python/
+oppomisc/
