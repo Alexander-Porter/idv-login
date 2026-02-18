@@ -82,7 +82,7 @@ begin
   LogPath := GetInstallerLogPath;
   try
     ForceDirectories(ExtractFileDir(LogPath));
-    Line := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now) + ' ' + Msg + #13#10;
+    Line := GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + ' ' + Msg + #13#10;
     SaveStringToFile(LogPath, Line, True);
   except
   end;
