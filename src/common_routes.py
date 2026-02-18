@@ -871,7 +871,12 @@ def register_common_idv_routes(app, *, game_helper, logger):
                 return jsonify({"success": False, "error": "删除云同步需要主密钥"})
             result = cloud_sync_mgr.delete_remote(master_key)
             #同步禁止自动上传，直到用户重新启用
-            genv.set("auto_push_generation", str(int(time.time())))
+            settings = _get_cloud_sync_settings()
+            settings["auto_sync"] = False
+            settings["saved_master_key"] = ""
+            settings["remember_level"] = "none"
+            settings["consent_ack"] = False
+            _save_cloud_sync_settings(settings)
             return jsonify(result)
         except Exception as e:
             logger.exception("删除云同步失败")
