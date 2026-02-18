@@ -55,10 +55,7 @@ import string
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
-
-from cloudRes import CloudRes
 from envmgr import genv
-from channelHandler.channelUtils import getShortGameId
 
 
 # Global variable declarations
@@ -615,7 +612,9 @@ def handle_exit():
 
 def handle_update():
 
-    
+    # 延后导入：避免在工作目录切换前导入 cloudRes/logutil 导致 log.txt 写入启动目录（如 bat 文件夹）
+    from cloudRes import CloudRes
+
     from PyQt6.QtGui import QAction
     from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextBrowser, QPushButton, QToolButton, QMenu, QSizePolicy, QApplication
     from PyQt6.QtCore import Qt
