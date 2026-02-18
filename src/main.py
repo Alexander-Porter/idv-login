@@ -71,6 +71,21 @@ _hotfix_prompt_active = False
 _hotfix_prompt_items = []
 
 
+def _hotfix_probe_cache_write_once() -> bool:
+    """探测 genv.set(cached=True) 是否真的写入成功。
+
+    由于 genv.set 在写入失败时只打印错误并吞掉异常，我们用 get_from_file 直接读文件校验。
+    若探测失败，则必须跳过所有 hotfix 相关逻辑，以避免“写入失败导致状态无法落盘 -> 无限重启”。
+
+    注意：此探测只应在“决定是否进入 hotfix 逻辑前”执行一次。
+    """
+    try:
+        genv.set("hotfix_probed", True, True)
+        return bool(genv.get_from_file("hotfix_probed", False))
+    except Exception:
+        return False
+
+
 def _hotfix_make_id(item: dict) -> str:
     module_name = (item or {}).get("target_module", "")
     commit = (item or {}).get("target_commit", "")
@@ -1357,11 +1372,16 @@ def main(cli_args=None):
         cloudBuildInfo()
         initialize() # This sets up atexit(handle_exit) among other things
 
-        # hotfix: rollback/confirm pending hotfix based on last run state (genv 环境在 initialize 后更完整)
-        try:
-            hotfix_pre_start_check_and_rollback_if_needed()
-        except Exception:
-            pass
+        # hotfix gate: verify config cache can be written; if not, skip all hotfix logic to avoid infinite restarts.
+        can_run_hotfix = _hotfix_probe_cache_write_once()
+        if not can_run_hotfix:
+            logger.warning("【热更新】探测到配置缓存写入失败：已跳过本次所有热更新逻辑（避免无限重启）。")
+        else:
+            # hotfix: rollback/confirm pending hotfix based on last run state (genv 环境在 initialize 后更完整)
+            try:
+                hotfix_pre_start_check_and_rollback_if_needed()
+            except Exception:
+                pass
 
         # mark this run in-progress
         try:
@@ -1371,7 +1391,8 @@ def main(cli_args=None):
             pass
 
         # hotfix: apply if needed (may restart process)
-        handle_hotfix_if_needed()
+        if can_run_hotfix:
+            handle_hotfix_if_needed()
 
         welcome()
         handle_update()

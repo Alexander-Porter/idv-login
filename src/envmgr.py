@@ -40,3 +40,16 @@ class genv:
             except:
                 return default
 
+    def get_from_file(key,value):
+        try:
+            if os.path.exists(_cachePath):
+                with open(_cachePath, 'r') as f:
+                    data=json.load(f)
+                    if key in data:
+                        return data[key]
+                    else:
+                        return value
+            else:
+                return value
+        except:
+            return value
