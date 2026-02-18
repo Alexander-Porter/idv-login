@@ -48,7 +48,7 @@ ErrorReplacingExistingFile=尝试替换现有文件时出错，很可能是您�
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标"
-Name: "desktopiconbackup"; Description: "创建备用模式快捷方式"; GroupDescription: "附加图标"
+Name: "desktopiconbackup"; Description: "创建备用模式(网吧版)快捷方式"; GroupDescription: "附加图标"
 
 [Files]
 Source: "..\dist\python-embed\*"; DestDir: "{app}\python-embed"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -68,6 +68,131 @@ Filename: "{app}\点我启动工具.bat"; Description: "{cm:LaunchProgram,{#AppN
 Filename: "https://yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3"; Description: "查看教程"; Flags: postinstall shellexec runasoriginaluser
 
 [Code]
+
+function GetInstallerLogPath: string;
+begin
+  Result := ExpandConstant('{localappdata}\IDV-Login\installer.log');
+end;
+
+procedure WriteInstallerLog(const Msg: string);
+var
+  LogPath: string;
+  Line: string;
+begin
+  LogPath := GetInstallerLogPath;
+  try
+    ForceDirectories(ExtractFileDir(LogPath));
+    Line := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now) + ' ' + Msg + #13#10;
+    SaveStringToFile(LogPath, Line, True);
+  except
+  end;
+end;
+
+procedure CopyInstallerLogToAppDir;
+var
+  Src: string;
+  Dst: string;
+begin
+  Src := GetInstallerLogPath;
+  if not FileExists(Src) then
+    Exit;
+  try
+    Dst := ExpandConstant('{app}\installer.log');
+    ForceDirectories(ExtractFileDir(Dst));
+    FileCopy(Src, Dst, False);
+  except
+  end;
+end;
+
+procedure OpenURL(const URL: string);
+var
+  ErrorCode: Integer;
+begin
+  ShellExec('open', URL, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+function IsVCRuntimeInstalledAtRoot(RootKey: Integer; const SubKey: string): Boolean;
+var
+  Installed: Cardinal;
+begin
+  Result := RegQueryDWordValue(RootKey, SubKey, 'Installed', Installed) and (Installed = 1);
+end;
+
+function HasVCRedist14: Boolean;
+begin
+  if IsWin64 then
+  begin
+    Result :=
+      IsVCRuntimeInstalledAtRoot(HKLM64, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64') or
+      IsVCRuntimeInstalledAtRoot(HKLM64, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86') or
+      IsVCRuntimeInstalledAtRoot(HKLM,   'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64') or
+      IsVCRuntimeInstalledAtRoot(HKLM,   'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86');
+  end
+  else
+  begin
+    Result :=
+      IsVCRuntimeInstalledAtRoot(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86') or
+      IsVCRuntimeInstalledAtRoot(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64');
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+var
+  WinVer: TWindowsVersion;
+  Response: Integer;
+  HasVC: Boolean;
+begin
+  Result := True;
+
+  WriteInstallerLog('InitializeSetup begin');
+  WriteInstallerLog(Format('IsWin64=%d', [Ord(IsWin64)]));
+
+  GetWindowsVersionEx(WinVer);
+  WriteInstallerLog(Format('WindowsVersion=%d.%d Build=%d SP=%d.%d', [
+    WinVer.Major, WinVer.Minor, WinVer.Build, WinVer.ServicePackMajor, WinVer.ServicePackMinor
+  ]));
+  if (WinVer.Major < 10) or ((WinVer.Major = 10) and (WinVer.Build < 17763)) then
+  begin
+    WriteInstallerLog('WindowsVersionCheck=FAIL (min 10.0.17763)');
+    Response := MsgBox(
+      '当前系统版本过低，最低需要 Windows 10 1809 (10.0.17763) 或更高版本。' + #13#10 +
+      '点击“确定”将打开说明页面；点击“取消”将退出安装。',
+      mbError, MB_OKCANCEL);
+    WriteInstallerLog(Format('WindowsVersionPromptResponse=%d', [Response]));
+    if Response = IDCANCEL then
+    begin
+      WriteInstallerLog('InitializeSetup=ABORT (user cancel on Windows version prompt)');
+      Result := False;
+      Exit;
+    end;
+    OpenURL('https://www.yuque.com/keygen/kg2r5k/sni3150i6dfykkt1#qy7EN');
+  end;
+  WriteInstallerLog('WindowsVersionCheck=PASS');
+
+  HasVC := HasVCRedist14;
+  WriteInstallerLog(Format('HasVCRedist14=%d', [Ord(HasVC)]));
+  if not HasVC then
+  begin
+    Response := MsgBox(
+      '未检测到 VC14 运行库（Microsoft Visual C++ 2015-2022 Redistributable）。' + #13#10 +
+      '不安装可能导致软件启动后闪退。' + #13#10 +
+      '点击“确定”将打开下载说明页面；点击“取消”继续安装。',
+      mbInformation, MB_OKCANCEL);
+    WriteInstallerLog(Format('VCRedistPromptResponse=%d', [Response]));
+    if Response = IDOK then
+      OpenURL('https://www.yuque.com/keygen/kg2r5k/sni3150i6dfykkt1#TXNIg');
+  end;
+  WriteInstallerLog('InitializeSetup end (continue install)');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    WriteInstallerLog('CurStepChanged=ssPostInstall (copy log to {app})');
+    CopyInstallerLogToAppDir;
+  end;
+end;
 
 procedure MarkShortcutRunAsAdmin(ShortcutPath: String);
 var

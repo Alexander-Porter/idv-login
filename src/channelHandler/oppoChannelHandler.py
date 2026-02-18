@@ -123,7 +123,8 @@ class oppoChannel(channelmgr.channel):
 
         self.game_id = game_id
         self.chosen_account_id = chosen_account_id
-
+        if self.chosen_account_id=='':
+            self.crossGames=True
         self.loginResp: Optional[Dict[str, Any]] = loginResp
         # OpenAccount 相关状态（authorize/refresh 的落盘区）
         self.oppo_open_account: Dict[str, Any] = oppo_open_account if isinstance(oppo_open_account, dict) else {}
@@ -313,13 +314,18 @@ class oppoChannel(channelmgr.channel):
         cloud = CloudRes()
         item = cloud.get_channelData("oppo", short_game_id)
         if item is None:
-            item = cloud.get_by_game_id(short_game_id)
-        if not isinstance(item, dict):
+            raw_pkg_name=cloud.get_netease_style_pkgname_by_game_id(short_game_id)
+            if raw_pkg_name:
+                self.logger.warning(f"云配置缺失 OPPO 渠道的 pkgName，使用其他渠道构建出{raw_pkg_name}.nearme.gamecenter")
+                return f"{raw_pkg_name}.nearme.gamecenter"
+            self.logger.error(f"云配置缺失 OPPO 渠道的 pkgName，且未找到其他渠道的网易风格 pkgName，无法构建 gamesdk 登录所需的 pkgName")
             return ""
-
-        pkg = item.get("oppo") or item.get("package_name")
-        pkg = str(pkg or "").strip()
-        return pkg
+        else:
+            if not isinstance(item, dict):
+                return ""
+            pkg = item.get("oppo") or item.get("package_name")
+            pkg = str(pkg or "").strip()
+            return pkg
 
     def _pick_secondary_token(self) -> str:
         if not isinstance(self.loginResp, dict):

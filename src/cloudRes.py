@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import requests
 from datetime import datetime
 from envmgr import genv
@@ -90,6 +91,15 @@ class CloudRes:
         for item in data:
             if item.get('game_id') == shortGameId:
                 return item
+        return None
+    
+    def get_netease_style_pkgname_by_game_id(self,shortGameId):
+        data=self.local_data.get('data', [])
+        #正则匹配，netease style指的是package_name字段包含com.netease.A或者com.netease.A.B中的com.netease.A部分，且game_id匹配
+        pattern = f"com\\.netease\\.[^.]+"
+        for item in data:
+            if item.get('game_id') == shortGameId and item.get('package_name') and re.match(pattern, item.get('package_name')):
+                return item.get('package_name')
         return None
     
     #same with data, but key is feature_game_short_ids
