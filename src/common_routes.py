@@ -118,7 +118,7 @@ def register_common_idv_routes(app, *, game_helper, logger):
 
         def _delayed_push():
             logger.info(f"检测到账号记录更新，准备在5秒后自动上传云同步（原因: {reason}）")
-            print(f"[CloudSync] 检测到账号记录更新，准备在5秒后自动上传（原因: {reason}）")
+            #print(f"[CloudSync] 检测到账号记录更新，准备在5秒后自动上传（原因: {reason}）")
             gevent.sleep(5)
             if current_generation != auto_push_generation["value"]:
                 logger.info("自动上传任务已被新的更新事件覆盖，跳过本次上传")
@@ -870,6 +870,8 @@ def register_common_idv_routes(app, *, game_helper, logger):
             if not master_key:
                 return jsonify({"success": False, "error": "删除云同步需要主密钥"})
             result = cloud_sync_mgr.delete_remote(master_key)
+            #同步禁止自动上传，直到用户重新启用
+            genv.set("auto_push_generation", str(int(time.time())))
             return jsonify(result)
         except Exception as e:
             logger.exception("删除云同步失败")

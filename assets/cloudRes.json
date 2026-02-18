@@ -299,6 +299,13 @@
             "log_key": "yi8_cXKEm4Pe2XYL3E4GjjD9MVtYRuGy",
             "game_id": "h42",
             "xiaomi_app": "mi_2882303761517628038"
+        },
+        {
+            "package_name":"com.netease.dwrg.nearme.gamecenter",
+            "app_channel":"oppo",
+            "log_key":"SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+            "game_id":"h55",
+            "oppo":"com.netease.dwrg.nearme.gamecenter"
         }
     ],
     "netease_qrcode_login_game_list": [

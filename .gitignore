@@ -10,3 +10,5 @@ src/buildinfo.py
 .vscode/
 src/python/
 oppomisc/
+game.sdk.domain.dto/
+tools/oppo_*

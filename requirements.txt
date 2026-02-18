@@ -16,3 +16,4 @@ aiohttp
 aiofiles
 xxhash
 zmq
+protobuf>=5,<7

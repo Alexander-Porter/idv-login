@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+message GameAccountsDto {
+  string code = 1;
+  string msg = 2;
+
+  UserDto user_dto = 11;
+  repeated GameAccountDto game_accounts = 12;
+  int32 channel = 13;
+  string ad_id = 14;
+  string ticket = 15;
+  string account_sharing_id = 17;
+  string server_country = 18;
+  string trace_id = 19;
+}
+
+message UserDto {
+  string user_id = 11;
+  string user_name = 12;
+  string email = 13;
+  string mobile = 14;
+  string create_time = 15;
+  string user_status = 16;
+  string real_name_status = 17;
+  int32 age = 18;
+  bool twice_real_name_auth = 19;
+
+  string class_name = 127;
+}
+
+message GameAccountDto {
+  string id = 11;
+  string account_name = 12;
+  string user_id = 13;
+  string device_id = 14;
+  string model = 15;
+  int32 status = 16;
+  string pkg_name = 17;
+  string account_is_protected = 18;
+  int32 protected_days = 19;
+  string trade_limit = 20;
+  string user_tag_type = 21;
+  int32 account_sharing_tag = 22;
+  string account_sharing_id = 23;
+  bool need_face_scan = 24;
+  bool need_login_pop = 25;
+  bool first_create = 26;
+
+  string class_name = 127;
+}

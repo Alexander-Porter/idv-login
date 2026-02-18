@@ -6,6 +6,7 @@ manual_login_channels = [
     {"name": "华为账号", "channel": "huawei"},
     {"name": "vivo账号", "channel": "nearme_vivo"},
     {"name": "应用宝（微信）", "channel": "myapp"},
+    {"name": "Oppo账号", "channel": "oppo"},
 ]
 
 

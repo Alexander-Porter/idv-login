@@ -111,6 +111,7 @@ class ChannelManager:
         from channelHandler.huaChannelHandler import huaweiChannel
         from channelHandler.vivoChannelHandler import vivoChannel
         from channelHandler.wechatChannelHandler import wechatChannel
+        from channelHandler.oppoChannelHandler import oppoChannel
 
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
             with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
@@ -137,6 +138,9 @@ class ChannelManager:
                                 self.channels.append(tmpChannel)
                             elif channel_name == "myapp" and item["uuid"].startswith("wx-"):
                                 tmpChannel:wechatChannel=wechatChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
+                            elif channel_name == "oppo" and item["uuid"].startswith("phone-"):
+                                tmpChannel: oppoChannel = oppoChannel.from_dict(item)
                                 self.channels.append(tmpChannel)
                             else:
                                 self.channels.append(channel.from_dict(item))
@@ -195,6 +199,9 @@ class ChannelManager:
             return False
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
+        if login_info["login_channel"] == "oppo":
+            print(login_info,exchange_info)
+            self.logger.warning(f"您正在扫码导入OPPO账号，扫码登录有效期在一周到三个月不等，如需长期免扫码登录，请使用手动登录。具体方法请参见教程。")
         #寻找是否有重复的self.user_info["id"]
         to_be_deleted = []
         try:
@@ -240,6 +247,11 @@ class ChannelManager:
             from channelHandler.wechatChannelHandler import wechatChannel
             tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
             tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
+
+        if channle_name == "oppo":
+            from channelHandler.oppoChannelHandler import oppoChannel
+            tmp_channel: oppoChannel = oppoChannel(tmpData, game_id=game_id)
+            tmp_channel.uuid=f"phone-{tmp_channel.uuid}"
 
         try:
             tmp_channel.request_user_login()

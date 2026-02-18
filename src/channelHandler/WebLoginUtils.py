@@ -113,7 +113,6 @@ class WebBrowser(QWidget):
         script.setInjectionPoint(injection_point)
         script.setWorldId(world_id)
         script.setRunsOnSubFrames(runs_on_sub_frames)
-        script.setEnabled(True)
         self.profile.scripts().insert(script)
 
     def replace_page(self, new_page: QWebEnginePage):

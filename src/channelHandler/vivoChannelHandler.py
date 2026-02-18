@@ -59,6 +59,7 @@ class vivoChannel(channelmgr.channel):
         name: str = "",
         game_id: str = "",
         chosenAccount: str = "",
+        uuid: str = "",
     ) -> None:
         super().__init__(
             login_info,
@@ -148,6 +149,7 @@ class vivoChannel(channelmgr.channel):
             name=data.get("name", ""),
             game_id=data.get("game_id", ""),
             chosenAccount=data.get("chosenAccount", ""),
+            uuid=data.get("uuid", ""),
         )
 
     def _build_extra_unisdk_data(self) -> str:

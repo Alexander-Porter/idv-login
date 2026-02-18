@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+message GameAccountMsgDto {
+  string userId = 11;
+  string accountId = 12;
+  string realmId = 13;
+  string realmName = 14;
+  string roleId = 15;
+  string roleName = 16;
+  int64 loginTime = 17;
+  int32 roleLevel = 18;
+  string accountName = 19;
+  int32 accountSharingTag = 20;
+  string accountSharingId = 21;
+  bool needFaceScan = 22;
+  bool needLoginPop = 23;
+
+  string className = 127;
+}
+
+message LatestGameAccountsDto {
+  string code = 1;
+  string msg = 2;
+  repeated GameAccountMsgDto accountMsgDtoList = 11;
+}
