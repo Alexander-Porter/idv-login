@@ -1,5 +1,5 @@
 {
-  "lastModified": 1771475016,
+  "lastModified": 1771475018,
   "version": "v5.9.0-beta",
   "hotfix": [
     {
@@ -34,6 +34,14 @@
       "target_commit": "1616e83c8ff4b3a6f24fe9bcf7818fa15d68416c",
       "note": "修复OPPO渠道服使用传统扫码登录提示不支持的问题，使得两种登录模式共存"
     },
+        {
+      "need_hotfix_version": [
+        "v5.9.0-beta"
+      ],
+      "target_module": "channelHandler.oppoLogin.oppoChannel",
+      "target_commit": "6f91a2bf03093ebf648e1e9be7820177e079e887",
+      "note": "对于OPPO登录过程验证码尝试次数过多的情况增加了提示"
+    },
     {
       "need_hotfix_version": [
         "v5.8.3.1-beta",
@@ -41,7 +49,7 @@
       ],
       "target_module": "channelHandler.huaLogin.huaChannel",
       "target_commit": "f924cc190360a20e742b0ea7dc581b51b8a3fab9",
-      "note": "修复 AttributeError: type object 'MessageBox' has no attribute 'Yes'（PyQt6 API 兼容性修复）"
+      "note": "修复华为渠道服点击跳过二次验证时的闪退问题"
     }
   ],
   "shortcuts": [
