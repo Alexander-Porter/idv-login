@@ -111,13 +111,14 @@ if __name__=='__main__':
 此版本不支持低于Windows 10的系统，如为Windows 7/8用户请勿更新，更新后无法使用。
 
 ### 下载相关
-[下载前必看](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)
+[工具使用教程](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)
 点此[下载新版本](https://pan.quark.cn/s/50eb30c7d587)
 
 
 如果工具下载下来提示报毒，参考以下链接解决：[工具打开时弹窗，潜在的病毒或流氓软件](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3#nzuEy)
 
-### 温馨提示2：下面的不是下载链接，下载链接在上面''')
+### 温馨提示2：下面的不是下载链接，下载链接在上面
+''')
         print(json.dumps(releaseData))
         releaseToGitee(releaseData,fileList)
     except:
