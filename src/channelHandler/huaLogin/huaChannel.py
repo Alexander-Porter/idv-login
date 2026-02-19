@@ -101,8 +101,8 @@ class HuaweiBrowser(WebBrowser):
         checked=self.bypassCheckBox.isChecked()
         if checked:
             #show warning, QMessagebox
-            reply=QMessageBox.warning(self,"警告","跳过二次验证会使账号密码明文存储在本机内，存在安全风险。\n开启后，请不要将工作目录下的文件随意分享给他人。是否继续？",QMessageBox.Yes|QMessageBox.No)
-            if reply==QMessageBox.No:
+            reply=QMessageBox.warning(self,"警告","跳过二次验证会使账号密码明文存储在本机内，存在安全风险。\n开启后，请不要将工作目录下的文件随意分享给他人。是否继续？",QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
+            if reply==QMessageBox.StandardButton.No:
                 self.bypassCheckBox.setChecked(False)
                 return
         genv.set("bypass_double_check",checked,True)
