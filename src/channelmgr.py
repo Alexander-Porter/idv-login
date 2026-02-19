@@ -192,7 +192,7 @@ class ChannelManager:
             exchange_info["ext_info"] if "ext_info" in exchange_info.keys() else {},
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
-        if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp":
+        if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp" and login_info["login_channel"] != "oppo":
             self.logger.error(f"不支持扫码的渠道服: {login_info['login_channel']}。请尝试手动登录，已打开教程。")
             import webbrowser
             webbrowser.open("https://www.yuque.com/keygen/kg2r5k/fey3i1pi6k9fgz86")
