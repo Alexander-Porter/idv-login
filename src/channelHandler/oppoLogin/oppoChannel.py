@@ -48,9 +48,11 @@ class OppoBrowser(WebBrowser):
         param = json.loads((data or {}).get("param"))
         
         # 只关心网页登录完成回调（或 setToken 透传 loginResp）
-        if method not in ("vip.onFinish", "accountExternalSdk.setToken"):
+        if method not in ("vip.onFinish", "accountExternalSdk.setToken","vip.makeToast"):
             self.logger.debug(f"Oppo console method {method} 不关心，payload: {payload}")
             return
+        elif method == "vip.makeToast":
+            self.logger.warning(f"网页提示： {param.get('content', '')}")
 
         login_resp = None
         if isinstance(param, dict):
