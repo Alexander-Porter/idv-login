@@ -1,5 +1,5 @@
 {
-    "lastModified": 1771433632,
+    "lastModified": 1771433633,
     "version": "v5.9.0-beta",
     "hotfix": [
         {
@@ -25,7 +25,16 @@
             "target_module": "channelHandler.WebLoginUtils",
             "target_commit": "e666fc5edd5b7360dfc522be673da9c906e9dff2",
             "note": "修改初始化问题，防止vivo导出cookies死锁"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.9.0-beta"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "1616e83c8ff4b3a6f24fe9bcf7818fa15d68416c",
+            "note": "修复OPPO渠道服使用传统扫码登录提示不支持的问题，使得两种登录模式共存"
         }
+        
     ],
     "shortcuts": [
         {
