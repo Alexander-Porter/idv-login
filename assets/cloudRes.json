@@ -1,5 +1,5 @@
 {
-  "lastModified": 1771475018,
+  "lastModified": 1771475020,
   "version": "v5.9.0-beta",
   "hotfix": [
     {
@@ -34,13 +34,21 @@
       "target_commit": "1616e83c8ff4b3a6f24fe9bcf7818fa15d68416c",
       "note": "修复OPPO渠道服使用传统扫码登录提示不支持的问题，使得两种登录模式共存"
     },
-        {
+    {
       "need_hotfix_version": [
         "v5.9.0-beta"
       ],
       "target_module": "channelHandler.oppoLogin.oppoChannel",
-      "target_commit": "6f91a2bf03093ebf648e1e9be7820177e079e887",
-      "note": "对于OPPO登录过程验证码尝试次数过多的情况增加了提示"
+      "target_commit": "32c2cd796c08250430a9783b1e20b6068b3c4da6",
+      "note": "修复了密码错误时出现loginResp不为dict的情况。对于OPPO登录过程中各种报错的情况增加了提示"
+    },
+    {
+      "need_hotfix_version": [
+        "v5.9.0-beta"
+      ],
+      "target_module": "channelHandler.WebLoginUtils",
+      "target_commit": "32c2cd796c08250430a9783b1e20b6068b3c4da6",
+      "note": "为内置浏览器增加了Toast功能"
     },
     {
       "need_hotfix_version": [
