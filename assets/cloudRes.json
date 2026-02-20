@@ -14,14 +14,6 @@
       "need_hotfix_version": [
         "v5.8.3.1-beta"
       ],
-      "target_module": "channelHandler.huaLogin.huaChannel",
-      "target_commit": "e666fc5edd5b7360dfc522be673da9c906e9dff2",
-      "note": "规范渠道服清理流程"
-    },
-    {
-      "need_hotfix_version": [
-        "v5.8.3.1-beta"
-      ],
       "target_module": "channelHandler.WebLoginUtils",
       "target_commit": "e666fc5edd5b7360dfc522be673da9c906e9dff2",
       "note": "修改初始化问题，防止vivo导出cookies死锁"
