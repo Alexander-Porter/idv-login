@@ -2,7 +2,7 @@ from PyQt6 import QtCore
 from PyQt6.QtCore import QUrl, QTimer, pyqtSlot
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout, QLabel
 from envmgr import genv
 from logutil import setup_logger
 import os
@@ -79,10 +79,64 @@ class WebBrowser(QWidget):
         self.layout.addLayout(self.toolBarLayout)
         self.setLayout(self.layout)
 
+        self._toast_label: typing.Optional[QLabel] = None
+        self._toast_timer: typing.Optional[QTimer] = None
+
         #窗口置顶
         self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
         #设置窗口大小
         self.resize(1000, 1000)
+
+    def _hide_toast(self):
+        if self._toast_label is not None:
+            try:
+                self._toast_label.hide()
+            except Exception:
+                pass
+
+    def show_toast(self, text: str, duration_ms: int = 3000):
+        """在网页视图(view)上方显示一个短提示，并在指定时间后自动隐藏。"""
+        if not text:
+            return
+        if getattr(self, "view", None) is None:
+            return
+
+        if self._toast_label is None:
+            label = QLabel(self.view)
+            label.setObjectName("webbrowser_toast")
+            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            label.setWordWrap(True)
+            label.setStyleSheet(
+                "QLabel#webbrowser_toast {"
+                "background-color: rgba(0, 0, 0, 180);"
+                "color: white;"
+                "padding: 8px 12px;"
+                "border-radius: 6px;"
+                "}"
+            )
+            label.hide()
+            self._toast_label = label
+
+        self._toast_label.setText(str(text))
+
+        # 尽量限制宽度，避免长文本撑满窗口
+        max_width = max(200, int(self.view.width() * 0.8))
+        self._toast_label.setMaximumWidth(max_width)
+        self._toast_label.adjustSize()
+
+        x = max(0, int((self.view.width() - self._toast_label.width()) / 2))
+        y = max(0, int(self.view.height() * 0.05))
+        self._toast_label.move(x, y)
+        self._toast_label.raise_()
+        self._toast_label.show()
+
+        if self._toast_timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(self._hide_toast)
+            self._toast_timer = timer
+
+        self._toast_timer.start(max(0, int(duration_ms)))
 
     def create_page(self, profile: QWebEngineProfile, parent: typing.Any) -> QWebEnginePage:
         return self.WebBrowserPage(profile, parent, self)
