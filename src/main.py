@@ -89,7 +89,8 @@ def _hotfix_probe_cache_write_once() -> bool:
 def _hotfix_make_id(item: dict) -> str:
     module_name = (item or {}).get("target_module", "")
     commit = (item or {}).get("target_commit", "")
-    return f"{module_name}@{commit}".strip("@")
+    version = genv.get("VERSION", "")
+    return (f"{version}|{module_name}@{commit}" if version else f"{module_name}@{commit}").strip("@")
 
 
 def _hotfix_get_records() -> dict:
@@ -1383,12 +1384,10 @@ def main(cli_args=None):
             except Exception:
                 pass
 
-        # mark this run in-progress
-        try:
-            genv.set("last_run_state", "running", True)
-            genv.set("last_run_state_ts", int(time.time()), True)
-        except Exception:
-            pass
+
+        genv.set("last_run_state", "running", True)
+        genv.set("last_run_state_ts", int(time.time()), True)
+
 
         # hotfix: apply if needed (may restart process)
         if can_run_hotfix:
