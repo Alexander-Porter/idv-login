@@ -15,7 +15,10 @@ class WebBrowser(QWidget):
 
         def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
             try:
-                self._owner.on_console_message(level, message, lineNumber, sourceID)
+                try:
+                    self._owner.on_console_message(level, message, lineNumber, sourceID, self)
+                except TypeError:
+                    self._owner.on_console_message(level, message, lineNumber, sourceID)
             except Exception:
                 pass
             return super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
@@ -141,7 +144,7 @@ class WebBrowser(QWidget):
     def create_page(self, profile: QWebEngineProfile, parent: typing.Any) -> QWebEnginePage:
         return self.WebBrowserPage(profile, parent, self)
 
-    def on_console_message(self, level, message: str, lineNumber: int, sourceID: str):
+    def on_console_message(self, level, message: str, lineNumber: int, sourceID: str, page: typing.Optional[QWebEnginePage] = None):
         """子类可覆盖该方法，实现 JS->Python 的轻量回传（例如通过 console.log 打点）。"""
         return
 
