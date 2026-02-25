@@ -1,5 +1,5 @@
 {
-  "lastModified": 1771475024,
+  "lastModified": 1771475028,
   "version": "v5.9.0-beta",
   "hotfix": [
     {
@@ -39,16 +39,16 @@
         "v5.9.0-beta"
       ],
       "target_module": "channelHandler.oppoLogin.oppoChannel",
-      "target_commit": "32c2cd796c08250430a9783b1e20b6068b3c4da6",
-      "note": "修复了密码错误时出现loginResp不为dict的情况。对于OPPO登录过程中各种报错的情况增加了提示"
+      "target_commit": "d1653fbf23d2f1cdc085cbef18f7b6af9fc05091",
+      "note": "完善登录流程，尝试修复OPPO渠道服提示“长时间未操作”的问题"
     },
     {
       "need_hotfix_version": [
         "v5.9.0-beta"
       ],
       "target_module": "channelHandler.WebLoginUtils",
-      "target_commit": "32c2cd796c08250430a9783b1e20b6068b3c4da6",
-      "note": "为内置浏览器增加了Toast功能"
+      "target_commit": "d1653fbf23d2f1cdc085cbef18f7b6af9fc05091",
+      "note": "完善登录流程，尝试修复OPPO渠道服提示“长时间未操作”的问题"
     },
     {
       "need_hotfix_version": [
@@ -56,8 +56,8 @@
         "v5.9.0-beta"
       ],
       "target_module": "channelHandler.huaLogin.huaChannel",
-      "target_commit": "f924cc190360a20e742b0ea7dc581b51b8a3fab9",
-      "note": "修复华为渠道服点击跳过二次验证时的闪退问题"
+      "target_commit": "a52213dbb4377516bfb9aea6550613b17e89297a",
+      "note": "修复华为渠道服无法正确记录账号密码问题"
     }
   ],
   "shortcuts": [
