@@ -21,7 +21,7 @@ from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_f
 from channelHandler.channelUtils import G_clipListener
 from channelHandler.WebLoginUtils import WebBrowser
 from PyQt6.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtCore import pyqtSlot, QTimer
 from PyQt6.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
 DEVICE_RECORD = 'huawei_device.json'
@@ -37,13 +37,13 @@ class HuaweiBrowser(WebBrowser):
             url = info.requestUrl().toString()
             print(f"Intercepted request: {url}")
             if url.startswith("hms://"):
-                self.parent.invokeSaveAccountPwdPair()
-                self.parent.notify(info.requestUrl())  # Notify the parent class
+                self.parent.handle_hms_redirect(info.requestUrl())
 
     def __init__(self, real_game_id=None):
         super().__init__("huawei",True)
         self.logger=setup_logger()
         self.real_game_id = real_game_id
+        self.pending_hms_url = None
         self.intercept_request = self.HuaweiRequestInterceptor(self)
         self.profile.removeAllUrlSchemeHandlers()
         self.profile.installUrlSchemeHandler(b"hms", self.intercept_request)
@@ -199,6 +199,21 @@ class HuaweiBrowser(WebBrowser):
         else:
             self.logger.info("未开启记住账密")
 
+    def handle_hms_redirect(self, url):
+        self.pending_hms_url = url
+        if self.autoFillCheckBox.isChecked():
+            self.invokeSaveAccountPwdPair()
+            QTimer.singleShot(300, self.finish_pending_hms_redirect)
+        else:
+            self.finish_pending_hms_redirect()
+
+    def finish_pending_hms_redirect(self):
+        if self.pending_hms_url is None:
+            return
+        pending_url = self.pending_hms_url
+        self.pending_hms_url = None
+        self.notify(pending_url)
+
     def js_callback(self, result):
         if result:
             data=json.loads(result)
@@ -211,6 +226,7 @@ class HuaweiBrowser(WebBrowser):
                     else:
                         record=self.autoFillMgr.add_record(data["account"],data["pwd"])
                     genv.set(f"defaultAutoFill{genv.get('GLOB_LOGIN_UUID','')}",record.truncated_username,True)
+        self.finish_pending_hms_redirect()
 
     def show_deauth_page(self):
         """显示解除授权页面"""
