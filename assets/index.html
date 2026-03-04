@@ -2529,7 +2529,7 @@
             if (isWechatMyApp) {
                 fetch(`/_idv-login/qrcode?game_id=${encodeURIComponent(game_id)}&_ts=${Date.now()}`)
                     .then(response => {
-                        if (response.status === 404) {
+                        if (response.status === 404||response.status === 500) {
                             showLegacyManualLoadingSwal();
                             return;
                         }
