@@ -1,5 +1,5 @@
 {
-    "lastModified": 1772885019,
+    "lastModified": 1772885020,
     "version": "v5.9.0-beta",
     "hotfix": [
         {
@@ -39,8 +39,8 @@
                 "v5.9.0-beta"
             ],
             "target_module": "channelHandler.oppoLogin.oppoChannel",
-            "target_commit": "d1653fbf23d2f1cdc085cbef18f7b6af9fc05091",
-            "note": "\u5b8c\u5584\u767b\u5f55\u6d41\u7a0b\uff0c\u5c1d\u8bd5\u4fee\u590dOPPO\u6e20\u9053\u670d\u63d0\u793a\u201c\u957f\u65f6\u95f4\u672a\u64cd\u4f5c\u201d\u7684\u95ee\u9898"
+            "target_commit": "54d105b6337c155d9230f628361ae1680b52d3ff",
+            "note": "\u5b8c\u5584\u767b\u5f55\u6d41\u7a0b\uff0c\u5c1d\u8bd5\u4fee\u590dOPPO\u6e20\u9053\u670d\u63d0\u793a\u201c\u957f\u65f6\u95f4\u672a\u64cd\u4f5c\u201d\u7684\u95ee\u9898，增加OPPO登录验证码点不动的提示"
         },
         {
             "need_hotfix_version": [
