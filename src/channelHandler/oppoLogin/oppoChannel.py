@@ -111,7 +111,7 @@ class OppoBrowser(WebBrowser):
         param = json.loads((data or {}).get("param"))
         #self.logger.debug(f"Oppo console method {method} 不关心，payload: {payload}")
         # 只关心网页登录完成回调（或 setToken 透传 loginResp）
-        if method not in ("vip.onFinish", "accountExternalSdk.setToken","vip.makeToast","vip.openAndObserveWebview"):
+        if method not in ("vip.onFinish", "accountExternalSdk.setToken","vip.makeToast","vip.openAndObserveWebview","account.CallMethodExecutor"):
             self.logger.debug(f"Oppo console method {method} 不关心，payload: {payload}")
             return
         elif method == "vip.makeToast":
@@ -138,7 +138,9 @@ class OppoBrowser(WebBrowser):
                 self._close_observed_popup()
                 self._trigger_main_page_refresh()
             return
-
+        elif method == "account.CallMethodExecutor":
+            self.show_toast("登录设备过新，请下载Mumu模拟器，随机登录一个有OPPO渠道的游戏后，再用本工具登录。")
+            return
         login_resp = None
         if isinstance(param, dict):
             login_resp = param.get("loginResp") or param
