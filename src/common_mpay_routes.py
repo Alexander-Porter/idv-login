@@ -102,7 +102,7 @@ def register_mpay_routes(
             new_login_methods["select_platform"] = True
             new_login_methods["qrcode_select_platform"] = True
             for i in new_login_methods["config"]:
-                new_login_methods["config"][i]["select_platforms"] = [0, 1, 2, 3, 4]
+                new_login_methods["config"][i]["select_platforms"] = [0, 1, 2, 3, 4,5,6,7,8,9]
             resp.set_data(json.dumps(new_login_methods))
             return resp
         except Exception:
