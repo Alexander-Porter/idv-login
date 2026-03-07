@@ -1,5 +1,5 @@
 {
-    "lastModified": 1772885020,
+    "lastModified": 1772885021,
     "version": "v5.9.0-beta",
     "hotfix": [
         {
@@ -58,6 +58,15 @@
             "target_module": "channelHandler.huaLogin.huaChannel",
             "target_commit": "a52213dbb4377516bfb9aea6550613b17e89297a",
             "note": "\u4fee\u590d\u534e\u4e3a\u6e20\u9053\u670d\u65e0\u6cd5\u6b63\u786e\u8bb0\u5f55\u8d26\u53f7\u5bc6\u7801\u95ee\u9898"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta",
+                "v5.9.0-beta"
+            ],
+            "target_module": "common_mpay_routes",
+            "target_commit": "13a7851cede86d5806197064969cec2d07099be9",
+            "note": "官服新增支持登录HarmonyOS(鸿蒙)系统下的角色"
         }
     ],
     "shortcuts": [
