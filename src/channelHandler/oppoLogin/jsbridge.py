@@ -52,9 +52,13 @@ def build_mock_native_js(consts: OppoNativeConsts = DEFAULT_CONSTS) -> str:
 
   const VIP_HEADER_JSON = {vip_header_json};
 
-  function _emitInvoke(method, param) {{
+  function _emitInvoke(method, param, callbackid) {{
     try {{
-      const payload = JSON.stringify({{ method: method, param: param }});
+      const payload = JSON.stringify({{
+        method: method,
+        param: param,
+        callbackid: callbackid
+      }});
       console.log(OPPO_CONSOLE_PREFIX + payload);
     }} catch (e) {{}}
   }}
@@ -140,7 +144,12 @@ def build_mock_native_js(consts: OppoNativeConsts = DEFAULT_CONSTS) -> str:
     getNavBarType: function() {{ return 0; }},
     invoke: function(method, param, callbackid) {{
       // 关键：捕获网页登录完成回调
-        _emitInvoke(method, param);
+        _emitInvoke(method, param, callbackid);
+
+      // account.CallMethodExecutor 需要由 Python 层异步手动回调。
+      if (method === 'account.CallMethodExecutor') {{
+        return true;
+      }}
 
 
       setTimeout(function() {{
