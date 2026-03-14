@@ -1,5 +1,5 @@
 {
-    "lastModified": 1772886378,
+    "lastModified": 1772886379,
     "version": "v5.9.0-beta",
     "hotfix": [
         {
@@ -39,8 +39,16 @@
                 "v5.9.0-beta"
             ],
             "target_module": "channelHandler.oppoLogin.oppoChannel",
-            "target_commit": "54d105b6337c155d9230f628361ae1680b52d3ff",
-            "note": "完善登录流程，尝试修复OPPO渠道服提示“长时间未操作”的问题，增加OPPO登录验证码点不动的提示"
+            "target_commit": "3af68688d71bc2c5a93006f7bb79064dd7cd5f01",
+            "note": "修复了若干导致OPPO登不上的问题（如“您长时间未操作，请重新开始”），新增支持OPPO账密登录、支持在工具中二次验证"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.9.0-beta"
+            ],
+            "target_module": "channelHandler.oppoLogin.jsbridge",
+            "target_commit": "3af68688d71bc2c5a93006f7bb79064dd7cd5f01",
+            "note": "修复了若干导致OPPO登不上的问题（如“您长时间未操作，请重新开始”），新增支持OPPO账密登录、支持在工具中二次验证"
         },
         {
             "need_hotfix_version": [
