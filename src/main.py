@@ -881,6 +881,9 @@ def initialize():
         HttpDNSBlocker().unblock_all()
 
     logger.info("初始化内置浏览器")
+    os.environ.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
+    os.environ.pop('QT_PLUGIN_PATH', None)
+    os.environ.pop('LD_LIBRARY_PATH', None)   # Linux/macOS 下动态库搜索路径
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
     from PyQt6.QtNetwork import QNetworkProxyFactory
