@@ -142,7 +142,8 @@ class oppoChannel(channelmgr.channel):
         """
 
         if not isinstance(self.loginResp, dict):
-            raise TypeError("oppo loginResp 必须为 dict")
+            self.logger.error(f"loginResp 数据结构异常，预期 dict 实际 {type(self.loginResp)}，内容: {self.loginResp}")
+            raise TypeError("oppo loginResp 必须为 dict. 请检查是否处于境外环境导致登录失败！")
 
         lr = self.loginResp
         account_token = lr.get("accountToken")
