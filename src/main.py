@@ -241,7 +241,7 @@ def _hotfix_compile_to_pyc(source_path: str, pyc_path: str) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def _hotfix_download_text(url: str) -> Tuple[bool, bytes, str]:
+def _hotfix_download_text(url: str, fallbacks: List[str]) -> Tuple[bool, bytes, str]:
     try:
         from ssl_utils import should_verify_ssl
         sess = requests.Session()
@@ -254,6 +254,14 @@ def _hotfix_download_text(url: str) -> Tuple[bool, bytes, str]:
             return False, b"", f"HTTP {resp.status_code}"
         return True, resp.content, ""
     except Exception as e:
+        # Try fallback URLs
+        for fallback_url in fallbacks:
+            try:
+                resp = sess.get(fallback_url, timeout=20, headers=headers, verify=should_verify_ssl())
+                if resp.status_code == 200:
+                    return True, resp.content, ""
+            except Exception:
+                continue
         return False, b"", str(e)
 
 
@@ -301,8 +309,11 @@ def _hotfix_apply_one(item: dict) -> Tuple[bool, str]:
 
     remote_rel = "src/" + "/".join(module_name.split(".")) + ".py"
     url = f"https://gitee.com/opguess/idv-login/raw/{commit}/{remote_rel}"
-
-    ok, content, err = _hotfix_download_text(url)
+    fallbacks= [
+        f"https://raw.githubusercontent.com/KKeygen/idv-login/{commit}/{remote_rel}",
+        f"https://jihulab.com/KKeygenn/idv-login/-/raw/{commit}/{remote_rel}",
+    ]
+    ok, content, err = _hotfix_download_text(url,fallbacks)
     if not ok:
         return False, f"下载失败: {url} ({err})"
 
@@ -789,6 +800,8 @@ def initialize():
     genv.set("SCRIPT_DIR", os.path.dirname(os.path.abspath(__file__)))
     CloudPaths = [
         "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json",
+        "https://jihulab.com/KKeygenn/idv-login/-/raw/main/assets/cloudRes.json",
+        "https://hk.gh-proxy.org/https://raw.githubusercontent.com/KKeygen/idv-login/refs/heads/main/assets/cloudRes.json",
         "https://cdn.jsdelivr.net/gh/KKeygen/idv-login@main/assets/cloudRes.json",
     ]
 

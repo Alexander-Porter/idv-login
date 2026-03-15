@@ -42,7 +42,8 @@ class BackupVersionMgr:
         # get-pip.py 镜像源
         self.get_pip_sources = {
             "official": "https://bootstrap.pypa.io/get-pip.py",
-            "gitee": "https://gitee.com/opguess/idv-login/raw/main/assets/get-pip.py"
+            "gitee": "https://gitee.com/opguess/idv-login/raw/main/assets/get-pip.py",
+            "gitlab":"https://jihulab.com/KKeygenn/idv-login/-/raw/main/assets/get-pip.py"
         }
     
     def test_url_speed(self, url):
