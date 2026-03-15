@@ -55,7 +55,7 @@ def uploadAllFilesAndGetMarkDown(fileList):
     return res
 def getLatestRelease():
     headers={"Authorization":"token "+github_token}
-    r=requests.get("https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest",headers=headers)
+    r=requests.get("https://api.github.com/repos/KKeygen/idv-login/releases/latest",headers=headers)
     return r.json()
 
 def downloadToPath(url, path):

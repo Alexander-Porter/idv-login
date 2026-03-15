@@ -1,12 +1,12 @@
 # IdentityV-login-helper
 ![Language](https://img.shields.io/badge/language-python-blue.svg)
-![GitHub License](https://img.shields.io/github/license/Alexander-Porter/idv-login)
-![GitHub Release](https://img.shields.io/github/v/release/Alexander-Porter/idv-login)
-![Gitea Last Commit](https://img.shields.io/github/commits-since/Alexander-Porter/idv-login/latest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Alexander-Porter/idv-login/pack.yaml)
+![GitHub License](https://img.shields.io/github/license/KKeygen/idv-login)
+![GitHub Release](https://img.shields.io/github/v/release/KKeygen/idv-login)
+![Gitea Last Commit](https://img.shields.io/github/commits-since/KKeygen/idv-login/latest)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/KKeygen/idv-login/pack.yaml)
 
 
-项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
+项目仓库：[click](https://github.com/KKeygen/idv-login)
 教程：[click](https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3)
 
 ## 1. 使用方式
@@ -35,7 +35,7 @@
 ### 预编译版本的构建信息
 1. 自`5.3.0`版本，本程序会在构建时内嵌构建信息便于溯源
 2. 构建信息的格式为`actionId(commitSHA)`
-3. 在 (https://github.com/Alexander-Porter/idv-login/actions/runs/{actionId}) 处能看到本次构建的过程和构建结果的SHA256，参照上方校验方法校验即可确认工具未被篡改
+3. 在 (https://github.com/KKeygen/idv-login/actions/runs/{actionId}) 处能看到本次构建的过程和构建结果的SHA256，参照上方校验方法校验即可确认工具未被篡改
 
 ### 手动构建（Optional）
 
@@ -43,7 +43,7 @@
 * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe)
 * 安装Python时要**使用管理员权限**，自定义(Custom)安装，**添加到Path**、**为所有用户安装**和**pip**。
 * 由于新版本的Python **不支持** Windows7，如需在Windows7上构建本程序，可能需要借助**Anaconda**之类的软件安装支持Windows7的python（如 python 3.8）进行构建，具体教程请自行百度。
-* 下载[代码](https://github.com/Alexander-Porter/idv-login/archive/refs/heads/one-key.zip)到本地，解压
+* 下载[代码](https://github.com/KKeygen/idv-login/archive/refs/heads/one-key.zip)到本地，解压
 * 进入解压后的目录，shift+鼠标右键，选择打开Powershell或终端
 * 输入以下代码并回车
 ```bash
@@ -108,4 +108,4 @@ BTC 闪电网络:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Alexander-Porter/idv-login&type=Date)](https://www.star-history.com/#Alexander-Porter/idv-login&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=KKeygen/idv-login&type=Date)](https://www.star-history.com/#KKeygen/idv-login&Date)

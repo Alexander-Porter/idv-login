@@ -1,6 +1,6 @@
 # coding=UTF-8
 """
- Copyright (c) 2026 Alexander-Porter
+ Copyright (c) 2026 KKeygen
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -789,7 +789,7 @@ def initialize():
     genv.set("SCRIPT_DIR", os.path.dirname(os.path.abspath(__file__)))
     CloudPaths = [
         "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json",
-        "https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/assets/cloudRes.json",
+        "https://cdn.jsdelivr.net/gh/KKeygen/idv-login@main/assets/cloudRes.json",
     ]
 
     # 无版本信息时：优先使用本地 assets\cloudRes.json；仅当本地不存在时才使用云端
@@ -928,7 +928,7 @@ def initialize():
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
-    print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
+    print(" - 官方项目地址 : https://github.com/KKeygen/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源，完全免费，严禁倒卖！")
     print(" - This program is free software: you can redistribute it and/or modify")

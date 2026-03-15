@@ -169,7 +169,7 @@ def download_file(filename):
         print(f"下载文件 {filename} 失败，状态码：{response.status_code}")
         print(response.text)
         #fallback
-        url = f"https://raw.githubusercontent.com/Alexander-Porter/idv-login/refs/heads/main/binaries/{filename}"
+        url = f"https://raw.githubusercontent.com/KKeygen/idv-login/refs/heads/main/binaries/{filename}"
         response = requests.get(url)
         if response.status_code != 200:
             print(f"下载文件 {filename} 失败，状态码：{response.status_code}")
@@ -191,7 +191,7 @@ def ensure_binary():
     #https://gitee.com/opguess/idv-login/raw/main/binaries/downloadIPC.exe
     #https://gitee.com/opguess/idv-login/raw/main/binaries/OrbitSDK.dll
     #直接下载的工作目录
-    #fallback:https://cdn.jsdelivr.net/gh/Alexander-Porter/idv-login@main/
+    #fallback:https://cdn.jsdelivr.net/gh/KKeygen/idv-login@main/
     print("正在检查并下载依赖...")
     if os.path.exists("downloadIPC.exe") and os.path.exists("OrbitSDK.dll") and os.path.exists("aria2c.exe"):
         return True

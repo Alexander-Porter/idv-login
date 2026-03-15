@@ -1,6 +1,6 @@
 # coding=UTF-8
 """
- Copyright (c) 2024 Alexander-Porter & other contributors.
+ Copyright (c) 2024 KKeygen & other contributors.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

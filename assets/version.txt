@@ -30,7 +30,7 @@ VSVersionInfo(
         StringStruct('FileDescription', 'IdentityV Login Helper'),
         StringStruct('FileVersion', '5.9.1.0'),
         StringStruct('InternalName', 'idv-login.exe'),
-        StringStruct('LegalCopyright', 'Copyright (C) 2026 Alexander-Porter & fwilliamhe. All rights reserved'),
+        StringStruct('LegalCopyright', 'Copyright (C) 2026 KKeygen & fwilliamhe. All rights reserved'),
         StringStruct('OriginalFilename', 'idv-login.exe'),
         StringStruct('ProductName', 'IdentityV Login Helper'),
         StringStruct('ProductVersion', '5.9.1.0')]

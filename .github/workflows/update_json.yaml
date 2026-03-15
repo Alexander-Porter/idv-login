@@ -57,12 +57,12 @@ jobs:
           
           def getLatestRelease():
               headers = {'Authorization': 'token ' + github_token}
-              r = requests.get('https://api.github.com/repos/Alexander-Porter/idv-login/releases/latest', headers=headers)
+              r = requests.get('https://api.github.com/repos/KKeygen/idv-login/releases/latest', headers=headers)
               return r.json()
           
           def updateCloudRes():
               # 获取当前 cloudRes.json
-              url = 'https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json'
+              url = 'https://api.github.com/repos/KKeygen/idv-login/contents/assets/cloudRes.json'
               headers = {'Authorization': 'token ' + github_token}
               r = requests.get(url, headers=headers)
               fileInfo = r.json()

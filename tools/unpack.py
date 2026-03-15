@@ -38,7 +38,7 @@ def validate(data, key):
 github_token=os.getenv("GITHUB_TOKEN")
 def updateCloudRes(item):
     #get now cloud res
-    url="https://api.github.com/repos/Alexander-Porter/idv-login/contents/assets/cloudRes.json"
+    url="https://api.github.com/repos/KKeygen/idv-login/contents/assets/cloudRes.json"
     headers={"Authorization":"token "+github_token}
     r=requests.get(url,headers=headers)
     fileInfo=r.json()
