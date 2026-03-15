@@ -1,12 +1,10 @@
-name: Update JSON Resources
+name: Sync
 
 on:
   push:
-    paths:
-      - 'assets/cloudRes.json'
-
+  workflow_dispatch:
 jobs:
-  sync_json:
+  sync:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,6 +13,6 @@ jobs:
             fetch-depth: 0
         - uses: yesolutions/mirror-action@master
           with:
-            REMOTE: 'https://gitlab.com/KKeygen/idv-login.git'
-            GIT_USERNAME: KKeygen
+            REMOTE: 'https://jihulab.com/KKeygenn/idv-login.git'
+            GIT_USERNAME: KKeygenn
             GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
