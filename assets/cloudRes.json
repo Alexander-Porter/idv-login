@@ -1,5 +1,5 @@
 {
-    "lastModified": 1773539337,
+    "lastModified": 1773539338,
     "version": "v5.9.1-stable",
     "hotfix": [
         {
@@ -12,11 +12,12 @@
         },
         {
             "need_hotfix_version": [
-                "v5.9.0-beta"
+                "v5.9.0-beta",
+                "v5.9.1-stable"
             ],
             "target_module": "main",
-            "target_commit": "ebbe426c467b73198965b52559000a06edf4d444",
-            "note": "修复了在旧版本热更新再更新工具后，适用多个版本的热更新不会被重新应用，导致遗留一些bug的问题。本次热更新结束后会重新应用所有热更新（即当前热更新会出现两次），为正常现象。"
+            "target_commit": "424dda8c1da235e11870b83ac7a4311ec9b3ac08",
+            "note": "为云配置增加了备用端点，减小因为某些服务商抽风导致工具整个坏掉的概率。"
         },
         {
             "need_hotfix_version": [
