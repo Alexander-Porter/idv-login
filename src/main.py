@@ -937,7 +937,12 @@ def initialize():
         logger.error(f"运行一次性任务失败: {e}")
     #如果是windows，清空DNS缓存
     if sys.platform=='win32':
-        os.system("ipconfig /flushdns")
+        subprocess.call(
+            "ipconfig /flushdns",
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
