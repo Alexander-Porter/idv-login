@@ -137,7 +137,21 @@ class VivoLogin:
         self.gamePackage = gamePackage
         self.cookies = {}
 
-    def webLogin(self):
+    def webLogin(self, cookies=None):
+        u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
+        self.cookies = cookies or {}
+
+        if self.cookies:
+            self.logger.info(f"使用本地cookies登录: {u}")
+            try:
+                r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
+                j = r.json()
+                if j.get("code") == 0:
+                    return j.get("data")
+                self.logger.warning("本地cookies登录失败，拉起浏览器重新登录")
+            except Exception as e:
+                self.logger.warning(f"本地cookies请求异常，拉起浏览器重新登录: {e}")
+
         login_url = f"https://passport.vivo.com.cn/#/login?client_id=67&redirect_uri=https%3A%2F%2Fjoint.vivo.com.cn%2Fgame-subaccount-login%3Ffrom%3Dlogin"
         miBrowser = VivoBrowser(self.gamePackage)
         miBrowser.set_url(login_url)
@@ -146,8 +160,6 @@ class VivoLogin:
             if resp.get("code") == 0:
                 # 浏览器退出后再读取Cookies数据库，显著降低Windows文件锁概率
                 self.cookies = miBrowser.export_cookie().copy()
-                print(self.cookies)
-                u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
                 self.logger.info(u)
                 r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
                 j = r.json()

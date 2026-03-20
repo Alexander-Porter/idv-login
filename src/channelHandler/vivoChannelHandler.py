@@ -60,6 +60,7 @@ class vivoChannel(channelmgr.channel):
         game_id: str = "",
         chosenAccount: str = "",
         uuid: str = "",
+        cookies: dict = {},
     ) -> None:
         super().__init__(
             login_info,
@@ -75,6 +76,7 @@ class vivoChannel(channelmgr.channel):
         cloudRes = CloudRes()
 
         self.game_id = game_id
+        self.cookies = cookies
         real_game_id = getShortGameId(game_id)
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
@@ -84,6 +86,8 @@ class vivoChannel(channelmgr.channel):
             self.vivoLogin = VivoLogin()
         else:
             self.vivoLogin = VivoLogin(res.get(self.channel_name))
+
+        self.vivoLogin.cookies = self.cookies
 
         self.chosenAccount = chosenAccount
         self.realGameId = real_game_id
@@ -96,11 +100,12 @@ class vivoChannel(channelmgr.channel):
 
     def request_user_login(self):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
-        resp=self.vivoLogin.webLogin()
+        resp=self.vivoLogin.webLogin(self.cookies)
         self.logger.debug(resp)
         if resp==None:
             self.session=None
             return False
+        self.cookies = self.vivoLogin.cookies
         self.session:vivoLoginResp=vivoLoginResp(resp)
 
         if len(self.session.subAccounts)==0:
@@ -150,6 +155,7 @@ class vivoChannel(channelmgr.channel):
             game_id=data.get("game_id", ""),
             chosenAccount=data.get("chosenAccount", ""),
             uuid=data.get("uuid", ""),
+            cookies=data.get("cookies", {}),
         )
 
     def _build_extra_unisdk_data(self) -> str:
