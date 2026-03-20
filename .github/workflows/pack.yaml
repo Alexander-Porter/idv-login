@@ -1,5 +1,8 @@
 name: Build and Package
 
+permissions:
+  contents: write
+
 on:
     workflow_dispatch:
     push:
@@ -73,6 +76,20 @@ jobs:
               --commit-sha "${{ github.sha }}"
         shell: pwsh
 
+      - name: Commit verification data to remote
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ext/verification.json
+          if (git diff --cached --quiet) {
+            echo "No verification changes to commit."
+          } else {
+            git commit -m "chore: update ext/verification.json [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          }
+        shell: pwsh
+
       - name: Normalize compiled files layout
         run: |
             Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object {
@@ -92,7 +109,6 @@ jobs:
           mkdir dist
           Copy-Item -Recurse -Force python-embed dist/python-embed
           Copy-Item -Recurse -Force src dist/src
-          Copy-Item -Force ext/verification.json dist/verification.json
           Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
         shell: pwsh
 
