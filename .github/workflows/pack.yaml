@@ -62,6 +62,19 @@ jobs:
       - name: Compile Python files to .pyc
         run: |
             .\python-embed\python.exe  -m compileall src
+        shell: pwsh
+
+      - name: Generate verification data
+        run: |
+            .\python-embed\python.exe tools/generate_verification.py `
+              --src-root src `
+              --start-bat tools/点我启动工具.bat `
+              --verification-file ext/verification.json `
+              --commit-sha "${{ github.sha }}"
+        shell: pwsh
+
+      - name: Normalize compiled files layout
+        run: |
             Get-ChildItem -Recurse -Filter '*.pyc' | ForEach-Object {
                 $newName = $_.Name -replace '\.cpython-3\d+', ''
                 if (Test-Path -Path (Join-Path -Path $_.DirectoryName -ChildPath $newName)) {
@@ -79,6 +92,7 @@ jobs:
           mkdir dist
           Copy-Item -Recurse -Force python-embed dist/python-embed
           Copy-Item -Recurse -Force src dist/src
+          Copy-Item -Force ext/verification.json dist/verification.json
           Copy-Item -Force tools/点我启动工具.bat dist/点我启动工具.bat
         shell: pwsh
 

@@ -16,3 +16,9 @@ jobs:
             REMOTE: 'https://jihulab.com/KKeygenn/idv-login.git'
             GIT_USERNAME: KKeygenn
             GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
+
+        - uses: yesolutions/mirror-action@master
+          with:
+            REMOTE: 'https://gitee.com/opguess/idv-login.git'
+            GIT_USERNAME: opguess
+            GIT_PASSWORD: ${{ secrets.GITEE_TOKEN }}
