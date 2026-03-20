@@ -111,15 +111,13 @@
 
   <script>
     const PYODIDE_FALLBACK_SOURCES = [
-      "https://fastly.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js",
-      "https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js",
-      "https://gcore.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js",
-      "https://unpkg.com/pyodide@0.29.3/pyodide.js"
+      "https://fastly.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js",
+      "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js",
+      "https://gcore.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js",
+      "https://unpkg.com/pyodide@0.27.7/pyodide.js"
     ];
 
     const VERIFICATION_URLS = [
-      "https://gitee.com/opguess/idv-login/raw/main/ext/verification.json",
-      "https://jihulab.com/KKeygenn/idv-login/-/raw/main/ext/verification.json",
       "https://raw.githubusercontent.com/KKeygen/idv-login/main/ext/verification.json",
       "https://cdn.jsdelivr.net/gh/KKeygen/idv-login@main/ext/verification.json",
       "https://hk.gh-proxy.org/https://raw.githubusercontent.com/KKeygen/idv-login/main/ext/verification.json"
@@ -257,10 +255,7 @@
           continue
 
         local_marshal = marshal_sha256_from_pyc_bytes(files[rel_path])
-        py_rel = rel_path[:-4] + ".py"
-        local_source = sha256_bytes(files[py_rel]) if py_rel in files else None
-
-        state = classify_match(module, local_source, local_marshal)
+        state = classify_match(module, None, local_marshal)
         if state == "missing":
           missing.append(module)
           continue
