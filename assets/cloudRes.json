@@ -1,14 +1,26 @@
 {
-    "lastModified": 1773539338,
+    "lastModified": 1773539339,
     "version": "v5.9.1-stable",
     "hotfix": [
         {
             "need_hotfix_version": [
-                "v5.8.3.1-beta"
+                "v5.8.3.1-beta",
+                "v5.9.0-beta",
+                "v5.9.1-stable"
             ],
             "target_module": "channelHandler.vivoLogin.vivoChannel",
-            "target_commit": "e666fc5edd5b7360dfc522be673da9c906e9dff2",
-            "note": "修复vivo登录失败的问题"
+            "target_commit": "759708aaf882c114d5a0fe0fb2e0d583f6d2d677",
+            "note": "【测试】VIVO账号长时间保存cookies，避免两周后登录过期"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta",
+                "v5.9.0-beta",
+                "v5.9.1-stable"
+            ],
+            "target_module": "channelHandler.vivoChannelHandler",
+            "target_commit": "759708aaf882c114d5a0fe0fb2e0d583f6d2d677",
+            "note": "【测试】VIVO账号长时间保存cookies，避免两周后登录过期"
         },
         {
             "need_hotfix_version": [
