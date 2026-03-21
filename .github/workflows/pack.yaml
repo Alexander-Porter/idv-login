@@ -86,7 +86,23 @@ jobs:
             echo "No verification changes to commit."
           } else {
             git commit -m "chore: update ext/verification.json [skip ci]"
-            git push origin HEAD:${{ github.ref_name }}
+            $max_retries = 3
+            $retry_count = 0
+            $success = $false
+            while (-not $success -and $retry_count -lt $max_retries) {
+              git pull origin ${{ github.ref_name }} --rebase
+              git push origin HEAD:${{ github.ref_name }}
+              if ($LASTEXITCODE -eq 0) {
+                $success = $true
+              } else {
+                $retry_count++
+                Start-Sleep -Seconds (5 * $retry_count)
+              }
+            }
+            if (-not $success) {
+              Write-Error "Failed to push after $max_retries retries."
+              exit 1
+            }
           }
         shell: pwsh
 

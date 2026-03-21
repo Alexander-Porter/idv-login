@@ -104,9 +104,19 @@ jobs:
                   'sha': sha
               }
               
-              r = requests.put(url, headers=headers, json=updateData)
-              print('cloudRes.json updated successfully')
-              print(r.json())
+              for i in range(3):
+                  r = requests.put(url, headers=headers, json=updateData)
+                  if r.status_code == 200 or r.status_code == 201:
+                      print('cloudRes.json updated successfully')
+                      print(r.json())
+                      break
+                  else:
+                      print('Failed to update, retrying...', r.json())
+                      time.sleep(5)
+                      # Refresh sha just in case
+                      r = requests.get(url, headers=headers)
+                      if r.status_code == 200:
+                          updateData['sha'] = r.json()['sha']
           
           # 禁用SSL警告
           requests.packages.urllib3.disable_warnings()
