@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>纯前端 APK 渠道参数解析器 (包含 Vivo/Oppo 等)</title>
+    <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css">
+    
+    <!-- 使用 zip.js 做流式超大文件切片 -->
+    <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
+    <!-- 引入打包好的 AXML 解码器。注意该工具放到 assets 目录下，同级引用 -->
+    <script>window.process = { env: { NODE_ENV: 'production' } };</script>
+    <script src="axml-bundle.js"></script>
+    
+    <style>
+        body { background-color: #f8f9fa; padding: 2rem; font-family: system-ui, -apple-system, sans-serif; }
+        .card { box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; border-radius: 12px; }
+        .log-box { background: #1e1e1e; color: #00ff00; height: 350px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; padding: 12px; border-radius: 8px; white-space: pre-wrap; word-wrap: break-word;}
+    </style>
+</head>
+<body>
+<div class="container max-w-lg">
+    <div class="text-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-box-seam text-primary me-2"></i>APK 渠道参数提取工具</h2>
+        <p class="text-muted">纯前端方案，直接在本地解析应用包并提取渠道参数</p>
+    </div>
+
+    <div class="card mb-4" id="uploadCard">
+        <div class="card-body p-4">
+            <label class="form-label fw-bold">请选择游戏官方 APK 或渠道包：</label>
+            <input class="form-control" type="file" id="apkInput" accept=".apk" />
+            <button class="btn btn-primary w-100 mt-3" id="startBtn" onclick="startExtract()">
+                <i class="bi bi-cpu me-2"></i>开始解析
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-4" id="logCard" style="display: none;">
+        <div class="card-body p-4">
+            <h5 class="card-title fw-bold mb-3"><i class="bi bi-terminal me-2"></i>处理日志</h5>
+            <div id="logs" class="log-box"></div>
+        </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display: none;">
+        <div class="card-body p-4 text-center">
+            <h4 class="text-success fw-bold mb-3"><i class="bi bi-check-circle-fill me-2"></i>提取成功！</h4>
+            <textarea id="resultBase64" class="form-control mb-3" rows="4" readonly></textarea>
+            <p class="small text-muted mb-3">参数已就绪，请点击下方按钮前往 GitHub 提交更新并自动合并：</p>
+            <button class="btn btn-dark fw-bold px-4 py-2" onclick="submitToGithub()">
+                <i class="bi bi-github me-2"></i>前往 GitHub 自动提交
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function log(msg) {
+        const logs = document.getElementById('logs');
+        logs.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        logs.scrollTop = logs.scrollHeight;
+        console.log(msg);
+    }
+
+    // 复刻原 Python 端位移异或破解算法
+    function validateData(data, key) {
+        const s_key = data["UNISDK_SERVER_KEY"];
+        let val = data[key];
+        if (key === 'UNISDK_SERVER_KEY' || key === 'APP_CHANNEL') return val;
+
+        try {
+            const decodeText = window.atob(s_key);
+            if (decodeText.length !== 124) return val;
+
+            const decode = new Uint8Array(decodeText.length);
+            for (let i = 0; i < decodeText.length; i++) {
+                decode[i] = decodeText.charCodeAt(i);
+            }
+
+            const copy_of_range = decode.slice(0, 62);
+            const copy_of_range2 = decode.slice(62, 124);
+            const hash_map = {};
+
+            for (let i = 0; i < 62; i++) {
+                hash_map[(copy_of_range[i] - 76) + copy_of_range2[i]] = copy_of_range2[i];
+            }
+
+            let chars = val.split('');
+            for (let i = 0; i < chars.length; i++) {
+                let b = chars[i].charCodeAt(0);
+                if (hash_map[b] !== undefined) {
+                    chars[i] = String.fromCharCode(hash_map[b]);
+                }
+            }
+            return chars.join('');
+        } catch (e) {
+            return val;
+        }
+    }
+
+    async function startExtract() {
+        const fileInput = document.getElementById('apkInput');
+        if (!fileInput.files.length) return alert("请先选择一个 apk 文件");
+        const file = fileInput.files[0];
+
+        document.getElementById('logCard').style.display = 'block';
+        document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('logs').innerHTML = '';
+        log(`开始流式读取 [${file.name}]...`);
+
+        try {
+            const zipReader = new zip.ZipReader(new zip.BlobReader(file));
+            const entries = await zipReader.getEntries();
+            log(`成功读取中央流目录表，总计包含 ${entries.length} 个文件信息。`);
+
+            // --- 1. AXML 解析：获取通用全局属性 (包名/渠道标识) ---
+            let packageName = "com.unknown.package";
+            const manifestEntry = entries.find(e => e.filename === 'AndroidManifest.xml');
+            let manifestJson = null;
+
+            if (manifestEntry && typeof AXML !== 'undefined') {
+                try {
+                    log(`开始拉取并解析二进制 AndroidManifest.xml 文件...`);
+                    const axmlBlob = await manifestEntry.getData(new zip.BlobWriter());
+                    const axmlBuffer = await axmlBlob.arrayBuffer();
+                    
+                    const buf = AXML.Buffer.from(axmlBuffer);
+                    const parser = new AXML.ManifestParser(buf);
+                    manifestJson = parser.parse();
+                    
+                    packageName = manifestJson.package || packageName;
+                    log(`AXML 模块解析成功，获取应用包名: [${packageName}]`);
+                } catch (e) {
+                    log(`⚠️ AXML 解码遭遇异常，退回手动降级处理: ${e.message}`);
+                    console.error(e);
+                }
+            } else {
+                log(`⚠️ 未找到 AndroidManifest.xml 或缺失浏览器环境解码器。`);
+            }
+
+            // --- 2. 基于包名智能判定部分仅需包名的渠道 (如 vivo, oppo) ---
+            let app_channel = null;
+            let channelData = null;
+            let requiresCustomConfig = false;
+
+            // 根据包名后缀或特征自动推断
+            if (packageName.includes('.vivo') || packageName.includes('nearme.gamecenter') || packageName.includes('nearme_vivo') || packageName.includes('.nearme.')) {
+                if (packageName.includes('.vivo') || packageName.includes('nearme_vivo')) app_channel = 'nearme_vivo';
+                else if (packageName.includes('nearme.gamecenter') || packageName.includes('.nearme.')) app_channel = 'oppo';
+                
+                log(`根据 APK 包名特征判定为【${app_channel}】渠道包。`);
+                channelData = packageName; // 对于 vivo/oppo，只需返回它的专属渠道包名
+            } else {
+                requiresCustomConfig = true; // 其它如小米/应用宝等需要继续分析 assets 内的参数
+            }
+
+            // --- 3. 对于重度渠道寻找 assets 内核加密数据 ---
+            let dataEntry = null;
+            if (requiresCustomConfig) {
+                const targetFiles = ['assets/xiaomi_app_data', 'assets/huawei_data', 'assets/myapp_data'];
+                
+                for (let obj of entries) {
+                    if (targetFiles.includes(obj.filename)) {
+                        app_channel = obj.filename.split('/')[1].replace('_data', '');
+                        dataEntry = obj;
+                        log(`找到相关资源数据文件: [${obj.filename}]，确认渠道为 [${app_channel}]`);
+                        break;
+                    }
+                }
+            }
+
+            if (!app_channel) {
+                log("❌ 无法研判出渠道类型。如果这是一个未列出的渠道，请提醒开发者增加特征支持。");
+                await zipReader.close();
+                return;
+            }
+
+            // --- 4. 统一破解并提取日志秘钥和游戏分配主 ID ---
+            // 绝大部官方联合发行的渠道包里都会有 {app_channel}_data，如果没有则降临询问
+            let log_key = "未知";
+            let game_id = "未知";
+            
+            if (!dataEntry) {
+                // 如果如 Vivo 这种包连 _data 都没有，尝试去找任意一个类似 _data 的配置文件
+                dataEntry = entries.find(e => e.filename.match(/assets\/.*_data$/));
+            }
+            
+            if (dataEntry) {
+                log(`正在解开 [${dataEntry.filename}] 获取内核通信秘钥...`);
+                const fileText = await dataEntry.getData(new zip.TextWriter());
+                
+                let myData = null;
+                try {
+                    // Try parsing as raw JSON first
+                    myData = JSON.parse(fileText);
+                    log(`☑️ 数据文件为通用明文 JSON 格式，解析成功。`);
+                } catch (e) {
+                    try {
+                        // If parsing fails, try base64 decode
+                        const myDataStr = decodeURIComponent(escape(window.atob(fileText)));
+                        myData = JSON.parse(myDataStr);
+                        log(`☑️ 数据文件为 Base64 加密 JSON 格式，解码解析成功。`);
+                    } catch (e2) {
+                        throw new Error(`核心数据文件解析失败：既不是合法的明文 JSON 也无法经过 Base64 解码。(${e2.message})`);
+                    }
+                }
+
+                log_key = validateData(myData, "JF_LOG_KEY");
+                game_id = validateData(myData, "JF_GAMEID");
+                log(`内核参数解密成功 -> GAME_ID: [${game_id}], LOG_KEY: [已获取]`);
+            } else {
+                log(`⚠️ 此渠道包未集成网易通用 _data 对称加密文件，我们将保留包名并由云端查验默认游戏ID。`);
+            }
+
+            // --- 5. 渠道独立逻辑处理（小米、应用宝、华为等额外参数）---
+            if (app_channel === 'xiaomi_app') {
+                log(`寻找小米专供配置 miGameAppId...`);
+                if (manifestJson && manifestJson.application && Array.isArray(manifestJson.application.metaData)) {
+                    const miMeta = manifestJson.application.metaData.find(m => 
+                        m.name === 'miGameAppId' || m['android:name'] === 'miGameAppId' || Object.values(m).includes('miGameAppId')
+                    );
+                    if (miMeta) {
+                        const val = miMeta.value || miMeta['android:value'] || Object.values(miMeta).find(v => v !== 'miGameAppId');
+                        if (val) {
+                            channelData = String(val);
+                            log(`提取小米 miGameAppId: ${channelData}`);
+                        }
+                    }
+                }
+                
+                if (!channelData) {
+                    channelData = prompt("未能找到 miGameAppId（请检查是否属于该渠道或遭遇重混淆），手动输入：");
+                    if (!channelData) channelData = "未知_请修改";
+                }
+            } 
+            else if (app_channel === 'huawei') {
+                const agEntry = entries.find(e => e.filename === 'assets/agconnect-services.json');
+                if (agEntry) {
+                    const hwText = await agEntry.getData(new zip.TextWriter());
+                    const hwData = JSON.parse(hwText);
+                    channelData = hwData.client;
+                    log(`华为专用端证书 agconnect-services 读取完毕。`);
+                }
+            } 
+            else if (app_channel === 'myapp') {
+                const ysEntry = entries.find(e => e.filename === 'assets/ysdkconf.ini');
+                if (ysEntry) {
+                    const ysText = await ysEntry.getData(new zip.TextWriter());
+                    channelData = { wx_appid: "", channel: "" };
+                    const lines = ysText.split('\n');
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.includes('WX_APP_ID')) channelData.wx_appid = line.split('=')[1];
+                        else if (line.includes('OFFER_ID')) channelData.channel = line.split('=')[1];
+                        else if (line.includes('QQ_APP_ID')) channelData.channel = line.split('=')[1];
+                    }
+                    log(`腾讯应用宝专属参数 ysdkconf 加载完毕。`);
+                }
+            }
+
+            // --- 6. 完成装箱：打平属性与组合封包结构 ---
+            const RES = {
+                package_name: packageName,
+                app_channel: app_channel,
+                log_key: log_key,
+                game_id: game_id,
+            };
+            
+            // 动态挂载 channel 自己独有的配置属性 (如 "nearme_vivo": "..." 或 "xiaomi_app": "...")
+            RES[app_channel] = channelData;
+
+            // 输出 base64
+            const jsonStr = JSON.stringify(RES, null, 4);
+            const base64Out = btoa(unescape(encodeURIComponent(jsonStr)));
+            
+            document.getElementById('resultBase64').value = base64Out;
+            document.getElementById('resultCard').style.display = 'block';
+            log(`✅ 任务完成，请凭下方结果提交。`);
+            await zipReader.close();
+
+        } catch (e) {
+            log(`❌ 系统遇到致命错误导致中断: ${e.message}`);
+            console.error(e);
+        }
+    }
+
+    function submitToGithub() {
+        const base64Data = document.getElementById('resultBase64').value;
+        const bodyContent = `您好：\n我通过本地解析器完成了一份新渠道的参数扫描获取，现提交云端合并更新（请核对）：\n\n\`\`\`json\n${base64Data}\n\`\`\`\n`;
+        const url = `https://github.com/KKeygen/idv-login/issues/new?title=${encodeURIComponent('🆕玩家请求自动同步最新渠道参数')}&body=${encodeURIComponent(bodyContent)}`;
+        window.open(url, '_blank');
+    }
+</script>
+</body>
+</html>
