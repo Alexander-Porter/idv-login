@@ -582,7 +582,7 @@
                         <div class="mb-3">
                             <label for="channelSelect" class="form-label">渠道选择:</label>
                             <div class="d-flex align-items-center">
-                                <select id="channelSelect" class="form-select me-2"
+                                <select id="channelSelect" class="form-select me-2" onchange="handleChannelSelectChange(this.value)"
                                     style="width: 80%; flex: 0 0 auto;"></select>
                                 <button onclick="manual()" class="btn btn-primary">
                                     <i class="bi bi-person-plus me-1"></i>手动登录
@@ -2171,6 +2171,12 @@
                             option.text = channel.name;
                             channelSelect.appendChild(option);
                         });
+
+                        var helpOption = document.createElement('option');
+                        helpOption.value = '__channel_help__';
+                        helpOption.text = '没有找到想要登录的渠道？';
+                        channelSelect.appendChild(helpOption);
+                        
                     });
 
                 fetch('/_idv-login/defaultChannel?game_id=' + game_id)
@@ -2355,6 +2361,19 @@
         let disconnectedCount = 0;
         let overlayDismissed = false;  // 标记用户是否已手动关闭遮罩
         const FAQ_URL = 'https://www.yuque.com/keygen/kg2r5k/xl9zosrwviyc54nu';
+        const CHANNEL_HELP_URL = 'https://www.yuque.com/keygen/kg2r5k/izpgpf4g3ecqsbf3#WD82D';
+
+        function handleChannelSelectChange(selectedChannel) {
+            if (selectedChannel !== '__channel_help__') {
+                return;
+            }
+            window.open(CHANNEL_HELP_URL, '_blank');
+            const channelSelect = document.getElementById('channelSelect');
+            if (channelSelect && channelSelect.options.length > 0) {
+                const firstNormalOption = Array.from(channelSelect.options).find(option => option.value !== '__channel_help__');
+                channelSelect.value = firstNormalOption ? firstNormalOption.value : '';
+            }
+        }
 
         function checkToolStatus() {
             const statusLight = document.getElementById('statusLight');
@@ -2450,6 +2469,11 @@
                     icon: "warning",
                     button: "确定",
                 });
+                return;
+            }
+
+            if (selectedChannel === '__channel_help__') {
+                window.open(CHANNEL_HELP_URL, '_blank');
                 return;
             }
 
