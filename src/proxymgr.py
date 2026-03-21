@@ -92,6 +92,7 @@ app = Flask(__name__)
 game_helper = GameManager()
 logger = setup_logger()
 
+
 def _preload_default_launcher_data():
     cache = genv.get("launcher_data_cache", {})
     if not isinstance(cache, dict):
@@ -109,8 +110,6 @@ def _preload_default_launcher_data():
         except Exception:
             continue
     genv.set("launcher_data_cache", cache, cached=False)
-
-
 
 
 g_req = requests.session()
@@ -401,8 +400,9 @@ def toggle_httpdns_blocking():
 def before_request_func():
     if "_idv-login" in request.url:
         return
-    #logger.info(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
+    # logger.info(f"请求 {request.url} {request.headers} {request.get_data().decode()}")
     return
+
 
 @app.after_request
 def after_request_func(response: Response):
@@ -412,14 +412,12 @@ def after_request_func(response: Response):
 
     # 只log出现错误的请求
     if (
-        (
-            response.status_code != 200
-            and response.status_code != 302
-            and response.status_code != 301
-            and response.status_code != 304
-        )
+        response.status_code != 200
+        and response.status_code != 302
+        and response.status_code != 301
+        and response.status_code != 304
         # debug
-        #or "_idv-login" not in request.url
+        # or "_idv-login" not in request.url
     ):
         logger.info(
             f"请求 {request.url} {request.headers} {request.get_data().decode()}"
@@ -527,6 +525,7 @@ class proxymgr:
 
     def run(self):
         from dnsmgr import DNSResolver
+
         gevent.spawn_later(0, _preload_default_launcher_data)
         resolver = DNSResolver()
         target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
@@ -538,7 +537,8 @@ class proxymgr:
         try:
             if (
                 target == None
-                or g_req.get(f"https://{target}", verify=False).status_code != 200
+                or g_req.get(f"https://{target}", verify=False, timeout=3).status_code
+                != 200
             ):
                 target_using_hardcoded_ip = True
                 target = "42.186.193.21"
@@ -550,7 +550,9 @@ class proxymgr:
         try:
             if (
                 target_oversea == None
-                or g_req.get(f"https://{target_oversea}", verify=False).status_code
+                or g_req.get(
+                    f"https://{target_oversea}", verify=False, timeout=3
+                ).status_code
                 != 200
             ):
                 target_oversea_using_hardcoded_ip = True
@@ -609,7 +611,6 @@ class proxymgr:
                 logger.info(f"检测到有游戏设置了自动启动，游戏列表{should_start_text}")
                 for i in game_helper.list_auto_start_games():
                     i.start()
-
 
             logger.info("拦截成功! 您现在可以打开游戏了")
             logger.warning(
