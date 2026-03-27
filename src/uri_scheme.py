@@ -16,12 +16,18 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import os
 import sys
+import threading
 
 from logutil import setup_logger
 
 logger = setup_logger()
+
+# Named-pipe / socket path used for single-instance signaling.
+_PIPE_NAME = r"\\.\pipe\idvlogin_uri_signal"
+_SOCKET_PATH_UNIX = "/tmp/idvlogin_uri_signal.sock"
 
 
 def register_uri_scheme(executable_path: str | None = None) -> bool:
@@ -124,3 +130,165 @@ def parse_uri(uri: str) -> dict:
     for k, v in qs.items():
         params[k] = v[0] if len(v) == 1 else v
     return params
+
+
+# ------------------------------------------------------------------
+# Single-instance signaling
+# ------------------------------------------------------------------
+
+def signal_running_instance(game_id: str) -> bool:
+    """Try to send *game_id* to an already-running instance.
+
+    On Windows we use a named pipe; on Unix a domain socket.
+    Returns ``True`` if a running instance was found and signaled.
+    """
+    payload = json.dumps({"game_id": game_id}).encode("utf-8")
+    if sys.platform == "win32":
+        return _signal_via_named_pipe(payload)
+    else:
+        return _signal_via_unix_socket(payload)
+
+
+def start_uri_listener(callback):
+    """Start a background thread that listens for incoming URI signals.
+
+    *callback* is called with ``game_id: str`` whenever another
+    process sends a signal via :func:`signal_running_instance`.
+    """
+    t = threading.Thread(
+        target=_listener_thread,
+        args=(callback,),
+        name="uri-listener",
+        daemon=True,
+    )
+    t.start()
+    return t
+
+
+# -- Windows named-pipe helpers ----------------------------------------
+
+def _signal_via_named_pipe(payload: bytes) -> bool:
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+        import ctypes.wintypes as wt
+
+        GENERIC_WRITE = 0x40000000
+        OPEN_EXISTING = 3
+        INVALID_HANDLE = ctypes.c_void_p(-1).value
+
+        handle = ctypes.windll.kernel32.CreateFileW(
+            _PIPE_NAME, GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
+        )
+        if handle == INVALID_HANDLE:
+            return False  # No listener running
+        try:
+            written = wt.DWORD(0)
+            ctypes.windll.kernel32.WriteFile(
+                handle, payload, len(payload), ctypes.byref(written), None
+            )
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+        return True
+    except Exception:
+        return False
+
+
+def _signal_via_unix_socket(payload: bytes) -> bool:
+    import socket as _socket
+    try:
+        sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+        sock.settimeout(2)
+        sock.connect(_SOCKET_PATH_UNIX)
+        sock.sendall(payload)
+        sock.close()
+        return True
+    except Exception:
+        return False
+
+
+def _listener_thread(callback):
+    if sys.platform == "win32":
+        _listener_named_pipe(callback)
+    else:
+        _listener_unix_socket(callback)
+
+
+def _listener_named_pipe(callback):
+    """Listen on a Windows named pipe for incoming URI signals."""
+    try:
+        import ctypes
+        import ctypes.wintypes as wt
+
+        PIPE_ACCESS_INBOUND = 0x00000001
+        PIPE_TYPE_BYTE = 0x00000000
+        PIPE_WAIT = 0x00000000
+        INVALID_HANDLE = ctypes.c_void_p(-1).value
+
+        while True:
+            handle = ctypes.windll.kernel32.CreateNamedPipeW(
+                _PIPE_NAME,
+                PIPE_ACCESS_INBOUND,
+                PIPE_TYPE_BYTE | PIPE_WAIT,
+                1,     # max instances
+                4096,  # out buffer
+                4096,  # in buffer
+                0,     # default timeout
+                None,
+            )
+            if handle == INVALID_HANDLE:
+                logger.warning("创建命名管道失败")
+                return
+
+            connected = ctypes.windll.kernel32.ConnectNamedPipe(handle, None)
+            if connected or ctypes.GetLastError() == 535:  # ERROR_PIPE_CONNECTED
+                try:
+                    buf = ctypes.create_string_buffer(4096)
+                    read = wt.DWORD(0)
+                    ctypes.windll.kernel32.ReadFile(
+                        handle, buf, 4096, ctypes.byref(read), None
+                    )
+                    data = buf.raw[: read.value]
+                    if data:
+                        msg = json.loads(data.decode("utf-8", errors="replace"))
+                        game_id = msg.get("game_id", "")
+                        callback(game_id)
+                except Exception:
+                    logger.debug("读取命名管道数据失败", exc_info=True)
+
+            ctypes.windll.kernel32.DisconnectNamedPipe(handle)
+            ctypes.windll.kernel32.CloseHandle(handle)
+    except Exception:
+        logger.debug("命名管道监听线程异常退出", exc_info=True)
+
+
+def _listener_unix_socket(callback):
+    """Listen on a Unix domain socket for incoming URI signals."""
+    import socket as _socket
+    try:
+        if os.path.exists(_SOCKET_PATH_UNIX):
+            os.unlink(_SOCKET_PATH_UNIX)
+        sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+        sock.bind(_SOCKET_PATH_UNIX)
+        sock.listen(1)
+
+        while True:
+            conn, _ = sock.accept()
+            try:
+                data = conn.recv(4096)
+                if data:
+                    msg = json.loads(data.decode("utf-8", errors="replace"))
+                    game_id = msg.get("game_id", "")
+                    callback(game_id)
+            except Exception:
+                logger.debug("读取Unix socket数据失败", exc_info=True)
+            finally:
+                conn.close()
+    except Exception:
+        logger.debug("Unix socket监听线程异常退出", exc_info=True)
+    finally:
+        try:
+            os.unlink(_SOCKET_PATH_UNIX)
+        except Exception:
+            pass

@@ -1174,21 +1174,26 @@ def handle_download_task(task_file_path):
 
 def cleanup_expired_certificates():
     """清理过期的证书文件"""
+    from mitm_proxy import MitmProxyManager
+
     # 检查证书是否过期
     web_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_WEBCERT"))
     ca_cert_expired = m_certmgr.is_certificate_expired(genv.get("FP_CACERT"))
 
     if web_cert_expired or ca_cert_expired:
         logger.info("一个或多个证书已过期或不存在，正在重新生成...")
+        confdir = MitmProxyManager.get_confdir()
         # 删除旧证书文件（如果存在）
         cert_files = [
             (genv.get("FP_WEBCERT"), "网站证书"),
             (genv.get("FP_WEBKEY"), "网站密钥"),
-            (genv.get("FP_CACERT"), "CA证书")
+            (genv.get("FP_CACERT"), "CA证书"),
+            (os.path.join(confdir, "mitmproxy-ca.pem"), "mitmproxy CA密钥+证书"),
+            (os.path.join(confdir, "mitmproxy-ca-cert.pem"), "mitmproxy CA证书"),
         ]
         
         for cert_path, cert_name in cert_files:
-            if os.path.exists(cert_path):
+            if cert_path and os.path.exists(cert_path):
                 os.remove(cert_path)
                 logger.info(f"已删除旧的{cert_name}: {cert_path}")
     
@@ -1196,35 +1201,94 @@ def cleanup_expired_certificates():
 
 
 def generate_certificates_if_needed():
-    """检查并生成必要的证书文件"""
+    """检查并生成必要的证书文件, 同时为 mitmproxy 准备 CA 密钥+证书。
+
+    CA 私钥保存在 mitmproxy confdir 内部的 ``mitmproxy-ca.pem`` 中，
+    并通过文件系统权限限制只允许当前用户读取。公钥证书导出到
+    ``FP_CACERT`` 并导入系统根证书存储。
+    """
+    from mitm_proxy import MitmProxyManager
+    from cryptography.hazmat.primitives import serialization
+
     web_cert_expired, ca_cert_expired = cleanup_expired_certificates()
-    
-    if (os.path.exists(genv.get("FP_WEBCERT")) == False) or \
-       (os.path.exists(genv.get("FP_WEBKEY")) == False) or \
-       (os.path.exists(genv.get("FP_CACERT")) == False) or \
-       web_cert_expired or ca_cert_expired: # 添加过期检查条件
+
+    confdir = MitmProxyManager.get_confdir()
+    os.makedirs(confdir, exist_ok=True)
+    mitm_ca_pem = os.path.join(confdir, "mitmproxy-ca.pem")
+    mitm_ca_cert_pem = os.path.join(confdir, "mitmproxy-ca-cert.pem")
+
+    need_regen = (
+        not os.path.exists(genv.get("FP_CACERT"))
+        or not os.path.exists(mitm_ca_pem)
+        or not os.path.exists(mitm_ca_cert_pem)
+        or web_cert_expired
+        or ca_cert_expired
+    )
+
+    if need_regen:
         logger.info("正在生成必要的证书文件...")
 
         ca_key = m_certmgr.generate_private_key(bits=2048)
         ca_cert = m_certmgr.generate_ca(ca_key)
         m_certmgr.export_cert(genv.get("FP_CACERT"), ca_cert)
 
-        srv_key = m_certmgr.generate_private_key(bits=2048)
-        srv_cert = m_certmgr.generate_cert(
-            [genv.get("DOMAIN_TARGET"),genv.get("DOMAIN_TARGET_OVERSEA"),"localhost"], srv_key, ca_cert, ca_key
+        # ── 保存 CA 私钥+证书供 mitmproxy 使用 ──
+        key_pem = ca_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
         )
+        cert_pem = ca_cert.public_bytes(serialization.Encoding.PEM)
 
+        # mitmproxy-ca.pem = key + cert (mitmproxy 需要)
+        with open(mitm_ca_pem, "wb") as f:
+            f.write(key_pem + cert_pem)
+        # mitmproxy-ca-cert.pem = cert only
+        with open(mitm_ca_cert_pem, "wb") as f:
+            f.write(cert_pem)
+
+        # 限制 CA 私钥文件权限
+        _restrict_file_permissions(mitm_ca_pem)
+
+        # ── 导入 CA 证书到系统根证书存储 ──
         if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
             logger.error("导入CA证书失败!")
-            if sys.platform == 'win32': # Keep platform-specific behavior
+            if sys.platform == 'win32':
                 os.system("pause")
             else:
                 input("导入CA证书失败，请按回车键退出。")
             sys.exit(-1)
 
+        # ── 生成服务器证书 (仍用于某些内部流程) ──
+        srv_key = m_certmgr.generate_private_key(bits=2048)
+        srv_cert = m_certmgr.generate_cert(
+            [genv.get("DOMAIN_TARGET"), genv.get("DOMAIN_TARGET_OVERSEA"), "localhost"],
+            srv_key, ca_cert, ca_key,
+        )
         m_certmgr.export_cert(genv.get("FP_WEBCERT"), srv_cert)
         m_certmgr.export_key(genv.get("FP_WEBKEY"), srv_key)
         logger.info("证书初始化成功!")
+    else:
+        logger.info("证书已存在且有效，跳过生成。")
+
+
+def _restrict_file_permissions(filepath: str):
+    """限制文件权限，仅允许当前用户读写。"""
+    try:
+        if sys.platform == "win32":
+            import subprocess
+            # icacls: 移除继承权限，只保留当前用户的完全控制
+            username = os.environ.get("USERNAME", "")
+            if username:
+                subprocess.run(
+                    ["icacls", filepath, "/inheritance:r",
+                     "/grant:r", f"{username}:(R,W)"],
+                    capture_output=True, timeout=10,
+                )
+        else:
+            os.chmod(filepath, 0o600)
+    except Exception as e:
+        logger.warning(f"无法限制文件权限 {filepath}: {e}")
 
 
 def setup_shortcuts():
@@ -1326,19 +1390,25 @@ def setup_network_proxy(proxy_port):
     from mitm_proxy import MitmProxyManager
     proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port)
 
-    # Ensure certificates are ready
-    if not proxy_mgr.ensure_certificates():
-        logger.error("mitmproxy 证书准备失败！请检查权限。")
-        input("按回车键退出。")
-        sys.exit(-1)
-
     proxy_mgr.start()
     m_proxy = proxy_mgr
     genv.set("PROXY_MGR", proxy_mgr)
 
     # Register the URI scheme so QR code redirects open our Qt window
-    from uri_scheme import register_uri_scheme
+    from uri_scheme import register_uri_scheme, start_uri_listener
     register_uri_scheme()
+
+    # Start the URI listener so that new --uri invocations open the UI
+    def _on_uri_signal(game_id: str):
+        logger.info(f"收到 URI 信号: game_id={game_id}")
+        ui_mgr.open_for_game(game_id)
+
+    start_uri_listener(_on_uri_signal)
+
+    # If we were launched via --uri, open the UI for the requested game
+    startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
+    if startup_game_id:
+        ui_mgr.open_for_game(startup_game_id)
 
     # Auto-start games with proxy environment
     auto_games = game_helper.list_auto_start_games()
@@ -1421,8 +1491,6 @@ def main(cli_args=None):
     from logutil import setup_logger
     logger = setup_logger() 
 
-    force_mitm_mode = cli_args.mitm
-
     try:
         cloudBuildInfo()
         initialize() # This sets up atexit(handle_exit) among other things
@@ -1451,9 +1519,8 @@ def main(cli_args=None):
         handle_update()
         handle_announcement()
         
-        # 证书管理 (now handled by MitmProxyManager.ensure_certificates)
-        # generate_certificates_if_needed() is no longer needed for the
-        # old HTTPS server; certs are managed by the proxy manager.
+        # 证书管理: 生成 CA + 服务器证书并导入系统信任存储
+        generate_certificates_if_needed()
 
         # 网络代理设置 (mitmproxy normal mode)
         proxy_port = cli_args.proxy_port
@@ -1484,13 +1551,17 @@ if __name__ == "__main__":
             success = handle_download_task(CLI_ARGS.download)
             sys.exit(0 if success else 1)
         if CLI_ARGS.uri:
-            # Handle URI scheme invocation: signal the running instance
-            # or start a new one with the requested game.
-            from uri_scheme import parse_uri
+            # URI scheme invocation (e.g. idvlogin://open?game_id=xxx)
+            # Try to signal the already-running instance via named pipe.
+            from uri_scheme import parse_uri, signal_running_instance
             params = parse_uri(CLI_ARGS.uri)
-            # For now, just start normally and open the UI for the game.
-            # Single-instance signaling can be added later.
-            print(f"URI Scheme 调用: {params}")
+            game_id = params.get("game_id", "")
+            if signal_running_instance(game_id):
+                # Successfully signaled the running instance; exit.
+                sys.exit(0)
+            # No running instance — fall through and start normally.
+            # Store the game_id so the UI opens for it after startup.
+            genv.set("URI_STARTUP_GAME_ID", game_id)
     except SystemExit:
         raise
     except Exception:
