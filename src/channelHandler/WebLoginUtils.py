@@ -1,5 +1,5 @@
 from PyQt6 import QtCore
-from PyQt6.QtCore import QUrl, QTimer, pyqtSlot
+from PyQt6.QtCore import QUrl, QTimer, QEventLoop, pyqtSlot
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout, QLabel
@@ -84,6 +84,7 @@ class WebBrowser(QWidget):
 
         self._toast_label: typing.Optional[QLabel] = None
         self._toast_timer: typing.Optional[QTimer] = None
+        self._local_loop: typing.Optional[QEventLoop] = None
 
         #窗口置顶
         self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
@@ -237,11 +238,28 @@ class WebBrowser(QWidget):
 
     def run(self):
         self.show()
-        self.app.exec()
+        app = QApplication.instance()
+        if app and app.property("_main_loop_running"):
+            # Main event loop is already running (e.g. from UIManager);
+            # use a local QEventLoop to block without nesting app.exec().
+            self._local_loop = QEventLoop(self)
+            self._local_loop.exec()
+            self._local_loop = None
+        else:
+            app.exec()
         return self.result
 
     def cleanup(self):
         # 目标：尽快释放 QtWebEngine 对 profile/Cookies 文件的占用。
+
+        # 1) 先保存对局部事件循环的引用，并直接同步 quit()。
+        #    必须在 deleteLater() 之前调用，否则 _local_loop 作为子对象
+        #    可能随 self 一起被销毁，导致 run() 永远阻塞。
+        local_loop = self._local_loop
+        use_local_loop = local_loop is not None and local_loop.isRunning()
+        if use_local_loop:
+            local_loop.quit()
+
         try:
             self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
         except Exception:
@@ -279,9 +297,9 @@ class WebBrowser(QWidget):
         except Exception:
             pass
 
-        app_inst = QApplication.instance()
-        if app_inst:
-            # 延迟到下一轮事件循环再 quit，让 deleteLater 有机会被处理
-            QTimer.singleShot(0, app_inst.quit)
+        if not use_local_loop:
+            app_inst = QApplication.instance()
+            if app_inst:
+                QTimer.singleShot(0, app_inst.quit)
 
     
