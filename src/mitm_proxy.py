@@ -53,6 +53,38 @@ class MitmProxyManager:
         self._loop: asyncio.AbstractEventLoop | None = None
 
     # ------------------------------------------------------------------
+    # Port selection
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_port_available(port: int) -> bool:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return True
+            except OSError:
+                return False
+
+    def _resolve_port(self):
+        """If the configured port is occupied, pick an available one."""
+        if self._is_port_available(self.port):
+            return
+        original = self.port
+        # Try a few ports near the original, then pick a random high port
+        for candidate in range(original + 1, original + 20):
+            if self._is_port_available(candidate):
+                self.port = candidate
+                logger.warning(f"端口 {original} 已被占用，改用端口 {self.port}")
+                return
+        # Fallback: let the OS pick a random available port
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            self.port = s.getsockname()[1]
+        logger.warning(f"端口 {original} 及附近端口均被占用，改用随机端口 {self.port}")
+
+    # ------------------------------------------------------------------
     # Certificate helpers
     # ------------------------------------------------------------------
 
@@ -70,6 +102,8 @@ class MitmProxyManager:
         if self._thread and self._thread.is_alive():
             logger.warning("mitmproxy 已经在运行中")
             return
+
+        self._resolve_port()
 
         self._thread = threading.Thread(
             target=self._run_proxy,

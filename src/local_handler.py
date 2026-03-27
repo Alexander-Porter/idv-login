@@ -139,8 +139,7 @@ class LocalRequestHandler:
             "/_idv-login/cloud-sync/access-logs": self._cloud_sync_access_logs,
             "/_idv-login/index": self._serve_index,
             "/_idv-login/export-logs": self._export_logs,
-            "/_idv-login/get-httpdns-status": self._get_httpdns_status,
-            "/_idv-login/toggle-httpdns-blocking": self._toggle_httpdns_blocking,
+
         }
 
         handler = route_map.get(path)
@@ -847,35 +846,5 @@ class LocalRequestHandler:
                     content,
                 )
             return self._json_response(404, {"success": False, "error": "日志文件不存在"})
-        except Exception as e:
-            return self._json_response(500, {"success": False, "error": str(e)})
-
-    def _get_httpdns_status(self, args, body, method):
-        try:
-            from httpdnsblocker import HttpDNSBlocker
-            blocker = HttpDNSBlocker()
-            status = blocker.get_status()
-            enabled = genv.get("httpdns_blocking_enabled", False)
-            return self._json_response(200, {
-                "success": True, "enabled": enabled,
-                "blocked_count": len(status.get("blocked", [])),
-            })
-        except Exception as e:
-            return self._json_response(500, {"success": False, "error": str(e)})
-
-    def _toggle_httpdns_blocking(self, args, body, method):
-        try:
-            from httpdnsblocker import HttpDNSBlocker
-            current = genv.get("httpdns_blocking_enabled", False)
-            new_val = not current
-            blocker = HttpDNSBlocker()
-            result = blocker.toggle_blocking(new_val)
-            genv.set("httpdns_blocking_enabled", result["enabled"], True)
-            resp = {"success": result["success"], "enabled": result["enabled"], "message": result["message"]}
-            if not result["enabled"]:
-                resp["warning"] = "警告：禁用HTTPDNS屏蔽可能导致拦截不生效，游戏可能无法正常登录！"
-                if "unblocked_count" in result:
-                    resp["unblock_result"] = f"已解除{result['unblocked_count']}个防火墙规则"
-            return self._json_response(200, resp)
         except Exception as e:
             return self._json_response(500, {"success": False, "error": str(e)})
