@@ -130,59 +130,15 @@ class Game:
             env['COMSPEC'] = os.environ.get('COMSPEC', '%SystemRoot%\\system32\\cmd.exe')
             env['SYSTEMROOT'] = os.environ.get('SYSTEMROOT', '%SystemRoot%')
             
+            # 注入代理环境变量（mitmproxy 代理模式）
+            proxy_mgr = genv.get("PROXY_MGR")
+            if proxy_mgr:
+                proxy_env = proxy_mgr.get_proxy_env()
+                env.update(proxy_env)
+            
+            # 使用 subprocess.Popen 启动游戏（支持代理环境变量注入）
+            cmd = [game_path] + (shlex.split(start_args) if start_args else [])
             try:
-                import ctypes
-                SEE_MASK_NOCLOSEPROCESS = 0x00000040
-                SEE_MASK_NOASYNC = 0x00000100
-                
-                class SHELLEXECUTEINFO(ctypes.Structure):
-                    _fields_ = [
-                        ("cbSize", ctypes.c_uint32),
-                        ("fMask", ctypes.c_ulong),
-                        ("hwnd", ctypes.c_void_p),
-                        ("lpVerb", ctypes.c_wchar_p),
-                        ("lpFile", ctypes.c_wchar_p),
-                        ("lpParameters", ctypes.c_wchar_p),
-                        ("lpDirectory", ctypes.c_wchar_p),
-                        ("nShow", ctypes.c_int),
-                        ("hInstApp", ctypes.c_void_p),
-                        ("lpIDList", ctypes.c_void_p),
-                        ("lpClass", ctypes.c_wchar_p),
-                        ("hkeyClass", ctypes.c_void_p),
-                        ("dwHotKey", ctypes.c_uint32),
-                        ("hIcon", ctypes.c_void_p),
-                        ("hProcess", ctypes.c_void_p)
-                    ]
-
-                shell_info = SHELLEXECUTEINFO()
-                shell_info.cbSize = ctypes.sizeof(shell_info)
-                shell_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
-                shell_info.lpVerb = "open"
-                shell_info.lpFile = game_path
-                shell_info.lpDirectory = game_dir
-                shell_info.lpParameters = start_args if start_args else None
-                shell_info.nShow = 1  # SW_SHOWNORMAL
-                
-                shell32 = ctypes.WinDLL('shell32.dll')
-                result = shell32.ShellExecuteExW(ctypes.byref(shell_info))
-                
-                if not result:
-                    # 如果ShellExecuteEx失败，回退到使用subprocess
-                    self.logger.warning("ShellExecuteEx启动失败，尝试使用subprocess作为备选方案")
-                    cmd = [game_path] + (shlex.split(start_args) if start_args else [])
-                    subprocess.Popen(
-                        cmd,
-                        cwd=game_dir,
-                        env=env,
-                        shell=False,
-                        startupinfo=startupinfo
-                    )
-                else:
-                    self.logger.info(f"成功使用ShellExecuteEx启动游戏: {game_path}")
-            except Exception as e:
-                self.logger.exception(f"ShellExecuteEx启动失败: {str(e)}")
-                # 回退到原始方法
-                cmd = [game_path] + (shlex.split(start_args) if start_args else [])
                 subprocess.Popen(
                     cmd,
                     cwd=game_dir,
@@ -190,9 +146,17 @@ class Game:
                     shell=False,
                     startupinfo=startupinfo
                 )
+                self.logger.info(f"成功启动游戏: {game_path}")
+            except Exception as e:
+                self.logger.exception(f"启动游戏失败: {str(e)}")
         else:
+            env = os.environ.copy()
+            proxy_mgr = genv.get("PROXY_MGR")
+            if proxy_mgr:
+                proxy_env = proxy_mgr.get_proxy_env()
+                env.update(proxy_env)
             cmd = [game_path] + (shlex.split(start_args) if start_args else [])
-            subprocess.Popen(cmd, shell=False)
+            subprocess.Popen(cmd, env=env, shell=False)
 
     def _get_shortcut_dir(self) -> Optional[str]:
         if sys.platform != "win32":
