@@ -242,7 +242,7 @@ def _listener_named_pipe(callback):
                 return
 
             connected = ctypes.windll.kernel32.ConnectNamedPipe(handle, None)
-            if connected or ctypes.GetLastError() == 535:  # ERROR_PIPE_CONNECTED
+            if connected or ctypes.windll.kernel32.GetLastError() == 535:  # ERROR_PIPE_CONNECTED
                 try:
                     buf = ctypes.create_string_buffer(4096)
                     read = wt.DWORD(0)

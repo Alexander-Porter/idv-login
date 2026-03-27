@@ -1241,14 +1241,11 @@ def generate_certificates_if_needed():
         cert_pem = ca_cert.public_bytes(serialization.Encoding.PEM)
 
         # mitmproxy-ca.pem = key + cert (mitmproxy 需要)
-        with open(mitm_ca_pem, "wb") as f:
-            f.write(key_pem + cert_pem)
-        # mitmproxy-ca-cert.pem = cert only
+        # 使用 os.open 以限制权限创建文件 (避免短暂的权限窗口)
+        _write_file_restricted(mitm_ca_pem, key_pem + cert_pem)
+        # mitmproxy-ca-cert.pem = cert only (公钥，无需限制权限)
         with open(mitm_ca_cert_pem, "wb") as f:
             f.write(cert_pem)
-
-        # 限制 CA 私钥文件权限
-        _restrict_file_permissions(mitm_ca_pem)
 
         # ── 导入 CA 证书到系统根证书存储 ──
         if m_certmgr.import_to_root(genv.get("FP_CACERT")) == False:
@@ -1272,23 +1269,33 @@ def generate_certificates_if_needed():
         logger.info("证书已存在且有效，跳过生成。")
 
 
-def _restrict_file_permissions(filepath: str):
-    """限制文件权限，仅允许当前用户读写。"""
+def _write_file_restricted(filepath: str, data: bytes):
+    """创建文件并立即以限制权限写入，避免短暂的权限窗口。"""
     try:
-        if sys.platform == "win32":
-            import subprocess
-            # icacls: 移除继承权限，只保留当前用户的完全控制
-            username = os.environ.get("USERNAME", "")
-            if username:
-                subprocess.run(
-                    ["icacls", filepath, "/inheritance:r",
-                     "/grant:r", f"{username}:(R,W)"],
-                    capture_output=True, timeout=10,
-                )
+        if sys.platform != "win32":
+            # Unix: 使用 os.open 以 0o600 权限创建文件
+            fd = os.open(filepath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            try:
+                os.write(fd, data)
+            finally:
+                os.close(fd)
         else:
-            os.chmod(filepath, 0o600)
+            # Windows: 先写入文件，然后立即限制权限
+            with open(filepath, "wb") as f:
+                f.write(data)
+            import subprocess
+            # icacls: 移除继承权限，只保留当前用户的读写权限
+            username = os.getlogin()
+            subprocess.run(
+                ["icacls", filepath, "/inheritance:r",
+                 "/grant:r", f"{username}:(R,W)"],
+                capture_output=True, timeout=10,
+            )
     except Exception as e:
-        logger.warning(f"无法限制文件权限 {filepath}: {e}")
+        logger.warning(f"无法以限制权限写入文件 {filepath}: {e}")
+        # 回退: 普通写入
+        with open(filepath, "wb") as f:
+            f.write(data)
 
 
 def setup_shortcuts():
