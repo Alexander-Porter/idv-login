@@ -85,23 +85,27 @@ class MitmProxyManager:
         asyncio.set_event_loop(self._loop)
 
         try:
-            from mitmproxy.options import Options
-            from mitmproxy.tools.dump import DumpMaster
-
-            confdir = self.get_confdir()
-            opts = Options(
-                listen_host="127.0.0.1",
-                listen_port=self.port,
-                confdir=confdir,
-                ssl_insecure=True,  # don't verify upstream certs
-            )
-            self._master = DumpMaster(opts)
-            self._master.addons.add(self.addon)
-            self._loop.run_until_complete(self._master.run())
+            self._loop.run_until_complete(self._run_proxy_async())
         except Exception as e:
             logger.exception(f"mitmproxy 运行出错: {e}")
         finally:
             self._loop.close()
+
+    async def _run_proxy_async(self):
+        """Async entry point – DumpMaster needs a *running* event loop."""
+        from mitmproxy.options import Options
+        from mitmproxy.tools.dump import DumpMaster
+
+        confdir = self.get_confdir()
+        opts = Options(
+            listen_host="127.0.0.1",
+            listen_port=self.port,
+            confdir=confdir,
+            ssl_insecure=True,  # don't verify upstream certs
+        )
+        self._master = DumpMaster(opts)
+        self._master.addons.add(self.addon)
+        await self._master.run()
 
     def stop(self):
         """Shut down the mitmproxy proxy."""
