@@ -18,7 +18,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
 import os
-import sys
 import threading
 
 from envmgr import genv

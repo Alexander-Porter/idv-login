@@ -1335,7 +1335,6 @@ def setup_network_proxy(proxy_port):
             query["sc"] = "1"
 
         qrcode_app_channel_provider = None
-        exchange_token_request_hook = None
     else:
         cv = "a5.10.0"
         login_style = 1
@@ -1364,8 +1363,6 @@ def setup_network_proxy(proxy_port):
                 query["_cloud_extra_base64"] = "e30="
                 query["sc"] = "1"
 
-        exchange_token_request_hook = None
-
     # Create the UI manager for the Qt window
     from uimgr import UIManager
     ui_mgr = UIManager(game_helper=game_helper, ui_logger=ui_logger)
@@ -1382,7 +1379,6 @@ def setup_network_proxy(proxy_port):
         qrcode_app_channel_provider=qrcode_app_channel_provider,
         create_login_query_hook=_create_login_query_hook,
         use_login_mapping_always=use_login_mapping_always,
-        exchange_token_request_hook=exchange_token_request_hook,
         ui_manager=ui_mgr,
     )
 

@@ -98,7 +98,6 @@ class IDVLoginAddon:
         qrcode_app_channel_provider=None,
         create_login_query_hook=None,
         use_login_mapping_always=False,
-        exchange_token_request_hook=None,
         ui_manager=None,
     ):
         from envmgr import genv
@@ -113,7 +112,6 @@ class IDVLoginAddon:
         self.qrcode_app_channel_provider = qrcode_app_channel_provider
         self.create_login_query_hook = create_login_query_hook
         self.use_login_mapping_always = use_login_mapping_always
-        self.exchange_token_request_hook = exchange_token_request_hook
         self.ui_manager = ui_manager
 
         self.genv = genv
@@ -396,12 +394,6 @@ class IDVLoginAddon:
 
             game_id = flow.request.query.get("game_id", "") or form_data.get("game_id", "")
             process_id = flow.request.query.get("process_id", "")
-
-            if self.exchange_token_request_hook:
-                # Apply query modifications before mitmproxy forwards
-                # (already forwarded at this point in response hook, but
-                #  the hook may have been applied in request())
-                pass
 
             if is_selected:
                 if flow.response.status_code == 200 and self.game_helper.get_auto_close_setting(game_id):
