@@ -7,7 +7,6 @@ import tempfile
 import time
 import shutil
 
-import gevent
 import channelHandler.miLogin.utils as utils
 import requests
 import sys
@@ -65,7 +64,7 @@ class VivoBrowser(WebBrowser):
                 break
             except Exception as e:
                 last_copy_error = e
-                gevent.sleep(0.1)
+                time.sleep(0.1)
         if copied:
             return tmp_db
         if last_copy_error is not None:

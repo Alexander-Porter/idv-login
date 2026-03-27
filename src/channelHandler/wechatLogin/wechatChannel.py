@@ -2,7 +2,6 @@ import base64
 import os
 import time
 import requests
-import gevent
 import hmac
 
 from logutil import setup_logger
@@ -78,7 +77,7 @@ class WechatLogin:
                 self.logger.info(f"扫码成功{r.json().get('wx_code')}")
                 self._update_qrcode_cache("scanned", uuid=uuid)
                 break
-            gevent.sleep(1)
+            time.sleep(1)
 
         verifyData={
             "channel":"00000000",
