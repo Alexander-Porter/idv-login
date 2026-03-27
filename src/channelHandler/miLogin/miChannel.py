@@ -188,7 +188,7 @@ class MiLogin:
         if res["retCode"] == 200:
             return res
         else:
-            self.logger.error(res)
+            self.logger.error(f"InitAccountData 失败, retCode={res.get('retCode')}")
             raise Exception("Init account data failed")
 
     def getSTbyQQResp(self,qAuthResp):
@@ -199,7 +199,6 @@ class MiLogin:
             "isSaveSt": "true",
             "appid": "2000202",
         }
-        self.logger.info(params)
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
             "Connection": "close",
@@ -218,13 +217,11 @@ class MiLogin:
             self.oauthData = res
             return res
         else:
-            self.logger.error(f"小米登录失败，请重试。原始响应：{res}")
+            self.logger.error(f"小米QQ登录失败, code={res.get('code')}")
             self.oauthData=None
             return None
 
     def getSTbyCode(self, code) -> None:
-        
-        print(code + "called")
         params = {
             "accountType": self.account_type,
             "code": code,
@@ -250,7 +247,7 @@ class MiLogin:
             self.oauthData = res
             return res
         else:
-            self.logger.error(f"小米登录失败，请重试。原始响应：{res}")
+            self.logger.error(f"小米Code登录失败, code={res.get('code')}")
             self.oauthData=None
             return None
 

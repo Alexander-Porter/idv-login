@@ -138,12 +138,12 @@ class wechatChannel(channelmgr.channel):
                 verify=should_verify_ssl()
             )
             if not r.status_code == 200:
-                self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。{r.text}")
+                self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。status={r.status_code}")
                 self.session = None
                 return self.request_user_login()
             self.session.rtk = r.json().get("refresh_token")
             self.session.atk = r.json().get("access_token")
-            self.logger.info(f"微信刷新token返回：{r.json()}")
+            self.logger.info("微信 ac-token 刷新成功")
         if self.session!=None:
             self.last_login_time=int(time.time())
             return True
@@ -156,8 +156,8 @@ class wechatChannel(channelmgr.channel):
                     f"https://api.weixin.qq.com/sns/auth?access_token={self.session.atk}&openid={self.session.openid}",
                     verify=should_verify_ssl()
                 )
-            self.logger.debug(r.json())
-            return r.json().get("errcode")==0
+            result = r.json()
+            return result.get("errcode")==0
         else:
             return False
 
