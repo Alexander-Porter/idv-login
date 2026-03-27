@@ -31,15 +31,13 @@ from typing import Optional, Tuple, List, Dict, Any
 def parse_command_line_args():
     """解析命令行参数"""
     arg_parser = argparse.ArgumentParser(description="第五人格登陆助手")
-    arg_parser.add_argument('--mitm', action='store_true', help='直接使用备用模式 (mitmproxy)')
     arg_parser.add_argument('--download', type=str, default="", help='下载任务文件绝对路径')
+    arg_parser.add_argument('--uri', type=str, default="", help='处理 idvlogin:// URI Scheme 调用')
+    arg_parser.add_argument('--proxy-port', type=int, default=8899, help='mitmproxy 监听端口 (默认 8899)')
     return arg_parser.parse_args()
 
 
 CLI_ARGS = parse_command_line_args()
-if not CLI_ARGS.download:
-    from gevent import monkey
-    monkey.patch_all()
 
 
 import socket
@@ -60,7 +58,6 @@ from envmgr import genv
 
 # Global variable declarations
 m_certmgr = None
-m_hostmgr = None 
 m_proxy = None
 m_cloudres=None
 logger = None # Will be initialized in __main__
@@ -621,18 +618,20 @@ def handle_exit():
     else:
         print("程序关闭，正在清理！ (logger 未初始化)")
 
-    if not genv.get("USING_BACKUP_VER", False) and m_hostmgr: # m_hostmgr is global
-        if logger: logger.info("正在清理 hosts...")
-        else: print("正在清理 hosts...")
-        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))
-        m_hostmgr.remove(genv.get("DOMAIN_TARGET_OVERSEA"))
-    
-    if genv.get("USING_BACKUP_VER", False):
-        backup_mgr = genv.get("backupVerMgr")
-        if backup_mgr:
-            if logger: logger.info("正在停止 mitmproxy...")
-            else: print("正在停止 mitmproxy...")
-            backup_mgr.stop_mitmproxy()
+    # 停止 mitmproxy 代理
+    proxy_mgr = genv.get("PROXY_MGR")
+    if proxy_mgr:
+        if logger: logger.info("正在停止 mitmproxy 代理...")
+        else: print("正在停止 mitmproxy 代理...")
+        proxy_mgr.stop()
+
+    # 注销 URI Scheme（减少痕迹）
+    try:
+        from uri_scheme import unregister_uri_scheme
+        unregister_uri_scheme()
+    except Exception:
+        pass
+
     from httpdnsblocker import HttpDNSBlocker
     HttpDNSBlocker().unblock_all()
     print("再见!")
@@ -778,7 +777,7 @@ def initialize():
             print("sudo required.")
             sys.exit(1)
     #全局变量声明
-    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
+    global m_certmgr, m_proxy, m_cloudres
 
         # initialize workpath
     if not os.path.exists(genv.get("FP_WORKDIR")):
@@ -873,12 +872,8 @@ def initialize():
     
     from channelmgr import ChannelManager
     m_certmgr = certmgr()
-    if sys.platform=='darwin':
-        from macProxyMgr import macProxyMgr
-        m_proxy = macProxyMgr()
-    else:
-        from proxymgr import proxymgr
-        m_proxy = proxymgr()
+    # Proxy manager is created later during setup_network_proxy()
+    m_proxy = None
     genv.set("CHANNELS_HELPER", ChannelManager())
     #blocks httpdns ips
     from httpdnsblocker import HttpDNSBlocker
@@ -900,6 +895,9 @@ def initialize():
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
     from PyQt6.QtNetwork import QNetworkProxyFactory
+    from uimgr import register_url_scheme
+    # Register custom URL schemes before creating QApplication
+    register_url_scheme()
     argv = sys.argv if sys.argv else ["idv-login"]
     genv.set("APP",QApplication(argv))
     QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme("hms".encode()))
@@ -1229,98 +1227,133 @@ def generate_certificates_if_needed():
         logger.info("证书初始化成功!")
 
 
-def setup_backup_version_manager():
-    """初始化备用版本管理器"""
-    from backupvermgr import BackupVersionMgr
-    backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
-    return backupVerMgr_instance
-
 def setup_shortcuts():
     """设置快捷方式"""
     from shortcutmgr import ShortcutMgr
     shortcutMgr_instance = ShortcutMgr()
     shortcutMgr_instance.handle_shortcuts()
 
-def start_mitm_mode(backupVerMgr_instance):
-    """启动MITM代理模式"""
-    logger.warning("正在启动备用方案 (mitmproxy)...")
-    pid = os.getpid()
-    try:
-        genv.set("backupVerMgr", backupVerMgr_instance)
-        if backupVerMgr_instance.setup_environment(): 
-            if backupVerMgr_instance.start_mitmproxy_redirect(pid):
-                genv.set("USING_BACKUP_VER", True, False) # Mark as actively using MITM
-                logger.info("备用方案 (mitmproxy) 启动成功!")
-                return True
-            else:
-                logger.error("备用方案 (mitmproxy) 启动失败。程序将继续，但可能无法正常工作。")
-        else:
-            logger.error("备用方案 (mitmproxy) 环境设置失败。程序将继续，但可能无法正常工作。")
-    except Exception as e_mitm:
-        logger.exception(f"启动备用方案 (mitmproxy) 时发生错误: {e_mitm}")
-        logger.error("备用方案 (mitmproxy) 启动时发生异常。程序将继续，但可能无法正常工作。")
-    return False
+def setup_network_proxy(proxy_port):
+    """Set up the mitmproxy-based network proxy.
 
+    Instead of modifying the hosts file and listening on port 443,
+    we start mitmproxy in normal (regular) proxy mode.  Game
+    processes are launched with ``HTTP_PROXY`` / ``HTTPS_PROXY``
+    environment variables pointing at the proxy so all their
+    traffic flows through mitmproxy automatically.
+    """
+    global m_proxy
 
-def setup_host_manager():
-    """设置Host管理器进行域名重定向"""
-    global m_hostmgr
-    logger.info("正在重定向目标地址到本机 (hosts 文件修改)...")
-    try:
-        from hostmgr import hostmgr 
-        # m_hostmgr is a global variable, assign the instance to it.
-        m_hostmgr = hostmgr() 
+    from gamemgr import GameManager
+    from channelHandler.channelUtils import getShortGameId
+    from cloudRes import CloudRes
 
-        if m_hostmgr.isExist(genv.get("DOMAIN_TARGET")) == True:
-            logger.info("识别到手动定向!")
-            logger.info(
-                f"请确保已经将 {genv.get('DOMAIN_TARGET')}、{genv.get('DOMAIN_TARGET_OVERSEA')} 和 localhost 指向 127.0.0.1"
-            )
-        else:
-            m_hostmgr.add(genv.get("DOMAIN_TARGET"), "127.0.0.1")
-            m_hostmgr.add(genv.get("DOMAIN_TARGET_OVERSEA"), "127.0.0.1")
-            m_hostmgr.add("localhost", "127.0.0.1")
-        return True
-    except Exception as e_hostmgr:
-        logger.warning(f"Host管理器初始化失败 ({e_hostmgr})，正在尝试备用方案 (mitmproxy)...")
-        return False
+    game_helper = GameManager()
+    ui_logger = logger
 
+    # Platform-specific defaults
+    if sys.platform == "darwin":
+        cv = "i4.7.0"
+        login_style = 2
+        app_channel_default = "netease.wyzymnqsd_cps_dev"
+        use_login_mapping_always = True
 
-def fallback_to_mitm():
-    """当Host管理器失败时，回退到MITM模式"""
-    from backupvermgr import BackupVersionMgr
-    pid = os.getpid()
-    try:
-        backupVerMgr_instance = BackupVersionMgr(work_dir=genv.get("FP_WORKDIR"))
-        genv.set("backupVerMgr", backupVerMgr_instance) # Store for cleanup
-        # Check if backupVer was already true (e.g. from config) or if env setup is ok
-        if genv.get("backupVer", False) and backupVerMgr_instance.setup_environment():
-            genv.set("backupVer", True, True) # Mark intention/attempt
-            if backupVerMgr_instance.start_mitmproxy_redirect(pid):
-                genv.set("USING_BACKUP_VER", True, False) # Mark as actively using MITM
-                logger.info("备用方案 (mitmproxy) 启动成功!")
-            else:
-                logger.error("备用方案 (mitmproxy) 启动失败。")
-        else:
-            logger.error("备用方案 (mitmproxy) 环境设置失败。")
-    except Exception as e_mitm_fallback:
-        logger.exception(f"尝试备用方案 (mitmproxy) 时发生错误: {e_mitm_fallback}")
-        logger.error("备用方案 (mitmproxy) 尝试时发生异常。")
+        def _create_login_query_hook(query, game_id):
+            query["qrcode_channel_type"] = "3"
+            query["gv"] = "251881013"
+            query["gvn"] = "2025.0707.1013"
+            query["cv"] = cv
+            query["sv"] = "35"
+            query["app_type"] = "games"
+            query["app_mode"] = "2"
+            query["app_channel"] = app_channel_default
+            query["_cloud_extra_base64"] = "e30="
+            query["sc"] = "1"
 
-
-def setup_network_proxy(force_mitm_mode):
-    """设置网络代理（Host管理器或MITM模式）"""
-    backupVerMgr_instance = setup_backup_version_manager()
-    
-    if force_mitm_mode:
-        logger.info("命令行参数指定使用备用模式。")
-        genv.set("backupVer", True, True)
-        start_mitm_mode(backupVerMgr_instance)
+        qrcode_app_channel_provider = None
+        exchange_token_request_hook = None
     else:
-        # Standard host modification logic
-        if not setup_host_manager():
-            # Fallback to MITM (original logic)
-            fallback_to_mitm()
+        cv = "a5.10.0"
+        login_style = 1
+        app_channel_default = "netease.wyzymnqsd_cps_dev"
+        use_login_mapping_always = False
+
+        def _qrcode_app_channel_provider(game_id):
+            if CloudRes().is_game_in_qrcode_login_list(getShortGameId(game_id)):
+                return CloudRes().get_qrcode_app_channel(getShortGameId(game_id))
+            return None
+
+        qrcode_app_channel_provider = _qrcode_app_channel_provider
+
+        def _create_login_query_hook(query, game_id):
+            if CloudRes().is_game_in_qrcode_login_list(getShortGameId(game_id)):
+                query["app_channel"] = CloudRes().get_qrcode_app_channel(
+                    getShortGameId(game_id)
+                )
+                query["qrcode_channel_type"] = "3"
+                query["gv"] = "251881013"
+                query["gvn"] = "2025.0707.1013"
+                query["cv"] = cv
+                query["sv"] = "35"
+                query["app_type"] = "games"
+                query["app_mode"] = "2"
+                query["_cloud_extra_base64"] = "e30="
+                query["sc"] = "1"
+
+        exchange_token_request_hook = None
+
+    # Create the UI manager for the Qt window
+    from uimgr import UIManager
+    ui_mgr = UIManager(game_helper=game_helper, ui_logger=ui_logger)
+    genv.set("UI_MGR", ui_mgr)
+
+    # Create the mitmproxy addon
+    from mitm_addon import IDVLoginAddon
+    addon = IDVLoginAddon(
+        cv=cv,
+        login_style=login_style,
+        game_helper=game_helper,
+        logger=logger,
+        app_channel_default=app_channel_default,
+        qrcode_app_channel_provider=qrcode_app_channel_provider,
+        create_login_query_hook=_create_login_query_hook,
+        use_login_mapping_always=use_login_mapping_always,
+        exchange_token_request_hook=exchange_token_request_hook,
+        ui_manager=ui_mgr,
+    )
+
+    # Create and start the proxy manager
+    from mitm_proxy import MitmProxyManager
+    proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port)
+
+    # Ensure certificates are ready
+    if not proxy_mgr.ensure_certificates():
+        logger.error("mitmproxy 证书准备失败！请检查权限。")
+        input("按回车键退出。")
+        sys.exit(-1)
+
+    proxy_mgr.start()
+    m_proxy = proxy_mgr
+    genv.set("PROXY_MGR", proxy_mgr)
+
+    # Register the URI scheme so QR code redirects open our Qt window
+    from uri_scheme import register_uri_scheme
+    register_uri_scheme()
+
+    # Auto-start games with proxy environment
+    auto_games = game_helper.list_auto_start_games()
+    if auto_games:
+        names = "\n".join(g.name for g in auto_games)
+        logger.info(f"检测到有游戏设置了自动启动，游戏列表{names}")
+        for g in auto_games:
+            g.start()
+
+    logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
+    logger.info("您现在可以打开游戏了。游戏将通过代理自动路由。")
+    logger.warning(
+        "如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！"
+    )
+    logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
 
 
 def handle_error_and_exit(e):
@@ -1418,15 +1451,29 @@ def main(cli_args=None):
         handle_update()
         handle_announcement()
         
-        # 证书管理
-        generate_certificates_if_needed()
+        # 证书管理 (now handled by MitmProxyManager.ensure_certificates)
+        # generate_certificates_if_needed() is no longer needed for the
+        # old HTTPS server; certs are managed by the proxy manager.
 
-        # 网络代理设置
-        setup_network_proxy(force_mitm_mode)
+        # 网络代理设置 (mitmproxy normal mode)
+        proxy_port = cli_args.proxy_port
+        setup_network_proxy(proxy_port)
         
-        # Start proxy server (m_proxy is global, initialized in initialize())
-        logger.info("正在启动代理服务器...")
-        m_proxy.run()
+        # The proxy runs in a background thread.
+        # Keep the main thread alive (for Qt event loop or simple wait).
+        app = genv.get("APP")
+        if app is not None:
+            # If a Qt application exists, run its event loop.
+            logger.info("Qt 事件循环启动中...")
+            app.exec()
+        else:
+            # No Qt app – just block the main thread.
+            import threading
+            stop_event = threading.Event()
+            try:
+                stop_event.wait()
+            except KeyboardInterrupt:
+                pass
     except Exception as e:
         handle_error_and_exit(e)
 
@@ -1436,6 +1483,14 @@ if __name__ == "__main__":
         if CLI_ARGS.download:
             success = handle_download_task(CLI_ARGS.download)
             sys.exit(0 if success else 1)
+        if CLI_ARGS.uri:
+            # Handle URI scheme invocation: signal the running instance
+            # or start a new one with the requested game.
+            from uri_scheme import parse_uri
+            params = parse_uri(CLI_ARGS.uri)
+            # For now, just start normally and open the UI for the game.
+            # Single-instance signaling can be added later.
+            print(f"URI Scheme 调用: {params}")
     except SystemExit:
         raise
     except Exception:

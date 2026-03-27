@@ -4,10 +4,10 @@ import string
 import hmac
 import hashlib
 import time
+import threading
 import requests
 import pyperclip as cb
 from envmgr import genv
-import gevent
 from ssl_utils import should_verify_ssl
 
 class CustomEncoder(json.JSONEncoder):
@@ -97,7 +97,7 @@ def G_clipListener(verify,maxAttempt)->str:
             cb.copy("")
             return nowData
         else:
-            gevent.sleep(1)
+            time.sleep(1)
     return None
 
 

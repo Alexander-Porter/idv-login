@@ -4,7 +4,6 @@ import os
 import random
 import string
 import time
-import gevent
 import requests
 import sys
 from faker import Faker
