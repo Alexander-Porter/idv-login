@@ -145,30 +145,30 @@ class ChannelManager:
                                 self.channels.append(channel.from_dict(item))
                 except:
                     self.logger.exception(f"读取渠道服登录信息失败。已经清空渠道服信息。")
-                    with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
-                        json.dump([], f)
+                    from secure_write import write_json_restricted
+                    write_json_restricted(genv.get("FP_CHANNEL_RECORD"), [])
         else:
-            with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
-                json.dump([], f)
+            from secure_write import write_json_restricted
+            write_json_restricted(genv.get("FP_CHANNEL_RECORD"), [])
             self.channels = []
 
     def save_records(self):
-        with open(genv.get("FP_CHANNEL_RECORD"), "w") as file:
-            for i in self.channels:
-                i.before_save()
-            oldData = [channel.__dict__.copy() for channel in self.channels]
-            data = oldData.copy()
-            for channel_data in data:
-                to_be_deleted = []
-                for key in channel_data.keys():
-                    mini_data = {"data": channel_data[key]}
-                    try:
-                        json.dumps(mini_data)
-                    except:
-                        to_be_deleted.append(key)
-                for key in to_be_deleted:
-                    del channel_data[key]
-            json.dump(data, file)
+        for i in self.channels:
+            i.before_save()
+        oldData = [channel.__dict__.copy() for channel in self.channels]
+        data = oldData.copy()
+        for channel_data in data:
+            to_be_deleted = []
+            for key in channel_data.keys():
+                mini_data = {"data": channel_data[key]}
+                try:
+                    json.dumps(mini_data)
+                except:
+                    to_be_deleted.append(key)
+            for key in to_be_deleted:
+                del channel_data[key]
+        from secure_write import write_json_restricted
+        write_json_restricted(genv.get("FP_CHANNEL_RECORD"), data)
         self.logger.info("渠道服登录信息已更新")
         callback = genv.get("CHANNELS_UPDATED_CALLBACK", None)
         if callable(callback):

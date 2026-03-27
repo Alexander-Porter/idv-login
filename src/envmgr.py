@@ -20,8 +20,8 @@ class genv:
                     else:
                         data={}
                     data[key]=value
-                    with open(_cachePath, 'w') as f:
-                        json.dump(data, f)
+                    from secure_write import write_json_restricted
+                    write_json_restricted(_cachePath, data)
                 except:
                     print("Failed to cache data",key,value)
                     pass
