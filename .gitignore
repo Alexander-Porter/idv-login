@@ -13,3 +13,4 @@ oppomisc/
 game.sdk.domain.dto/
 tools/oppo_*
 .tmp_py31210/
+.github/workflows/init.instructions.md

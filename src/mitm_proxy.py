@@ -123,12 +123,30 @@ class MitmProxyManager:
         except Exception as e:
             logger.exception(f"mitmproxy 运行出错: {e}")
         finally:
+            # 取消所有待处理的任务，避免 "task destroyed but pending" 警告
+            try:
+                pending = asyncio.all_tasks(self._loop)
+                for task in pending:
+                    task.cancel()
+                
+                # 等待所有任务完成取消
+                if pending:
+                    self._loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+            except Exception:
+                pass
+            
             self._loop.close()
 
     async def _run_proxy_async(self):
         """Async entry point – DumpMaster needs a *running* event loop."""
+        import logging as _logging
         from mitmproxy.options import Options
         from mitmproxy.tools.dump import DumpMaster
+
+        # 抑制 mitmproxy 自身的控制台日志输出
+        _logging.getLogger("mitmproxy").setLevel(_logging.ERROR)
 
         confdir = self.get_confdir()
         opts = Options(
@@ -137,8 +155,9 @@ class MitmProxyManager:
             confdir=confdir,
             ssl_insecure=True,  # don't verify upstream certs
         )
-        self._master = DumpMaster(opts)
+        self._master = DumpMaster(opts, with_dumper=False)
         self._master.addons.add(self.addon)
+        self._master.addons.add(_ResponseLogAddon())
         await self._master.run()
 
     def stop(self):
@@ -146,6 +165,13 @@ class MitmProxyManager:
         if self._master:
             try:
                 self._master.shutdown()
+            except Exception:
+                pass
+        
+        # 等待代理线程优雅退出
+        if self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=2.0)
             except Exception:
                 pass
 
@@ -162,3 +188,14 @@ class MitmProxyManager:
         env["http_proxy"] = proxy_url
         env["https_proxy"] = proxy_url
         return env
+
+
+class _ResponseLogAddon:
+    """仅将非 200/404 的响应以 DEBUG 级别写入日志，不输出到控制台。"""
+
+    def response(self, flow):
+        code = flow.response.status_code
+        if code not in (200, 404):
+            logger.debug(
+                f"[mitmproxy] {flow.request.method} {flow.request.pretty_url} -> {code}"
+            )

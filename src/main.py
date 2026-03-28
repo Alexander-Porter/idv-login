@@ -75,7 +75,15 @@ def get_computer_name():
 
 # ------------------------------------------------------------------
 # 用户级代理环境变量管理 (Windows)
+# 全局标志，防止handle_exit被多次调用
+_exit_handled = False
+
 def handle_exit():
+    global _exit_handled
+    if _exit_handled:
+        return  # 已经执行过清理，不要重复执行
+    _exit_handled = True
+    
     # Assuming logger is initialized by the time this is called via atexit or signal
     # hotfix: if user quits during countdown, persist skip permanently
     try:
@@ -99,24 +107,56 @@ def handle_exit():
     # 停止 mitmproxy 代理
     proxy_mgr = genv.get("PROXY_MGR")
     if proxy_mgr:
-        if logger: logger.info("正在停止 mitmproxy 代理...")
-        else: print("正在停止 mitmproxy 代理...")
+        if logger: 
+            logger.info("正在停止 mitmproxy 代理...")
+        else: 
+            print("正在停止 mitmproxy 代理...")
+            sys.stdout.flush()
         proxy_mgr.stop()
+        if logger:
+            logger.info("mitmproxy 代理已停止")
+        else:
+            print("mitmproxy 代理已停止")
+            sys.stdout.flush()
 
     # 恢复代理设置（Windows 环境变量 / macOS networksetup / Linux gsettings）
     try:
+        if logger:
+            logger.info("正在恢复代理设置...")
         _unset_proxy()
-    except Exception:
-        pass
+        if logger:
+            logger.info("代理设置已恢复")
+    except Exception as e:
+        if logger:
+            logger.warning(f"恢复代理设置失败: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
     # 注销 URI Scheme（减少痕迹）
     try:
+        if logger:
+            logger.info("正在注销 URI Scheme...")
         from uri_scheme import unregister_uri_scheme
         unregister_uri_scheme()
-    except Exception:
-        pass
+        if logger:
+            logger.info("URI Scheme 已注销")
+    except Exception as e:
+        if logger:
+            logger.warning(f"注销 URI Scheme 失败: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
+    # 使用logger而不是print确保消息被记录
+    if logger:
+        logger.info("再见!")
+        # 强制刷新日志缓冲区
+        for handler in logger._core.handlers:
+            try:
+                handler._sink.flush()
+            except Exception:
+                pass
     print("再见!")
+    sys.stdout.flush()  # 确保输出被刷新到终端
 
 def handle_update():
 
@@ -368,8 +408,7 @@ def initialize():
     from uimgr import register_url_scheme
     # Register custom URL schemes before creating QApplication
     register_url_scheme()
-    # The 'hms' scheme must ALSO be registered before QApplication to prevent warnings.
-    QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme(b"hms"))
+
     argv = sys.argv if sys.argv else ["idv-login"]
     genv.set("APP",QApplication(argv))
 
@@ -915,7 +954,10 @@ def setup_signal_handlers():
     
     def signal_handler(sig, frame):
         print(f"捕获到信号 {sig}，正在执行清理...")
+        sys.stdout.flush()
         handle_exit()
+        # 给一点时间让输出完成
+        time.sleep(0.1)
         sys.exit(0)
     # 捕获常见的终止信号
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
@@ -979,9 +1021,13 @@ def main(cli_args=None):
         app = genv.get("APP")
         if app is not None:
             # If a Qt application exists, run its event loop.
+            # 在Qt退出前执行清理
+            app.aboutToQuit.connect(handle_exit)
             logger.info("Qt 事件循环启动中...")
             app.setProperty("_main_loop_running", True)
             app.exec()
+            # Qt已退出，但handle_exit可能还没完成，稍等一下
+            time.sleep(0.2)
         else:
             # No Qt app – just block the main thread.
             import threading

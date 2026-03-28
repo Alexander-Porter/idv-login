@@ -47,6 +47,7 @@ def register_url_scheme():
     """
     scheme = QWebEngineUrlScheme(SCHEME_NAME)
     scheme.setSyntax(QWebEngineUrlScheme.Syntax.HostAndPort)
+    scheme.setDefaultPort(443)  # 设置默认端口以消除警告
     scheme.setFlags(
         QWebEngineUrlScheme.Flag.SecureScheme
         | QWebEngineUrlScheme.Flag.LocalScheme
@@ -56,7 +57,9 @@ def register_url_scheme():
         | QWebEngineUrlScheme.Flag.ContentSecurityPolicyIgnored
     )
     QWebEngineUrlScheme.registerScheme(scheme)
-
+    hms_scheme = QWebEngineUrlScheme(b"hms")
+    hms_scheme.setDefaultPort(443)  # 设置默认端口以消除警告
+    QWebEngineUrlScheme.registerScheme(hms_scheme)
 
 class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
     """Handles ``idvlogin://`` requests inside QtWebEngine.

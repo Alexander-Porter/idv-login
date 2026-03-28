@@ -8,16 +8,24 @@
 """
 
 import ctypes
-import logging
 import os
 import subprocess
 import sys
 
 from envmgr import genv
 
-logger = logging.getLogger("proxy_env")
+_logger = None
+
+def _get_logger():
+    global _logger
+    if _logger is None:
+        from logutil import setup_logger
+        _logger = setup_logger()
+    return _logger
 
 _PROXY_ENV_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+# Windows 注册表值名不区分大小写，只需处理大写即可
+_PROXY_ENV_VARS_WIN = ("HTTP_PROXY", "HTTPS_PROXY")
 
 
 # ==================================================================
@@ -56,7 +64,7 @@ def _set_win(port: int):
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
         ) as key:
-            for var in _PROXY_ENV_VARS:
+            for var in _PROXY_ENV_VARS_WIN:
                 try:
                     old_val, _ = winreg.QueryValueEx(key, var)
                     saved[var] = old_val
@@ -64,12 +72,12 @@ def _set_win(port: int):
                     saved[var] = None
                 winreg.SetValueEx(key, var, 0, winreg.REG_SZ, proxy_url)
     except Exception as e:
-        logger.error(f"设置用户代理环境变量失败: {e}")
+        _get_logger().error(f"设置用户代理环境变量失败: {e}")
         return
 
     _broadcast_env_change()
     genv.set("_SAVED_PROXY_ENV", saved)
-    logger.info(f"已设置用户代理环境变量: {proxy_url}")
+    _get_logger().info(f"已设置用户代理环境变量: {proxy_url}")
 
 
 def _unset_win():
@@ -90,20 +98,24 @@ def _unset_win():
                 else:
                     winreg.SetValueEx(key, var, 0, winreg.REG_SZ, old_val)
     except Exception as e:
-        logger.error(f"恢复用户代理环境变量失败: {e}")
+        _get_logger().error(f"恢复用户代理环境变量失败: {e}")
         return
-    _broadcast_env_change()
+    # 注册表已修改完成，广播通知可以异步进行——不阻塞退出流程
+    import threading
+    threading.Thread(target=_broadcast_env_change, daemon=True).start()
     genv.set("_SAVED_PROXY_ENV", None)
-    logger.info("已恢复用户代理环境变量")
+    _get_logger().info("已恢复用户代理环境变量")
 
 
 def _broadcast_env_change():
+    """广播 WM_SETTINGCHANGE 通知其他进程重新读取环境变量。"""
     HWND_BROADCAST = 0xFFFF
     WM_SETTINGCHANGE = 0x1A
     SMTO_ABORTIFHUNG = 0x0002
+    result = ctypes.c_ulong(0)
     ctypes.windll.user32.SendMessageTimeoutW(
         HWND_BROADCAST, WM_SETTINGCHANGE, 0,
-        "Environment", SMTO_ABORTIFHUNG, 5000, None,
+        "Environment", SMTO_ABORTIFHUNG, 5000, ctypes.byref(result),
     )
 
 
@@ -144,9 +156,9 @@ def _set_darwin(port: int):
                 capture_output=True, timeout=5,
             )
             saved[svc] = True
-            logger.info(f"已为网络服务 {svc} 设置系统代理 127.0.0.1:{port}")
+            _get_logger().info(f"已为网络服务 {svc} 设置系统代理 127.0.0.1:{port}")
         except Exception as e:
-            logger.warning(f"为 {svc} 设置系统代理失败: {e}")
+            _get_logger().warning(f"为 {svc} 设置系统代理失败: {e}")
     genv.set("_SAVED_DARWIN_PROXY_SVCS", saved)
 
 
@@ -164,7 +176,7 @@ def _unset_darwin():
                 ["networksetup", "-setsecurewebproxystate", svc, "off"],
                 capture_output=True, timeout=5,
             )
-            logger.info(f"已为网络服务 {svc} 关闭系统代理")
+            _get_logger().info(f"已为网络服务 {svc} 关闭系统代理")
         except Exception:
             pass
     genv.set("_SAVED_DARWIN_PROXY_SVCS", None)
@@ -212,7 +224,7 @@ def _has_gsettings() -> bool:
 
 def _set_linux(port: int):
     if not _has_gsettings():
-        logger.warning(
+        _get_logger().warning(
             "未检测到 gsettings（非 GNOME 桌面环境）。"
             "请手动设置系统代理为 http://127.0.0.1:%d，"
             "或在启动游戏前设置环境变量 http_proxy / https_proxy。",
@@ -230,9 +242,9 @@ def _set_linux(port: int):
 
     if ok:
         genv.set("_SAVED_LINUX_PROXY", {"user": user, "port": port})
-        logger.info(f"已通过 gsettings 设置 GNOME 系统代理 127.0.0.1:{port}")
+        _get_logger().info(f"已通过 gsettings 设置 GNOME 系统代理 127.0.0.1:{port}")
     else:
-        logger.warning(
+        _get_logger().warning(
             "gsettings 设置代理失败。"
             "请手动设置系统代理为 http://127.0.0.1:%d，"
             "或在启动游戏前设置环境变量 http_proxy / https_proxy。",
@@ -247,4 +259,4 @@ def _unset_linux():
     user = saved.get("user", "")
     _gsettings_cmd(["set", "org.gnome.system.proxy", "mode", "none"], user)
     genv.set("_SAVED_LINUX_PROXY", None)
-    logger.info("已通过 gsettings 恢复 GNOME 系统代理设置")
+    _get_logger().info("已通过 gsettings 恢复 GNOME 系统代理设置")
