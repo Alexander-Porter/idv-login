@@ -18,6 +18,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
 import os
+import sys
 import threading
 
 from envmgr import genv
@@ -27,7 +28,7 @@ from logutil import setup_logger
 logger = setup_logger()
 
 # Default proxy listen port
-DEFAULT_PROXY_PORT = 8899
+DEFAULT_PROXY_PORT = 10717
 
 
 class MitmProxyManager:
@@ -149,11 +150,12 @@ class MitmProxyManager:
         _logging.getLogger("mitmproxy").setLevel(_logging.ERROR)
 
         confdir = self.get_confdir()
+
         opts = Options(
             listen_host="127.0.0.1",
             listen_port=self.port,
             confdir=confdir,
-            ssl_insecure=True,  # don't verify upstream certs
+            ssl_insecure=False,  # DO verify upstream certs
         )
         self._master = DumpMaster(opts, with_dumper=False)
         self._master.addons.add(self.addon)
@@ -185,8 +187,10 @@ class MitmProxyManager:
         proxy_url = f"http://127.0.0.1:{self.port}"
         env["HTTP_PROXY"] = proxy_url
         env["HTTPS_PROXY"] = proxy_url
-        env["http_proxy"] = proxy_url
-        env["https_proxy"] = proxy_url
+        if sys.platform != "win32":
+            # Unix 环境变量区分大小写，需要同时设置小写
+            env["http_proxy"] = proxy_url
+            env["https_proxy"] = proxy_url
         return env
 
 

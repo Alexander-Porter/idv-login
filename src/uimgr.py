@@ -17,27 +17,55 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import sys
 import threading
-from urllib.parse import parse_qs, urlparse
 
 from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, QUrl
 from PyQt6.QtWebEngineCore import (
     QWebEngineUrlScheme,
     QWebEngineUrlSchemeHandler,
     QWebEngineUrlRequestJob,
+    QWebEnginePage,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QMainWindow
 
-from envmgr import genv
 from logutil import setup_logger
 
 logger = setup_logger()
 
 # The custom URL scheme for the local UI.
 SCHEME_NAME = b"idvlogin"
+# Host used for CDN-proxied resources (idvlogin://cdn/...)
+_CDN_PROXY_HOST = "cdn"
+# Host used for opening external URLs in system browser (idvlogin://open/...)
+_OPEN_PROXY_HOST = "open"
+
+# In-memory cache for CDN resources: url -> (content_type, body_bytes)
+_cdn_cache: dict[str, tuple[str, bytes]] = {}
+
+
+def _fetch_cdn_resource(url: str) -> tuple[str, bytes]:
+    """Fetch a CDN resource via Python (bypasses system proxy).
+
+    Returns ``(content_type, body)``; results are cached in memory.
+    ``trust_env=False`` is set globally via ``requests.Session`` monkey-patch.
+    """
+    cached = _cdn_cache.get(url)
+    if cached is not None:
+        return cached
+    try:
+        import requests as _req
+        resp = _req.get(url, timeout=15)
+        resp.raise_for_status()
+        ct = resp.headers.get("Content-Type", "application/octet-stream")
+        body = resp.content
+    except Exception as exc:
+        logger.warning(f"CDN 资源获取失败: {url}: {exc}")
+        ct = "text/plain"
+        body = b""
+    _cdn_cache[url] = (ct, body)
+    return ct, body
 
 
 def register_url_scheme():
@@ -61,6 +89,7 @@ def register_url_scheme():
     hms_scheme.setDefaultPort(443)  # 设置默认端口以消除警告
     QWebEngineUrlScheme.registerScheme(hms_scheme)
 
+
 class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
     """Handles ``idvlogin://`` requests inside QtWebEngine.
 
@@ -76,6 +105,13 @@ class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
 
     def requestStarted(self, job: QWebEngineUrlRequestJob):
         url: QUrl = job.requestUrl()
+        host = url.host()
+
+        # CDN proxy: idvlogin://cdn/https/host/path → fetch via Python
+        if host == _CDN_PROXY_HOST:
+            self._handle_cdn_proxy(job, url)
+            return
+
         path = url.path() or "/"
         method = job.requestMethod().data().decode("utf-8", errors="replace")
 
@@ -110,23 +146,70 @@ class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
         )
 
         try:
-            status, headers, body = handler.handle_simple(
+            _status, headers, body = handler.handle_simple(
                 path, method.upper(), args, json_body
             )
         except Exception as e:
             self.ui_logger.exception(f"处理本地请求失败: {path}")
             body = json.dumps({"error": str(e)}).encode("utf-8")
-            status = 500
             headers = {"Content-Type": "application/json"}
 
         content_type = headers.get("Content-Type", "application/octet-stream")
+
         buf = QBuffer(parent=job)
         buf.setData(QByteArray(body))
         buf.open(QIODevice.OpenModeFlag.ReadOnly)
         job.reply(content_type.encode("utf-8"), buf)
 
+    def _handle_cdn_proxy(self, job: QWebEngineUrlRequestJob, url: QUrl):
+        """Serve an external resource fetched via Python (bypasses proxy)."""
+        raw_path = url.path()
+        if raw_path.startswith("/"):
+            raw_path = raw_path[1:]
+        query = url.query()
+        original_url = raw_path.replace("/", "://", 1)
+        if query:
+            original_url += "?" + query
+
+        logger.debug(f"[CDN代理] 获取: {original_url}")
+        ct, body = _fetch_cdn_resource(original_url)
+        logger.debug(f"[CDN代理] 完成: {original_url} ({len(body)} bytes, {ct})")
+        buf = QBuffer(parent=job)
+        buf.setData(QByteArray(body))
+        buf.open(QIODevice.OpenModeFlag.ReadOnly)
+        job.reply(ct.encode("utf-8"), buf)
+
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+
+
+def _extract_original_url(url: QUrl) -> str:
+    """Extract the original ``https://host/path`` from ``idvlogin://open/https/host/path``."""
+    raw_path = url.path()
+    if raw_path.startswith("/"):
+        raw_path = raw_path[1:]
+    original_url = raw_path.replace("/", "://", 1)
+    query = url.query()
+    if query:
+        original_url += "?" + query
+    return original_url
+
+
+class _LoggingWebPage(QWebEnginePage):
+    """QWebEnginePage subclass that forwards JS console messages to Python logger
+    and intercepts ``idvlogin://open/…`` navigations to open them in the system browser."""
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        logger.debug(f"[JS:{level}] {message} (line {lineNumber}, {sourceID})")
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        if url.scheme() == "idvlogin" and url.host() == _OPEN_PROXY_HOST:
+            original = _extract_original_url(url)
+            import webbrowser
+            webbrowser.open(original)
+            logger.debug(f"[外部链接] 系统浏览器打开: {original}")
+            return False
+        return True
 
 
 class _UISignalRouter(QObject):
@@ -190,15 +273,6 @@ class _MainThreadDispatcher(QObject):
         return bag["value"]
 
 
-# Routes that create Qt widgets (browsers, file dialogs) and therefore
-# MUST execute on the GUI / main thread.
-_QT_ROUTES = frozenset({
-    "/_idv-login/import",
-    "/_idv-login/set-game-auto-start",
-    "/_idv-login/launcher-install",
-})
-
-
 class UIManager:
     """Manages the PyQt6/QtWebEngine window for the account management UI.
 
@@ -213,123 +287,10 @@ class UIManager:
         self._window: QMainWindow | None = None
         self._view: QWebEngineView | None = None
         self._scheme_handler: IDVLoginSchemeHandler | None = None
-        self._local_port: int | None = None
 
         self._router = _UISignalRouter()
         self._router.set_callback(self._do_open_for_game)
         self._dispatcher = _MainThreadDispatcher()
-
-    # ------------------------------------------------------------------
-    # Local HTTP server — handles API requests from the UI page.
-    #
-    # The page itself is loaded via the idvlogin:// scheme handler.
-    # A QWebEngineScript hooks window.fetch() to redirect /_idv-login/*
-    # API calls to this HTTP server, bypassing Chromium's custom-scheme
-    # fetch restrictions while keeping the page URL clean.
-    # ------------------------------------------------------------------
-
-    def _start_local_server(self):
-        """Start a lightweight HTTP server on a random port (localhost only)."""
-        if self._local_port is not None:
-            return
-
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-        from socketserver import ThreadingMixIn
-        from urllib.parse import urlparse as _urlparse, parse_qs as _parse_qs
-
-        game_helper = self.game_helper
-        ui_logger = self.ui_logger
-        dispatcher = self._dispatcher
-
-        class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-            daemon_threads = True
-
-        class _Handler(BaseHTTPRequestHandler):
-            def _dispatch(self, method: str):
-                parsed = _urlparse(self.path)
-                path = parsed.path
-                qs = _parse_qs(parsed.query, keep_blank_values=True)
-                args = {k: v[0] if len(v) == 1 else v for k, v in qs.items()}
-
-                if path in ("/", "/open", "/index"):
-                    path = "/_idv-login/index"
-                elif not path.startswith("/_idv-login/"):
-                    path = "/_idv-login" + path
-
-                json_body = None
-                if method == "POST":
-                    length = int(self.headers.get("Content-Length", 0))
-                    raw = self.rfile.read(length) if length else b""
-                    try:
-                        json_body = json.loads(raw) if raw else {}
-                    except Exception:
-                        json_body = {}
-
-                from local_handler import LocalRequestHandler
-                handler = LocalRequestHandler(
-                    game_helper=game_helper, logger=ui_logger,
-                )
-
-                def _call():
-                    return handler.handle_simple(path, method, args, json_body)
-
-                try:
-                    if path in _QT_ROUTES:
-                        # These routes create Qt widgets → must run on main thread
-                        status, headers, body = dispatcher.run_sync(_call)
-                    else:
-                        status, headers, body = _call()
-                except Exception:
-                    body = b'{"error":"internal"}'
-                    status, headers = 500, {"Content-Type": "application/json"}
-
-                self.send_response(status)
-                for k, v in headers.items():
-                    self.send_header(k, v)
-                # CORS headers (page origin is idvlogin://, API is http://)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_OPTIONS(self):
-                """Handle CORS preflight."""
-                self.send_response(204)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                self.end_headers()
-
-            do_GET = lambda s: s._dispatch("GET")
-            do_POST = lambda s: s._dispatch("POST")
-
-            def log_message(self, fmt, *args):
-                pass  # suppress request logging
-
-        server = _ThreadedHTTPServer(("127.0.0.1", 0), _Handler)
-        self._local_port = server.server_address[1]
-        logger.info(f"UI 本地服务启动: http://127.0.0.1:{self._local_port}")
-
-        t = threading.Thread(
-            target=server.serve_forever, daemon=True, name="ui-http-server",
-        )
-        t.start()
-
-    def _make_fetch_hook_js(self) -> str:
-        """Return JS source that hooks window.fetch for API calls."""
-        return (
-            "(function(){"
-            "var _orig=window.fetch;"
-            "window.fetch=function(input,init){"
-            "var url=(typeof input==='string')?input:input.url;"
-            "if(url.startsWith('/_idv-login/')){"
-            f"url='http://127.0.0.1:{self._local_port}'+url;"
-            "}"
-            "return _orig.call(this,url,init);"
-            "};"
-            "})();"
-        )
 
     def open_for_game(self, game_id: str = ""):
         """Show the UI window for the given *game_id*. (Thread-safe)"""
@@ -352,8 +313,12 @@ class UIManager:
         self._view = QWebEngineView(self._window)
         self._window.setCentralWidget(self._view)
 
+        # 使用自定义 Page 子类将 JS 控制台消息写入 Python 日志
+        custom_page = _LoggingWebPage(self._view)
+        self._view.setPage(custom_page)
+
         # Install the custom scheme handler for page loads.
-        profile = self._view.page().profile()
+        profile = custom_page.profile()
         self._scheme_handler = IDVLoginSchemeHandler(
             game_helper=self.game_helper,
             ui_logger=self.ui_logger,
@@ -361,18 +326,8 @@ class UIManager:
         )
         profile.installUrlSchemeHandler(SCHEME_NAME, self._scheme_handler)
 
-        # Inject fetch hook BEFORE any page JS runs.
-        from PyQt6.QtWebEngineCore import QWebEngineScript
-        script = QWebEngineScript()
-        script.setName("idv-fetch-hook")
-        script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
-        script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        script.setSourceCode(self._make_fetch_hook_js())
-        self._view.page().scripts().insert(script)
-
     def _do_open_for_game(self, game_id: str = ""):
         """Show the UI window for the given *game_id*."""
-        self._start_local_server()
         self._ensure_window()
         url = QUrl(f"idvlogin://app/_idv-login/index?game_id={game_id}")
         self._view.load(url)

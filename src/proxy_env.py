@@ -76,7 +76,13 @@ def _set_win(port: int):
         return
 
     _broadcast_env_change()
+    # 注册表代理仅供外部进程（如游戏）使用。
+    # WM_SETTINGCHANGE 可能导致当前进程的环境块 (PEB) 被更新，
+    # 必须立即清理，否则 QtWebEngine Chromium 子进程会继承代理设置。
+    for var in _PROXY_ENV_VARS:
+        os.environ.pop(var, None)
     genv.set("_SAVED_PROXY_ENV", saved)
+    genv.set("_LAST_PROXY_PORT", port, True)  # 持久化记录使用的代理端口
     _get_logger().info(f"已设置用户代理环境变量: {proxy_url}")
 
 
@@ -85,12 +91,28 @@ def _unset_win():
     if not saved:
         return
     import winreg
+    from mitm_proxy import DEFAULT_PROXY_PORT
+
+    # 判断是否应该直接清除而非恢复：
+    # 如果保存的旧值指向本工具自身的代理端口（上次端口或默认端口），
+    # 说明旧值是上次工具崩溃残留的，恢复它没有意义，直接清除。
+    last_port = genv.get("_LAST_PROXY_PORT")
+    should_clear = False
+    for var, old_val in saved.items():
+        if old_val is not None:
+            for port in (last_port, DEFAULT_PROXY_PORT):
+                if port and f":{port}" in old_val:
+                    should_clear = True
+                    break
+        if should_clear:
+            break
+
     try:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
         ) as key:
             for var, old_val in saved.items():
-                if old_val is None:
+                if should_clear or old_val is None:
                     try:
                         winreg.DeleteValue(key, var)
                     except FileNotFoundError:
@@ -104,7 +126,10 @@ def _unset_win():
     import threading
     threading.Thread(target=_broadcast_env_change, daemon=True).start()
     genv.set("_SAVED_PROXY_ENV", None)
-    _get_logger().info("已恢复用户代理环境变量")
+    if should_clear:
+        _get_logger().info("检测到残留代理（本工具端口），已直接清除用户代理环境变量")
+    else:
+        _get_logger().info("已恢复用户代理环境变量")
 
 
 def _broadcast_env_change():
