@@ -178,6 +178,11 @@ def _signal_via_named_pipe(payload: bytes) -> bool:
         OPEN_EXISTING = 3
         INVALID_HANDLE = ctypes.c_void_p(-1).value
 
+        # restype 必须设为 c_void_p，否则 64 位 Python 下
+        # 默认 c_int 返回 -1，与 INVALID_HANDLE (0xFFFFFFFFFFFFFFFF) 不等，
+        # 导致无监听器时也误判为连接成功。
+        ctypes.windll.kernel32.CreateFileW.restype = ctypes.c_void_p
+
         handle = ctypes.windll.kernel32.CreateFileW(
             _PIPE_NAME, GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
         )
@@ -245,6 +250,8 @@ def _listener_named_pipe(callback):
         sa.nLength = ctypes.sizeof(sa)
         sa.lpSecurityDescriptor = ctypes.addressof(sd)
         sa.bInheritHandle = False
+
+        ctypes.windll.kernel32.CreateNamedPipeW.restype = ctypes.c_void_p
 
         while True:
             handle = ctypes.windll.kernel32.CreateNamedPipeW(

@@ -287,8 +287,9 @@ def initialize():
                 args = sys.argv[1:] if len(sys.argv) > 1 else []
                 argvs = [f'"{arg}"' for arg in args]
             else:
-                # Python脚本：需要传递完整的argv
-                argvs = [f'"{i}"' for i in sys.argv]
+                # Python脚本：需要传递完整的argv，argv[0] 转为绝对路径
+                abs_argv0 = os.path.abspath(sys.argv[0])
+                argvs = [f'"{abs_argv0}"'] + [f'"{a}"' for a in sys.argv[1:]]
             
             ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", executable, " ".join(argvs), script_dir, 1
@@ -924,9 +925,9 @@ def setup_network_proxy(proxy_port):
 
     start_uri_listener(_on_uri_signal)
 
-    # If we were launched via --uri, open the UI for the requested game
-    startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
-    if startup_game_id:
+    # If we were launched via --uri / --open-ui, open the UI
+    if genv.get("URI_STARTUP_OPEN_UI"):
+        startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
         ui_mgr.open_for_game(startup_game_id)
 
     # Auto-start games with proxy environment
@@ -1101,7 +1102,9 @@ if __name__ == "__main__":
                     argvs = [f'"{a}"' for a in args]
                 else:
                     exe = sys.executable
-                    argvs = [f'"{i}"' for i in sys.argv]
+                    # argv[0] 转为绝对路径，避免提权后工作目录变化导致找不到脚本
+                    abs_argv0 = os.path.abspath(sys.argv[0])
+                    argvs = [f'"{abs_argv0}"'] + [f'"{a}"' for a in sys.argv[1:]]
                 ctypes.windll.shell32.ShellExecuteW(
                     None, "runas", exe, " ".join(argvs), script_dir, 1
                 )
@@ -1116,6 +1119,7 @@ if __name__ == "__main__":
             # No running instance — fall through and start normally.
             # Store the game_id so the UI opens for it after startup.
             genv.set("URI_STARTUP_GAME_ID", game_id)
+            genv.set("URI_STARTUP_OPEN_UI", "1")
     except SystemExit:
         raise
     except Exception:
