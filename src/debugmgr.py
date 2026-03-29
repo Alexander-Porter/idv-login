@@ -21,9 +21,7 @@ import socket
 import getpass
 import os
 import subprocess
-import json
 from datetime import datetime
-from logutil import setup_logger
 from channelHandler.channelUtils import _get_my_ip
 
 try:

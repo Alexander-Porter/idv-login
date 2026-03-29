@@ -537,7 +537,6 @@ def handle_if_needed(cloudres):
 
 def handle_exit_skip_if_active():
     """在 handle_exit 中调用：若用户在倒计时期间退出，永久跳过当前 hotfix。"""
-    global prompt_active, prompt_items
     if not prompt_active or not prompt_items:
         return
     try:

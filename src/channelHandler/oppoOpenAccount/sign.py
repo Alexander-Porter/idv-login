@@ -1,7 +1,7 @@
 #仅供技术交流，请下载后24小时内删除，禁止商用！如有侵权请联系仓库维护者删除！谢谢！
 import hashlib
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 
 BIZK_SECRET_KEY = "6CyfIPKEDKF0RIR3fdtFsQ=="
 

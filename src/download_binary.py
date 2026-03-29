@@ -1,5 +1,4 @@
 import os
-import re
 import requests
 # -*- coding: utf-8 -*-
 import zipfile

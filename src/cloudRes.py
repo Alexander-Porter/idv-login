@@ -2,9 +2,7 @@ import os
 import json
 import re
 import requests
-from datetime import datetime
 from envmgr import genv
-from const import manual_login_channels
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.channelUtils import cmp_game_id

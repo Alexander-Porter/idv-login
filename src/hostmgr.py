@@ -16,7 +16,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-from python_hosts import Hosts, HostsEntry, HostsException
+from python_hosts import Hosts, HostsEntry
 from logutil import setup_logger
 
 import os

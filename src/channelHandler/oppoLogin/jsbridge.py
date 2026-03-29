@@ -1,6 +1,5 @@
 #仅供技术交流，请下载后24小时内删除，禁止商用！如有侵权请联系仓库维护者删除！谢谢！
 import json
-from typing import Any, Dict
 
 from channelHandler.oppoLogin.consts import DEFAULT_CONSTS, OppoNativeConsts, build_vip_header_json
 
@@ -23,8 +22,6 @@ def build_mock_native_js(consts: OppoNativeConsts = DEFAULT_CONSTS) -> str:
     vip_header_json = json.dumps(build_vip_header_json(consts), ensure_ascii=False, separators=(",", ":"))
 
     device_model = _js_string_literal(consts.DEVICE.model)
-    device_brand = _js_string_literal(consts.DEVICE.brand)
-    device_rpname = _js_string_literal(consts.DEVICE.rpname)
     device_rom_build = _js_string_literal(consts.DEVICE.rom_build_display)
     device_time_zone = _js_string_literal(consts.TIME_ZONE)
     device_locale = _js_string_literal(consts.LOCALE)
