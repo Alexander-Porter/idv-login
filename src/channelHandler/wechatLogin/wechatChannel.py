@@ -1,8 +1,6 @@
-import base64
 import os
 import time
 import requests
-import hmac
 
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl

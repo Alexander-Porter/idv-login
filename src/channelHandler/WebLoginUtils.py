@@ -1,5 +1,5 @@
 from PyQt6 import QtCore
-from PyQt6.QtCore import QUrl, QTimer, QEventLoop, pyqtSlot
+from PyQt6.QtCore import QUrl, QTimer, pyqtSlot
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QPushButton, QWidget, QHBoxLayout, QLabel
@@ -84,7 +84,7 @@ class WebBrowser(QWidget):
 
         self._toast_label: typing.Optional[QLabel] = None
         self._toast_timer: typing.Optional[QTimer] = None
-        self._local_loop: typing.Optional[QEventLoop] = None
+        self._browser_running = False
 
         #窗口置顶
         self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
@@ -143,7 +143,30 @@ class WebBrowser(QWidget):
         self._toast_timer.start(max(0, int(duration_ms)))
 
     def create_page(self, profile: QWebEngineProfile, parent: typing.Any) -> QWebEnginePage:
-        return self.WebBrowserPage(profile, parent, self)
+        page = self.WebBrowserPage(profile, parent, self)
+        try:
+            page.certificateError.connect(self._on_cert_error)
+        except Exception:
+            pass
+        try:
+            page.renderProcessTerminated.connect(
+                lambda status, code: self.logger.error(
+                    f"[WebBrowser] renderProcessTerminated: status={status}, exitCode={code}"
+                )
+            )
+        except Exception:
+            pass
+        return page
+
+    def _on_cert_error(self, error):
+        """记录证书错误并自动接受（调试用）。"""
+        self.logger.warning(
+            f"[WebBrowser] 证书错误: url={error.url().toString()}, "
+            f"type={error.type()}, description={error.description()}, "
+            f"isOverridable={error.isOverridable()}"
+        )
+        if error.isOverridable():
+            error.acceptCertificate()
 
     def on_console_message(self, level, message: str, lineNumber: int, sourceID: str, page: typing.Optional[QWebEnginePage] = None):
         """子类可覆盖该方法，实现 JS->Python 的轻量回传（例如通过 console.log 打点）。"""
@@ -207,11 +230,12 @@ class WebBrowser(QWidget):
 
     @pyqtSlot(bool)
     def on_load_finished(self, success):
-        pass
+        if not success:
+            url = self.page.url().toString() if self.page else "?"
+            self.logger.warning(f"[WebBrowser] 页面加载失败: {url}")
 
 
     def handle_url_change(self, url):
-        self.logger.debug(f"URL changed: {url.toString()}")
         if self.verify(url.toString()):
             if self.parseReslt(url.toString()):
                 self.cleanup()
@@ -240,25 +264,33 @@ class WebBrowser(QWidget):
         self.show()
         app = QApplication.instance()
         if app and app.property("_main_loop_running"):
-            # Main event loop is already running (e.g. from UIManager);
-            # use a local QEventLoop to block without nesting app.exec().
-            self._local_loop = QEventLoop(self)
-            self._local_loop.exec()
-            self._local_loop = None
+            # 异步模式：主事件循环已运行，嵌套事件循环无法处理
+            # QtWebEngine/Chromium IPC 事件。直接返回 None，
+            # 登录完成后通过 _async_completion_callback 回调传递结果。
+            return None
         else:
             app.exec()
-        return self.result
+            return self.result
+
+    def closeEvent(self, event):
+        """用户手动关闭窗口时，触发 cleanup 释放资源并退出事件循环。"""
+        if not getattr(self, '_cleanup_called', False):
+            self._cleanup_called = True
+            self.cleanup()
+        event.accept()
 
     def cleanup(self):
-        # 目标：尽快释放 QtWebEngine 对 profile/Cookies 文件的占用。
+        self._cleanup_called = True
+        self._browser_running = False
 
-        # 1) 先保存对局部事件循环的引用，并直接同步 quit()。
-        #    必须在 deleteLater() 之前调用，否则 _local_loop 作为子对象
-        #    可能随 self 一起被销毁，导致 run() 永远阻塞。
-        local_loop = self._local_loop
-        use_local_loop = local_loop is not None and local_loop.isRunning()
-        if use_local_loop:
-            local_loop.quit()
+        # 在销毁资源之前触发异步回调（回调可能需要访问 cookies / profile）
+        cb = getattr(self, '_async_completion_callback', None)
+        if cb:
+            self._async_completion_callback = None
+            try:
+                cb(self)
+            except Exception:
+                self.logger.exception("[WebBrowser] 异步登录回调执行失败")
 
         try:
             self.profile.cookieStore().cookieAdded.disconnect(self.cookie_added)
@@ -297,9 +329,8 @@ class WebBrowser(QWidget):
         except Exception:
             pass
 
-        if not use_local_loop:
-            app_inst = QApplication.instance()
-            if app_inst:
-                QTimer.singleShot(0, app_inst.quit)
+        app_inst = QApplication.instance()
+        if app_inst and not app_inst.property("_main_loop_running"):
+            QTimer.singleShot(0, app_inst.quit)
 
     

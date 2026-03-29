@@ -20,13 +20,11 @@ import os
 import json
 import random
 import time
-from datetime import datetime
 import requests
 from envmgr import genv
 from logutil import setup_logger
 from const import manual_login_channels
 from channelHandler.channelUtils import cmp_game_id
-from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 
 
@@ -199,7 +197,6 @@ class ChannelManager:
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
         if login_info["login_channel"] == "oppo":
-            print(login_info,exchange_info)
             self.logger.warning(f"您正在扫码导入OPPO账号，扫码登录有效期在一周到三个月不等，如需长期免扫码登录，请使用手动登录。具体方法请参见教程。")
         #寻找是否有重复的self.user_info["id"]
         to_be_deleted = []
@@ -222,7 +219,7 @@ class ChannelManager:
         self.channels.append(tmp_channel)  
         self.save_records()
 
-    def manual_import(self, channle_name: str, game_id: str):
+    def manual_import(self, channle_name: str, game_id: str, on_complete=None):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
@@ -251,6 +248,42 @@ class ChannelManager:
             from channelHandler.oppoChannelHandler import oppoChannel
             tmp_channel: oppoChannel = oppoChannel(tmpData, game_id=game_id)
             tmp_channel.uuid=f"phone-{tmp_channel.uuid}"
+
+        if on_complete is not None:
+            def _finish_import(success):
+                try:
+                    if success and tmp_channel.is_token_valid():
+                        tmp_channel.last_login_time = int(time.time())
+                        self.channels.append(tmp_channel)
+                        self.save_records()
+                        on_complete(True)
+                    else:
+                        self.logger.error(f"手动导入失败: {tmp_channel.name}")
+                        on_complete(False)
+                except Exception:
+                    self.logger.exception(f"异步手动导入失败: {tmp_channel.name}")
+                    on_complete(False)
+
+            try:
+                if channle_name == "myapp":
+                    # 微信登录不使用浏览器，在后台线程运行避免阻塞主线程
+                    import threading
+                    from PyQt6.QtCore import QTimer
+                    def _run_sync():
+                        try:
+                            tmp_channel.request_user_login()
+                            success = tmp_channel.is_token_valid()
+                        except Exception:
+                            self.logger.exception(f"微信异步登录失败")
+                            success = False
+                        QTimer.singleShot(0, lambda s=success: _finish_import(s))
+                    threading.Thread(target=_run_sync, daemon=True).start()
+                else:
+                    tmp_channel.request_user_login(on_complete=_finish_import)
+            except Exception:
+                self.logger.exception(f"手动导入失败: {tmp_channel.name}")
+                on_complete(False)
+            return
 
         try:
             tmp_channel.request_user_login()

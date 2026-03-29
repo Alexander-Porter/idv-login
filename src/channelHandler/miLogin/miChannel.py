@@ -5,16 +5,11 @@ import string
 import time
 import channelHandler.miLogin.utils as utils
 import requests
-import sys
 from faker import Faker
-import random
 import webbrowser
-import pyperclip as cb
 from PyQt6.QtWidgets import QPushButton, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
-from PyQt6.QtCore import Qt
 
 from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
-from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from channelHandler.WebLoginUtils import WebBrowser
 from ssl_utils import should_verify_ssl
@@ -251,11 +246,35 @@ class MiLogin:
             self.oauthData=None
             return None
 
-    def webLogin(self):
+    def webLogin(self, on_complete=None):
         login_url = "http://account.xiaomi.com/fe/service/login/password?sid=newgamecenterweb&qs=%253Fsid%253Dnewgamecenterweb%2526callback%253Dhttps%25253A%25252F%25252Fgame.xiaomi.com%25252Fauth%25252Fmi_login&callback=https%3A%2F%2Fgame.xiaomi.com%2Fauth%2Fmi_login&_sign=GDzEamQvXougqttdJc8mC0nEyRA%3D&serviceParam=%7B%22checkSafePhone%22%3Afalse%2C%22checkSafeAddress%22%3Afalse%2C%22lsrp_score%22%3A0.0%7D&showActiveX=false&theme=&needTheme=false&bizDeviceType=&_locale=zh_CN"
         miBrowser=MiBrowser()
         miBrowser.set_url(login_url)
-        resp, isQQ=miBrowser.run()
+        result=miBrowser.run()
+
+        if result is None:
+            # 异步模式：浏览器已显示，等待用户登录完成
+            if on_complete is not None:
+                def _on_async_done(browser):
+                    try:
+                        if not browser.result or not isinstance(browser.result, tuple):
+                            self.oauthData = None
+                            on_complete(None)
+                            return
+                        resp, isQQ = browser.result
+                        if isQQ:
+                            self.account_type = 2
+                            on_complete(self.getSTbyQQResp(resp))
+                        else:
+                            on_complete(self.getSTbyCode(resp))
+                    except Exception:
+                        self.logger.exception("小米异步登录处理失败")
+                        self.oauthData = None
+                        on_complete(None)
+                miBrowser._async_completion_callback = _on_async_done
+            return None
+
+        resp, isQQ=result
         if isQQ:
             self.account_type=2
             return self.getSTbyQQResp(resp)

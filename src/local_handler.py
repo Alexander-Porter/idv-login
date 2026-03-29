@@ -25,6 +25,7 @@ from typing import Tuple
 from urllib.parse import parse_qs, urlparse
 
 from envmgr import genv
+import app_state
 import const
 from login_stack_mgr import LoginStackManager
 from cloudSync import CloudSyncManager
@@ -45,6 +46,7 @@ class LocalRequestHandler:
     _cloud_sync_mgr = None
     _cloud_sync_lock = threading.Lock()
     _auto_push_generation = {"value": 0}
+    _pending_imports = {}  # {task_id: {"status": "pending"|"done", "success": bool}}
 
     def __init__(self, *, game_helper, logger):
         self.game_helper = game_helper
@@ -112,6 +114,7 @@ class LocalRequestHandler:
             "/_idv-login/del": self._del_channel,
             "/_idv-login/rename": self._rename_channel,
             "/_idv-login/import": self._import_channel,
+            "/_idv-login/import-status": self._import_status,
             "/_idv-login/setDefault": self._set_default,
             "/_idv-login/clearDefault": self._clear_default,
             "/_idv-login/get-auto-close-state": self._get_auto_close_state,
@@ -139,6 +142,7 @@ class LocalRequestHandler:
             "/_idv-login/cloud-sync/access-logs": self._cloud_sync_access_logs,
             "/_idv-login/index": self._serve_index,
             "/_idv-login/export-logs": self._export_logs,
+            "/_idv-login/open-external-url": self._open_external_url,
 
         }
 
@@ -285,7 +289,7 @@ class LocalRequestHandler:
 
     def _list_channels(self, args, body, method):
         try:
-            result = genv.get("CHANNELS_HELPER").list_channels(args.get("game_id", ""))
+            result = app_state.channels_helper.list_channels(args.get("game_id", ""))
         except Exception as e:
             result = {"error": str(e)}
         return self._json_response(200, result)
@@ -311,26 +315,72 @@ class LocalRequestHandler:
         genv.set("CHANNEL_ACCOUNT_SELECTED", uuid)
         data = self.stack_mgr.pop_cached_qrcode_data(game_id) if game_id else None
         if data:
-            genv.get("CHANNELS_HELPER").simulate_scan(uuid, data["uuid"], data["game_id"])
+            app_state.channels_helper.simulate_scan(uuid, data["uuid"], data["game_id"])
         else:
-            genv.get("CHANNELS_HELPER").simulate_scan(uuid, "Kinich", "aecfrt3rmaaaaajl-g-g37")
+            app_state.channels_helper.simulate_scan(uuid, "Kinich", "aecfrt3rmaaaaajl-g-g37")
         return self._json_response(200, {"current": genv.get("CHANNEL_ACCOUNT_SELECTED")})
 
     def _del_channel(self, args, body, method):
-        success = genv.get("CHANNELS_HELPER").delete(args.get("uuid", ""))
+        success = app_state.channels_helper.delete(args.get("uuid", ""))
         return self._json_response(200, {"success": success})
 
     def _rename_channel(self, args, body, method):
-        success = genv.get("CHANNELS_HELPER").rename(
+        success = app_state.channels_helper.rename(
             args.get("uuid", ""), args.get("new_name", "")
         )
         return self._json_response(200, {"success": success})
 
     def _import_channel(self, args, body, method):
-        success = genv.get("CHANNELS_HELPER").manual_import(
-            args.get("channel", ""), args.get("game_id", "")
-        )
-        return self._json_response(200, {"success": success})
+        try:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+        except Exception:
+            app = None
+
+        if app and app.property("_main_loop_running"):
+            # 异步模式：不阻塞 scheme handler，立即返回 pending
+            import uuid as uuid_mod
+            from PyQt6.QtCore import QTimer
+            task_id = str(uuid_mod.uuid4())
+            LocalRequestHandler._pending_imports[task_id] = {"status": "pending"}
+
+            channel = args.get("channel", "")
+            game_id = args.get("game_id", "")
+
+            def do_import():
+                def on_done(success):
+                    LocalRequestHandler._pending_imports[task_id] = {
+                        "status": "done", "success": success
+                    }
+
+                try:
+                    app_state.channels_helper.manual_import(
+                        channel, game_id, on_complete=on_done
+                    )
+                except Exception:
+                    self.logger.exception("异步导入失败")
+                    LocalRequestHandler._pending_imports[task_id] = {
+                        "status": "done", "success": False
+                    }
+
+            QTimer.singleShot(0, do_import)
+            return self._json_response(200, {"status": "pending", "task_id": task_id})
+        else:
+            # 同步模式（旧 HTTP 路径）
+            success = app_state.channels_helper.manual_import(
+                args.get("channel", ""), args.get("game_id", "")
+            )
+            return self._json_response(200, {"success": success})
+
+    def _import_status(self, args, body, method):
+        task_id = args.get("task_id", "")
+        task = LocalRequestHandler._pending_imports.get(task_id)
+        if task is None:
+            return self._json_response(404, {"error": "Unknown task_id"})
+        result = dict(task)
+        if task["status"] == "done":
+            del LocalRequestHandler._pending_imports[task_id]
+        return self._json_response(200, result)
 
     def _set_default(self, args, body, method):
         try:
@@ -619,7 +669,7 @@ class LocalRequestHandler:
 
     def _get_default_channel(self, args, body, method):
         uuid = genv.get(f"auto-{args.get('game_id', '')}", "")
-        if uuid and genv.get("CHANNELS_HELPER").query_channel(uuid) is None:
+        if uuid and app_state.channels_helper.query_channel(uuid) is None:
             genv.set(f"auto-{args.get('game_id', '')}", "", True)
             uuid = ""
         return self._json_response(200, {"uuid": uuid})
@@ -803,7 +853,7 @@ class LocalRequestHandler:
     def _refresh_channels_helper(self):
         try:
             from channelmgr import ChannelManager
-            genv.set("CHANNELS_HELPER", ChannelManager())
+            app_state.channels_helper = ChannelManager()
         except Exception:
             self.logger.exception("云同步拉取后刷新账号管理器失败")
 
@@ -827,6 +877,7 @@ class LocalRequestHandler:
             return self._html_response(200, const.html)
 
     def _export_logs(self, args, body, method):
+        """Export diagnostic logs: save to file and open containing folder."""
         try:
             from debugmgr import DebugMgr
             data = DebugMgr.export_debug_info_json() if DebugMgr.is_windows() else {}
@@ -835,16 +886,18 @@ class LocalRequestHandler:
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write("\n\n" + json.dumps(data, ensure_ascii=False, indent=2))
             if os.path.exists(log_path):
-                with open(log_path, "rb") as f:
-                    content = f.read()
-                return (
-                    200,
-                    {
-                        "Content-Type": "text/plain; charset=utf-8",
-                        "Content-Disposition": 'attachment; filename="log.txt"',
-                    },
-                    content,
-                )
+                import subprocess
+                subprocess.Popen(["explorer", "/select,", log_path])
+                return self._json_response(200, {"success": True, "path": log_path})
             return self._json_response(404, {"success": False, "error": "日志文件不存在"})
         except Exception as e:
             return self._json_response(500, {"success": False, "error": str(e)})
+
+    def _open_external_url(self, args, body, method):
+        """使用系统默认浏览器打开外部 URL。"""
+        url = args.get("url", "")
+        if url and url.startswith(("http://", "https://")):
+            import webbrowser
+            webbrowser.open(url)
+            return self._json_response(200, {"success": True})
+        return self._json_response(400, {"success": False, "error": "invalid url"})

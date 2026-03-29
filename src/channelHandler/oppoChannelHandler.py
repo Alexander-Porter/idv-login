@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 
 import channelmgr
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 
 from cloudRes import CloudRes
@@ -285,31 +286,39 @@ class oppoChannel(channelmgr.channel):
 
         return resp
 
-    def request_user_login(self):
+    def request_user_login(self, on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
 
         # deviceId 初始留空；若旧 loginResp.deviceId 非空，则本次注入优先使用旧值。
         consts = prefer_device_id_from_login_resp(self.loginResp, DEFAULT_CONSTS)
 
+        def _process_resp(resp):
+            if not resp:
+                self.loginResp = None
+                return False
+            old_device_id = ""
+            if isinstance(self.loginResp, dict):
+                old_device_id = str(self.loginResp.get("deviceId") or "").strip()
+            new_device_id = str(resp.get("deviceId") or "").strip()
+            if not new_device_id and old_device_id:
+                resp["deviceId"] = old_device_id
+            self.loginResp = resp
+            self._ensure_authorized()
+            return True
+
+        if on_complete is not None:
+            def _on_done(resp):
+                try:
+                    success = _process_resp(resp)
+                except Exception:
+                    self.logger.exception("OPPO异步登录处理失败")
+                    success = False
+                on_complete(success)
+            self.oppoLogin.webLogin(consts=consts, on_complete=_on_done)
+            return
+
         resp = self.oppoLogin.webLogin(consts=consts)
-        if not resp:
-            self.loginResp = None
-            return False
-
-        # 若本次回来的 deviceId 为空，但旧的非空，则补回旧值并持久化。
-        old_device_id = ""
-        if isinstance(self.loginResp, dict):
-            old_device_id = str(self.loginResp.get("deviceId") or "").strip()
-        new_device_id = str(resp.get("deviceId") or "").strip()
-        if not new_device_id and old_device_id:
-            resp["deviceId"] = old_device_id
-
-        self.loginResp = resp
-
-        # 登录结束后：立刻做一次 authorize（失败直接抛出，便于定位问题）
-        self._ensure_authorized()
-
-        return True
+        return _process_resp(resp)
 
     def _pick_gamesdk_pkg_name(self, short_game_id: str) -> str:
         cloud = CloudRes()
@@ -361,7 +370,7 @@ class oppoChannel(channelmgr.channel):
         return ""
 
     def _build_extra_unisdk_data(self) -> str:
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         udid = fd["udid"]
         res = {
             "SAUTH_STR": "",
@@ -417,7 +426,7 @@ class oppoChannel(channelmgr.channel):
             raise RuntimeError(f"未从云配置获取 gamesdk pkgName: game_id={short_game_id}")
 
         # 构建 sign2 profile
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         if not isinstance(fd, dict):
             raise TypeError("FAKE_DEVICE 必须为 dict")
         oppo_vaid = _get_or_create_oppo_vaid()
@@ -623,7 +632,7 @@ class oppoChannel(channelmgr.channel):
         self.uniData = channelUtils.postSignedData(self.uniBody, short_game_id, True)
         self.uniSDKJSON = json.loads(base64.b64decode(self.uniData["unisdk_login_json"]).decode())
 
-        fd2 = genv.get("FAKE_DEVICE")
+        fd2 = app_state.fake_device
         udid2 = fd2["udid"]
 
         return {

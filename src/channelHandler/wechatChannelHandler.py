@@ -16,7 +16,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import string
 import time
 import base64
 
@@ -25,6 +24,7 @@ import channelmgr
 
 from cloudRes import CloudRes
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.channelUtils import getShortGameId
@@ -196,7 +196,7 @@ class wechatChannel(channelmgr.channel):
 
 
     def _build_extra_unisdk_data(self) -> str:
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         res = {
             "SAUTH_STR": "",
             "SAUTH_JSON": "",
@@ -247,7 +247,7 @@ class wechatChannel(channelmgr.channel):
                 "extra_data": self._get_extra_data(),
             },
         )
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         self.logger.info(json.dumps(self.uniBody))
         self.uniData = channelUtils.postSignedData(
             self.uniBody, getShortGameId(game_id), True

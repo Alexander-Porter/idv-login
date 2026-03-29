@@ -1,22 +1,11 @@
-import json
 import os
-import random
 import sqlite3
-import string
 import tempfile
 import time
 import shutil
 
-import channelHandler.miLogin.utils as utils
 import requests
-import sys
-from faker import Faker
-import random
-import webbrowser
-import pyperclip as cb
 
-from channelHandler.miLogin.consts import DEVICE, DEVICE_RECORD, AES_KEY
-from channelHandler.channelUtils import G_clipListener
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.WebLoginUtils import WebBrowser
@@ -136,7 +125,7 @@ class VivoLogin:
         self.gamePackage = gamePackage
         self.cookies = {}
 
-    def webLogin(self, cookies=None):
+    def webLogin(self, cookies=None, on_complete=None):
         u = f"https://joint.vivo.com.cn/h5/union/get?gamePackage={self.gamePackage}"
         self.cookies = cookies or {}
 
@@ -146,7 +135,11 @@ class VivoLogin:
                 r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
                 j = r.json()
                 if j.get("code") == 0:
-                    return j.get("data")
+                    result = j.get("data")
+                    if on_complete is not None:
+                        on_complete(result)
+                        return
+                    return result
                 self.logger.warning("本地cookies登录失败，拉起浏览器重新登录")
             except Exception as e:
                 self.logger.warning(f"本地cookies请求异常，拉起浏览器重新登录: {e}")
@@ -155,6 +148,27 @@ class VivoLogin:
         miBrowser = VivoBrowser(self.gamePackage)
         miBrowser.set_url(login_url)
         resp = miBrowser.run()
+
+        if resp is None:
+            # 异步模式：浏览器已显示，等待用户登录完成
+            if on_complete is not None:
+                def _on_async_done(browser):
+                    try:
+                        result = browser.result
+                        if isinstance(result, dict) and result.get("code") == 0:
+                            self.cookies = browser.export_cookie().copy()
+                            r = requests.get(u, cookies=self.cookies, verify=should_verify_ssl())
+                            j = r.json()
+                            if j.get("code") == 0:
+                                on_complete(j.get("data"))
+                                return
+                        on_complete(None)
+                    except Exception:
+                        self.logger.exception("Vivo异步登录处理失败")
+                        on_complete(None)
+                miBrowser._async_completion_callback = _on_async_done
+            return None
+
         try:
             if resp.get("code") == 0:
                 # 浏览器退出后再读取Cookies数据库，显著降低Windows文件锁概率

@@ -301,10 +301,27 @@ class OppoLogin:
         self.logger = setup_logger()
         self.start_url = start_url
 
-    def webLogin(self, consts: OppoNativeConsts = DEFAULT_CONSTS) -> Optional[Dict[str, Any]]:
+    def webLogin(self, consts: OppoNativeConsts = DEFAULT_CONSTS, on_complete=None) -> Optional[Dict[str, Any]]:
         browser = OppoBrowser(consts=consts)
         browser.set_url(self.start_url)
         resp = browser.run()
+
+        if resp is None:
+            # 异步模式：浏览器已显示，等待用户登录完成
+            if on_complete is not None:
+                def _on_async_done(b):
+                    try:
+                        result = b.result
+                        if isinstance(result, dict) and result:
+                            on_complete(result)
+                        else:
+                            on_complete(None)
+                    except Exception:
+                        self.logger.exception("OPPO异步登录处理失败")
+                        on_complete(None)
+                browser._async_completion_callback = _on_async_done
+            return None
+
         if isinstance(resp, dict) and resp:
             return resp
         return None

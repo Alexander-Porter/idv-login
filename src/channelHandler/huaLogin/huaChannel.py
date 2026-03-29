@@ -1,25 +1,17 @@
-import binascii
 import json
 import os
-import random
 import string
 import time
 import requests
-import sys
 from faker import Faker
-import random
-import webbrowser
-import pyperclip as cb
 from envmgr import genv
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
-from faker import Faker
 #from channelHandler.huaLogin.consts import DEVICE,QRCODE_BODY
-from channelHandler.huaLogin.consts import DEVICE,hms_client_id,hms_redirect_uri,hms_scope,hms_scope_g37,COMMON_PARAMS
-from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token,get_access_token
-from channelHandler.channelUtils import G_clipListener
+from channelHandler.huaLogin.consts import DEVICE,hms_redirect_uri,hms_scope,hms_scope_g37,COMMON_PARAMS
+from channelHandler.huaLogin.utils import get_authorization_code,exchange_code_for_token
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt6.QtWebEngineCore import QWebEngineUrlRequestInterceptor,QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
+from PyQt6.QtWebEngineCore import QWebEngineUrlRequestJob,QWebEngineUrlSchemeHandler
 from PyQt6.QtCore import pyqtSlot, QTimer
 from PyQt6.QtWidgets import QCheckBox,QComboBox,QInputDialog,QPushButton,QMessageBox
 from AutoFillUtils import RecordMgr
@@ -313,7 +305,7 @@ class HuaweiLogin:
     def verify(self,code):
         return code.startswith("hms://")
     
-    def newOAuthLogin(self):
+    def newOAuthLogin(self, on_complete=None):
         client_id = str(self.channelConfig["app_id"])
         redirect_uri = hms_redirect_uri
         
@@ -327,6 +319,24 @@ class HuaweiLogin:
         huaWebLogin=HuaweiBrowser(self.real_game_id)
         huaWebLogin.set_url(auth_url)
         res=(huaWebLogin.run())
+
+        if res is None:
+            # 异步模式：浏览器已显示，等待用户登录完成
+            if on_complete is not None:
+                def _on_async_done(browser):
+                    try:
+                        if not browser.result or browser.result == "":
+                            self.logger.warning("华为登录未完成（用户取消或窗口关闭）")
+                            on_complete(False)
+                            return
+                        self.standardCallback(browser.result)
+                        on_complete(self.refreshToken is not None)
+                    except Exception:
+                        self.logger.exception("华为异步登录处理失败")
+                        on_complete(False)
+                huaWebLogin._async_completion_callback = _on_async_done
+            return
+
         self.standardCallback(res)
 
     def standardCallback(self, url, cookies={}):

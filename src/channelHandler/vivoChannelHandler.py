@@ -16,13 +16,13 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import string
 import time
 import base64
 import channelmgr
 
 from cloudRes import CloudRes
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.vivoLogin.vivoChannel import VivoLogin
@@ -98,46 +98,61 @@ class vivoChannel(channelmgr.channel):
         
 
 
-    def request_user_login(self):
+    def request_user_login(self, on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
-        resp=self.vivoLogin.webLogin(self.cookies)
-        self.logger.debug(resp)
-        if resp==None:
-            self.session=None
-            return False
-        self.cookies = self.vivoLogin.cookies
-        self.session:vivoLoginResp=vivoLoginResp(resp)
 
-        if len(self.session.subAccounts)==0:
-            return False
-        elif len(self.session.subAccounts)==1:
-            self.chosenAccount=self.session.subAccounts[0].subOpenId
-        else:
-            if self.chosenAccount!="":#check if the chosen account is valid
-                for i in range(len(self.session.subAccounts)):
-                    if self.session.subAccounts[i].subOpenId==self.chosenAccount:
-                        self.logger.info(f"尝试登录指定账号{self.session.subAccounts[i].nickName}")
-                        break
-                else:
-                    self.chosenAccount=self.session.subAccounts[0].subOpenId
-            #ask user
+        def _process_login_data(resp, can_prompt=True):
+            """处理登录数据（同步/异步共用逻辑）。"""
+            if resp is None:
+                self.session = None
+                return False
+            self.cookies = self.vivoLogin.cookies
+            self.session = vivoLoginResp(resp)
+
+            if len(self.session.subAccounts) == 0:
+                return False
+            elif len(self.session.subAccounts) == 1:
+                self.chosenAccount = self.session.subAccounts[0].subOpenId
             else:
-                print("有多个小号，请选择一个登录")
-                for i in range(len(self.session.subAccounts)):
-                    print(f"{i+1}:{self.session.subAccounts[i].nickName}")
-                choice = int(input("请输入序号并回车:"))
-                if choice>0 and choice<=len(self.session.subAccounts):
-                    self.chosenAccount=self.session.subAccounts[choice-1].subOpenId
+                if self.chosenAccount != "":
+                    for i in range(len(self.session.subAccounts)):
+                        if self.session.subAccounts[i].subOpenId == self.chosenAccount:
+                            self.logger.info(f"尝试登录指定账号{self.session.subAccounts[i].nickName}")
+                            break
+                    else:
+                        self.chosenAccount = self.session.subAccounts[0].subOpenId
+                elif can_prompt:
+                    print("有多个小号，请选择一个登录")
+                    for i in range(len(self.session.subAccounts)):
+                        print(f"{i+1}:{self.session.subAccounts[i].nickName}")
+                    choice = int(input("请输入序号并回车:"))
+                    if choice > 0 and choice <= len(self.session.subAccounts):
+                        self.chosenAccount = self.session.subAccounts[choice-1].subOpenId
+                    else:
+                        self.chosenAccount = self.session.subAccounts[0].subOpenId
                 else:
-                    self.chosenAccount=self.session.subAccounts[0].subOpenId
-        for i in range(len(self.session.subAccounts)):
-            if self.session.subAccounts[i].subOpenId==self.chosenAccount:
-                self.activeAccount=self.session.subAccounts[i]
-                self.activeAccount.openToken=self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
-        #如果自己的uuid等于name，则说明是默认名字，登录成功后用昵称更新名字
-        if self.name==self.uuid:
-            self.name=f"{self.session.nickName}-{self.activeAccount.nickName}"
-        return self.session!=None
+                    self.chosenAccount = self.session.subAccounts[0].subOpenId
+            for i in range(len(self.session.subAccounts)):
+                if self.session.subAccounts[i].subOpenId == self.chosenAccount:
+                    self.activeAccount = self.session.subAccounts[i]
+                    self.activeAccount.openToken = self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
+            if self.name == self.uuid:
+                self.name = f"{self.session.nickName}-{self.activeAccount.nickName}"
+            return self.session is not None
+
+        if on_complete is not None:
+            def _on_done(resp):
+                try:
+                    success = _process_login_data(resp, can_prompt=False)
+                except Exception:
+                    self.logger.exception("Vivo异步登录处理失败")
+                    success = False
+                on_complete(success)
+            self.vivoLogin.webLogin(self.cookies, on_complete=_on_done)
+            return
+
+        resp = self.vivoLogin.webLogin(self.cookies)
+        return _process_login_data(resp, can_prompt=True)
 
     def is_token_valid(self):
         return self.session!=None
@@ -159,7 +174,7 @@ class vivoChannel(channelmgr.channel):
         )
 
     def _build_extra_unisdk_data(self) -> str:
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         res = {
             "SAUTH_STR": "",
             "SAUTH_JSON": "",
@@ -205,7 +220,7 @@ class vivoChannel(channelmgr.channel):
                 "realname": json.dumps({"realname_type": 0, "age": 22}),
             },
         )
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         self.logger.info(json.dumps(self.uniBody))
         self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),True)
         self.logger.info(f"Get unisdk data for {self.uniData}")

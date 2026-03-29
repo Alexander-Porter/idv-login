@@ -8,6 +8,126 @@
     <link rel="icon"
         href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QOQjeQAAAABJRU5ErkJggg==">
 
+    <!--
+        CDN 代理 hooks: 当页面通过 idvlogin:// 自定义 scheme 加载时,
+        外部 https:// 资源无法直接加载 (嵌入式 Chromium 会继承系统代理),
+        需要将 URL 重写为 idvlogin://cdn/... 由 Python 端代理获取.
+        普通 HTTP/HTTPS 页面则不做任何修改.
+    -->
+    <script>
+        (function () {
+            if (window.location.protocol !== 'idvlogin:') return;
+
+            var CDN = 'idvlogin://cdn/';
+            var OPEN = 'idvlogin://open/';
+
+            function _cdnRewrite(url) {
+                if (typeof url === 'string' && /^https?:\/\//.test(url)) {
+                    return CDN + url.replace('://', '/');
+                }
+                return url;
+            }
+
+            function _openRewrite(url) {
+                if (typeof url === 'string' && /^https?:\/\//.test(url)) {
+                    return OPEN + url.replace('://', '/');
+                }
+                return url;
+            }
+
+            // Hook HTMLScriptElement.prototype.src
+            var _sd = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+            if (_sd && _sd.set) {
+                Object.defineProperty(HTMLScriptElement.prototype, 'src', {
+                    set: function (v) { _sd.set.call(this, _cdnRewrite(v)); },
+                    get: _sd.get, configurable: true
+                });
+            }
+
+            // Hook HTMLLinkElement.prototype.href
+            var _ld = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
+            if (_ld && _ld.set) {
+                Object.defineProperty(HTMLLinkElement.prototype, 'href', {
+                    set: function (v) { _ld.set.call(this, _cdnRewrite(v)); },
+                    get: _ld.get, configurable: true
+                });
+            }
+
+            // Hook HTMLImageElement.prototype.src
+            var _id = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+            if (_id && _id.set) {
+                Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                    set: function (v) { _id.set.call(this, _cdnRewrite(v)); },
+                    get: _id.get, configurable: true
+                });
+            }
+
+            // Hook HTMLAnchorElement.prototype.href – rewrite external links
+            var _ahd = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, 'href');
+            if (_ahd && _ahd.set) {
+                Object.defineProperty(HTMLAnchorElement.prototype, 'href', {
+                    set: function (v) { _ahd.set.call(this, _openRewrite(v)); },
+                    get: _ahd.get, configurable: true
+                });
+            }
+
+            // Hook setAttribute (safety net for CDN resources + external links)
+            var _sa = Element.prototype.setAttribute;
+            Element.prototype.setAttribute = function (name, value) {
+                if (typeof value === 'string' && /^https?:\/\//.test(value)) {
+                    var t = this.tagName;
+                    if ((t === 'SCRIPT' && name === 'src') ||
+                        (t === 'LINK' && name === 'href') ||
+                        (t === 'IMG' && name === 'src')) {
+                        value = _cdnRewrite(value);
+                    } else if (t === 'A' && name === 'href') {
+                        value = _openRewrite(value);
+                    }
+                }
+                return _sa.call(this, name, value);
+            };
+
+            // Override window.open – navigate to idvlogin://open/ (caught by acceptNavigationRequest)
+            window.open = function (url) {
+                if (url && /^https?:\/\//.test(url)) {
+                    window.location.href = OPEN + url.replace('://', '/');
+                }
+                return null;
+            };
+
+            // Rewrite existing <a> hrefs on DOMContentLoaded (parser bypasses JS setters)
+            function _rewriteAnchors(root) {
+                var links = root.querySelectorAll('a[href^="http://"], a[href^="https://"]');
+                for (var i = 0; i < links.length; i++) {
+                    var href = links[i].getAttribute('href');
+                    links[i].removeAttribute('target');
+                    _sa.call(links[i], 'href', OPEN + href.replace('://', '/'));
+                }
+            }
+            document.addEventListener('DOMContentLoaded', function () { _rewriteAnchors(document); });
+
+            // MutationObserver for dynamically added <a> elements
+            new MutationObserver(function (mutations) {
+                mutations.forEach(function (m) {
+                    m.addedNodes.forEach(function (node) {
+                        if (node.nodeType !== 1) return;
+                        if (node.tagName === 'A') {
+                            var h = node.getAttribute('href');
+                            if (h && /^https?:\/\//.test(h)) {
+                                node.removeAttribute('target');
+                                _sa.call(node, 'href', OPEN + h.replace('://', '/'));
+                            }
+                        }
+                        if (node.querySelectorAll) _rewriteAnchors(node);
+                    });
+                });
+            }).observe(document.documentElement, { childList: true, subtree: true });
+
+            // 标记已安装 hooks, 供 Python 端检测
+            window.__idvCdnProxyActive = true;
+        })();
+    </script>
+
 
     <!-- 资源优先从 s4.zstatic.net 加载，失败回退到 cloudflare -->
     <script>
@@ -39,9 +159,12 @@
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
                     link.href = item.href;
-                    if (item.integrity) link.integrity = item.integrity;
-                    link.crossOrigin = 'anonymous';
-                    link.referrerPolicy = 'no-referrer';
+                    // idvlogin scheme 通过 CDN 代理加载, 不需要 SRI/CORS
+                    if (!window.__idvCdnProxyActive) {
+                        if (item.integrity) link.integrity = item.integrity;
+                        link.crossOrigin = 'anonymous';
+                        link.referrerPolicy = 'no-referrer';
+                    }
                     link.onload = () => resolve({ ok: true });
                     link.onerror = () => resolve({ ok: false });
                     document.head.appendChild(link);
@@ -52,9 +175,12 @@
                 return new Promise((resolve) => {
                     const s = document.createElement('script');
                     s.src = item.src;
-                    if (item.integrity) s.integrity = item.integrity;
-                    s.crossOrigin = 'anonymous';
-                    s.referrerPolicy = 'no-referrer';
+                    // idvlogin scheme 通过 CDN 代理加载, 不需要 SRI/CORS
+                    if (!window.__idvCdnProxyActive) {
+                        if (item.integrity) s.integrity = item.integrity;
+                        s.crossOrigin = 'anonymous';
+                        s.referrerPolicy = 'no-referrer';
+                    }
                     // 保证按顺序执行
                     s.async = false;
                     s.onload = () => resolve({ ok: true });
@@ -2228,26 +2354,23 @@
                 });
         }
         function exportLogs() {
-            const downloadLink = document.createElement('a');
-            downloadLink.href = '/_idv-login/export-logs';
-            downloadLink.style.display = 'none';
-            document.body.appendChild(downloadLink);
-
-            // 监听下载完成
-            downloadLink.addEventListener('click', function () {
-                setTimeout(() => {
-                    swal({
-                        title: "日志导出成功",
-                        text: "调试日志文件已开始下载。其中包含操作系统、计算机、IP、已安装应用列表、进程、代理状态等诊断信息，分享前请注意个人隐私。",
-                        icon: "success",
-                        button: "确定",
-                    });
-                    document.body.removeChild(downloadLink);
-                }, 1000);
-            });
-
-            // 触发下载
-            downloadLink.click();
+            fetch('/_idv-login/export-logs')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        swal({
+                            title: "日志导出成功",
+                            text: "调试日志文件已保存至:\n" + data.path + "\n\n文件所在文件夹已打开。其中包含操作系统、计算机、IP、已安装应用列表、进程、代理状态等诊断信息，分享前请注意个人隐私。",
+                            icon: "success",
+                            button: "确定",
+                        });
+                    } else {
+                        swal("日志导出失败", data.error || "未知错误", "error");
+                    }
+                })
+                .catch(function (e) {
+                    swal("日志导出失败", String(e), "error");
+                });
         }
 
         // 工具状态检查功能
@@ -2463,24 +2586,59 @@
             fetch(`/_idv-login/import?channel=${selectedChannel}&game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
-                    stopQrcodePolling();
-                    swal.close();
-                    if (data.success) {
-                        swal({
-                            title: "执行成功",
-                            text: "登录操作已完成",
-                            icon: "success",
-                            button: "确定",
-                        }).then(() => {
-                            location.reload();
-                        });
+                    if (data.status === 'pending' && data.task_id) {
+                        // 异步导入模式：轮询状态直到完成
+                        const taskId = data.task_id;
+                        function pollImportStatus() {
+                            fetch(`/_idv-login/import-status?task_id=${taskId}`)
+                                .then(r => r.json())
+                                .then(status => {
+                                    if (status.status === 'done') {
+                                        stopQrcodePolling();
+                                        swal.close();
+                                        if (status.success) {
+                                            swal({
+                                                title: "执行成功",
+                                                text: "登录操作已完成",
+                                                icon: "success",
+                                                button: "确定",
+                                            }).then(() => { location.reload(); });
+                                        } else {
+                                            swal({
+                                                title: "执行失败",
+                                                text: "请检查工具日志获取详细信息",
+                                                icon: "error",
+                                                button: "确定",
+                                            });
+                                        }
+                                    } else {
+                                        setTimeout(pollImportStatus, 500);
+                                    }
+                                })
+                                .catch(() => { setTimeout(pollImportStatus, 1000); });
+                        }
+                        setTimeout(pollImportStatus, 500);
                     } else {
-                        swal({
-                            title: "执行失败",
-                            text: "请检查工具日志获取详细信息",
-                            icon: "error",
-                            button: "确定",
-                        });
+                        // 同步导入模式：立即处理结果
+                        stopQrcodePolling();
+                        swal.close();
+                        if (data.success) {
+                            swal({
+                                title: "执行成功",
+                                text: "登录操作已完成",
+                                icon: "success",
+                                button: "确定",
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            swal({
+                                title: "执行失败",
+                                text: "请检查工具日志获取详细信息",
+                                icon: "error",
+                                button: "确定",
+                            });
+                        }
                     }
                 })
                 .catch(() => {

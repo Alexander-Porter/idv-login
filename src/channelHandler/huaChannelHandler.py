@@ -16,13 +16,13 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import string
 import time
 import base64
 import channelmgr
 
 from cloudRes import CloudRes
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.huaLogin.huaChannel import HuaweiLogin
@@ -85,11 +85,18 @@ class huaweiChannel(channelmgr.channel):
         self.uniData = None
         self.session: huaweiLoginResponse = None
 
-    def request_user_login(self):
+    def request_user_login(self, on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
+
+        if on_complete is not None:
+            def _on_done(_success):
+                self.refreshToken = self.huaweiLogin.refreshToken
+                on_complete(self.refreshToken is not None)
+            self.huaweiLogin.newOAuthLogin(on_complete=_on_done)
+            return
+
         self.huaweiLogin.newOAuthLogin()
         self.refreshToken = self.huaweiLogin.refreshToken
-        self.logger.debug(self.refreshToken)
         return self.refreshToken != None
 
     def _get_session(self):
@@ -125,7 +132,7 @@ class huaweiChannel(channelmgr.channel):
         )
 
     def _build_extra_unisdk_data(self) -> str:
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         res = {
             "SAUTH_STR": "",
             "SAUTH_JSON": "",
@@ -196,7 +203,7 @@ class huaweiChannel(channelmgr.channel):
                 "realname": json.dumps({"realname_type": 0, "duration": 0}),
             },
         )
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         self.logger.info(json.dumps(self.uniBody))
         self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
         self.logger.info(f"Get unisdk data for {self.uniData}")

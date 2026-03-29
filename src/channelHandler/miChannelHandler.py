@@ -22,6 +22,7 @@ import channelmgr
 
 from cloudRes import CloudRes
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 from channelHandler.miLogin.miChannel import MiLogin
 from channelHandler.channelUtils import getShortGameId
@@ -72,13 +73,22 @@ class miChannel(channelmgr.channel):
         self.uniData = None
         self.account_type = account_type
 
-    def request_user_login(self):
+    def request_user_login(self, on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
+
+        if on_complete is not None:
+            def _on_done(_data):
+                self.oAuthData = self.miLogin.oauthData
+                self.account_type = self.miLogin.account_type
+                self.logger.info(f"小米登录类型：{self.account_type}")
+                on_complete(self.oAuthData is not None)
+            self.miLogin.webLogin(on_complete=_on_done)
+            return
+
         self.miLogin.webLogin()
         self.oAuthData = self.miLogin.oauthData
         self.account_type = self.miLogin.account_type
         self.logger.info(f"小米登录类型：{self.account_type}")
-        self.logger.debug(self.oAuthData)
         return self.oAuthData != None
 
     def _get_session(self):
@@ -163,7 +173,7 @@ class miChannel(channelmgr.channel):
             getShortGameId(game_id),
             "3.3.0.7",
         )
-        fd = genv.get("FAKE_DEVICE")
+        fd = app_state.fake_device
         self.uniData = channelUtils.postSignedData(
             self.uniBody, getShortGameId(game_id)
         )
