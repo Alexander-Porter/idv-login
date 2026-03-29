@@ -28,7 +28,8 @@ def parse_command_line_args():
     arg_parser = argparse.ArgumentParser(description="第五人格登陆助手")
     arg_parser.add_argument('--download', type=str, default="", help='下载任务文件绝对路径')
     arg_parser.add_argument('--uri', type=str, default="", help='处理 idvlogin:// URI Scheme 调用')
-    arg_parser.add_argument('--proxy-port', type=int, default=8899, help='mitmproxy 监听端口 (默认 8899)')
+    arg_parser.add_argument('--open-ui', action='store_true', help='启动后直接打开渠道服管理界面')
+    arg_parser.add_argument('--proxy-port', type=int, default=10717, help='mitmproxy 监听端口 (默认 10717)')
     return arg_parser.parse_args()
 
 
@@ -37,7 +38,6 @@ CLI_ARGS = parse_command_line_args()
 
 import socket
 import os
-import sys
 import ctypes
 import atexit
 import requests
@@ -50,6 +50,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(script_dir)
 from envmgr import genv
 import hotfixmgr
+import app_state
 from proxy_env import set_proxy as _set_proxy, unset_proxy as _unset_proxy
 
 
@@ -105,7 +106,7 @@ def handle_exit():
         print("程序关闭，正在清理！ (logger 未初始化)")
 
     # 停止 mitmproxy 代理
-    proxy_mgr = genv.get("PROXY_MGR")
+    proxy_mgr = app_state.proxy_mgr
     if proxy_mgr:
         if logger: 
             logger.info("正在停止 mitmproxy 代理...")
@@ -308,6 +309,17 @@ def initialize():
 
 
     # initialize the global vars at first
+    # 全局禁用 requests 库的环境变量代理 (HTTP_PROXY 等),
+    # 防止本工具设置的系统代理影响 Python 侧的 HTTP 请求
+    import requests as _requests_mod
+    _orig_session_init = _requests_mod.Session.__init__
+
+    def _no_trust_env_init(self, *a, **kw):
+        _orig_session_init(self, *a, **kw)
+        self.trust_env = False
+
+    _requests_mod.Session.__init__ = _no_trust_env_init
+
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("DOMAIN_TARGET_OVERSEA","sdk-os.mpsdk.easebar.com")
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
@@ -356,7 +368,7 @@ def initialize():
     from cloudRes import CloudRes
     m_cloudres=CloudRes(CloudPaths,genv.get('FP_WORKDIR'))
     m_cloudres.update_cache_if_needed()
-    genv.set("CLOUD_RES",m_cloudres)
+    app_state.cloud_res = m_cloudres
     genv.set("CLOUD_VERSION",m_cloudres.get_version())
     genv.set("CLOUD_ANNO",m_cloudres.get_announcement())
 
@@ -384,7 +396,7 @@ def initialize():
     else:
         with open(genv.get("FP_FAKE_DEVICE"), "r") as f:
             sdkDevice = json.load(f)
-    genv.set("FAKE_DEVICE", sdkDevice)
+    app_state.fake_device = sdkDevice
     
     if not os.path.exists(genv.get("GLOB_LOGIN_PROFILE_PATH")):
         os.makedirs(genv.get("GLOB_LOGIN_PROFILE_PATH"))
@@ -396,23 +408,48 @@ def initialize():
     m_certmgr = certmgr()
     # Proxy manager is created later during setup_network_proxy()
     m_proxy = None
-    genv.set("CHANNELS_HELPER", ChannelManager())
+    app_state.channels_helper = ChannelManager()
 
     logger.info("初始化内置浏览器")
     os.environ.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
     os.environ.pop('QT_PLUGIN_PATH', None)
     os.environ.pop('LD_LIBRARY_PATH', None)   # Linux/macOS 下动态库搜索路径
+    # 移除进程环境中的代理变量，防止 QtWebEngine (Chromium 子进程) 继承后
+    # 将 OAuth 登录页面等 HTTPS 流量路由到 mitmproxy 导致加载失败。
+    # 游戏子进程通过 mitm_proxy.get_proxy_env() 获取独立的代理配置。
+    for _pvar in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+                  "NO_PROXY", "no_proxy"):
+        os.environ.pop(_pvar, None)
+    # 双保险: 通过 Chromium 命令行参数显式禁用代理
+    _chromium_flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    if "--no-proxy-server" not in _chromium_flags:
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
+            (_chromium_flags + " " if _chromium_flags else "") + "--no-proxy-server"
+        )
     from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
-    from PyQt6.QtNetwork import QNetworkProxyFactory
+    from PyQt6.QtNetwork import QNetworkProxyFactory, QNetworkProxy
     from uimgr import register_url_scheme
     # Register custom URL schemes before creating QApplication
     register_url_scheme()
 
     argv = sys.argv if sys.argv else ["idv-login"]
-    genv.set("APP",QApplication(argv))
+    app = QApplication(argv)
+    app_state.app = app
 
+    # 关闭所有窗口后不退出应用 —— 本工具是后台代理服务，应持续运行。
+    app.setQuitOnLastWindowClosed(False)
+    # 标记主事件循环即将运行，让 WebBrowser.run() 使用局部 QEventLoop
+    # 而非再次调用 app.exec()。否则登录窗口关闭时 cleanup() 会调用
+    # app.quit() 导致整个应用退出，管理页面无法收到登录结果。
+    app.setProperty("_main_loop_running", True)
+
+    # 显式告知 Qt (及其内嵌 Chromium) 不使用任何代理。
+    # Qt 文档: "If QNetworkProxy::applicationProxy is set, it will also be
+    # used for Qt WebEngine." 这是控制 Chromium 代理行为的官方 API。
     QNetworkProxyFactory.setUseSystemConfiguration(False)
+    QNetworkProxy.setApplicationProxy(
+        QNetworkProxy(QNetworkProxy.ProxyType.NoProxy)
+    )
 
     if genv.get(f"{genv.get('VERSION')}_first_use",True):
         # 记录安装根目录
@@ -438,7 +475,6 @@ def initialize():
         setup_shortcuts()
     except:
         logger.error("创建快捷方式失败")
-    computer_name = get_computer_name()
     from run_once import run_once
     try:
         run_once()
@@ -564,9 +600,6 @@ def handle_download_task(task_file_path):
         logger_local.exception(f"读取下载任务文件失败: {e}")
         return False
     download_root = task_data.get("download_root", "")
-    directories = task_data.get("directories", [])
-    files = task_data.get("files", [])
-    concurrent_files = int(task_data.get("concurrent_files", 2))
     game_id = task_data.get("game_id", "")
     version_code = task_data.get("version_code", "")
     distribution_id = int(task_data.get("distribution_id", -1))
@@ -856,7 +889,7 @@ def setup_network_proxy(proxy_port):
     # Create the UI manager for the Qt window
     from uimgr import UIManager
     ui_mgr = UIManager(game_helper=game_helper, ui_logger=ui_logger)
-    genv.set("UI_MGR", ui_mgr)
+    app_state.ui_mgr = ui_mgr
 
     # Create the mitmproxy addon
     from mitm_addon import IDVLoginAddon
@@ -878,7 +911,7 @@ def setup_network_proxy(proxy_port):
 
     proxy_mgr.start()
     m_proxy = proxy_mgr
-    genv.set("PROXY_MGR", proxy_mgr)
+    app_state.proxy_mgr = proxy_mgr
 
     # Register the URI scheme so QR code redirects open our Qt window
     from uri_scheme import register_uri_scheme, start_uri_listener
@@ -906,6 +939,9 @@ def setup_network_proxy(proxy_port):
     else:
         # 没有自启游戏 → 设置系统/用户级代理，方便用户手动启动的游戏走代理
         _set_proxy(proxy_port)
+        print("\033[33m⚠ 提示：当前使用系统级代理，会处理本机所有网络连接。\033[0m")
+        print("\033[33m  建议在管理页面中导入发烧平台游戏或选择现有游戏目录，\033[0m")
+        print("\033[33m  工具将切换为进程级代理，仅对游戏生效，不影响其他软件。\033[0m")
 
     logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
     print("您现在可以打开游戏了。游戏将通过代理自动路由。")
@@ -1015,10 +1051,17 @@ def main(cli_args=None):
         # 网络代理设置 (mitmproxy normal mode)
         proxy_port = cli_args.proxy_port
         setup_network_proxy(proxy_port)
+
+        # setup_network_proxy → _set_proxy → _broadcast_env_change 可能导致
+        # Qt 重新读取系统代理。必须在此之后再次显式设置 NoProxy。
+        from PyQt6.QtNetwork import QNetworkProxy
+        QNetworkProxy.setApplicationProxy(
+            QNetworkProxy(QNetworkProxy.ProxyType.NoProxy)
+        )
         
         # The proxy runs in a background thread.
         # Keep the main thread alive (for Qt event loop or simple wait).
-        app = genv.get("APP")
+        app = app_state.app
         if app is not None:
             # If a Qt application exists, run its event loop.
             # 在Qt退出前执行清理
@@ -1045,8 +1088,24 @@ if __name__ == "__main__":
         if CLI_ARGS.download:
             success = handle_download_task(CLI_ARGS.download)
             sys.exit(0 if success else 1)
+        # --open-ui 是 --uri "idvlogin://open" 的简写，用于快捷方式
+        if CLI_ARGS.open_ui and not CLI_ARGS.uri:
+            CLI_ARGS.uri = "idvlogin://open"
         if CLI_ARGS.uri:
             # URI scheme invocation (e.g. idvlogin://open?game_id=xxx)
+            # 如果当前进程没有管理员权限，先提权再处理 URI
+            if sys.platform == "win32" and ctypes.windll.shell32.IsUserAnAdmin() == 0:
+                if getattr(sys, 'frozen', False):
+                    exe = sys.argv[0]
+                    args = sys.argv[1:] if len(sys.argv) > 1 else []
+                    argvs = [f'"{a}"' for a in args]
+                else:
+                    exe = sys.executable
+                    argvs = [f'"{i}"' for i in sys.argv]
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", exe, " ".join(argvs), script_dir, 1
+                )
+                sys.exit(0)
             # Try to signal the already-running instance via named pipe.
             from uri_scheme import parse_uri, signal_running_instance
             params = parse_uri(CLI_ARGS.uri)

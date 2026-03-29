@@ -226,6 +226,26 @@ def _listener_named_pipe(callback):
         PIPE_WAIT = 0x00000000
         INVALID_HANDLE = ctypes.c_void_p(-1).value
 
+        # 构建安全描述符：NULL DACL 允许所有用户（含非提权进程）连接管道
+        class SECURITY_ATTRIBUTES(ctypes.Structure):
+            _fields_ = [
+                ("nLength", wt.DWORD),
+                ("lpSecurityDescriptor", ctypes.c_void_p),
+                ("bInheritHandle", wt.BOOL),
+            ]
+
+        sd = ctypes.c_buffer(20)  # SECURITY_DESCRIPTOR_MIN_LENGTH
+        ctypes.windll.advapi32.InitializeSecurityDescriptor(
+            ctypes.byref(sd), 1  # SECURITY_DESCRIPTOR_REVISION
+        )
+        ctypes.windll.advapi32.SetSecurityDescriptorDacl(
+            ctypes.byref(sd), True, None, False  # NULL DACL = allow all
+        )
+        sa = SECURITY_ATTRIBUTES()
+        sa.nLength = ctypes.sizeof(sa)
+        sa.lpSecurityDescriptor = ctypes.addressof(sd)
+        sa.bInheritHandle = False
+
         while True:
             handle = ctypes.windll.kernel32.CreateNamedPipeW(
                 _PIPE_NAME,
@@ -235,7 +255,7 @@ def _listener_named_pipe(callback):
                 4096,  # out buffer
                 4096,  # in buffer
                 0,     # default timeout
-                None,
+                ctypes.byref(sa),
             )
             if handle == INVALID_HANDLE:
                 logger.warning("创建命名管道失败")

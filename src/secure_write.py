@@ -48,14 +48,26 @@ def write_json_restricted(filepath: str, obj):
 
 
 def _win_write_restricted(filepath: str, data: bytes, *, binary: bool = True):
-    """Windows: write then immediately restrict ACL."""
+    """Windows: write then restrict ACL to Administrators/SYSTEM only.
+
+    Non-elevated users must use UAC to access the file, even if they
+    created it.  Uses well-known SIDs for locale independence.
+    """
     mode = "wb" if binary else "w"
     with open(filepath, mode) as f:
         f.write(data)
     import subprocess
-    username = os.getlogin()
+    # /reset 清除所有显式 ACE 并恢复为继承权限（移除旧版本残留的用户 ACE）
+    subprocess.run(
+        ["icacls", filepath, "/reset"],
+        capture_output=True, timeout=10,
+    )
+    # /inheritance:r 移除所有继承的 ACE，然后仅授权 Administrators 和 SYSTEM
+    # S-1-5-32-544 = BUILTIN\Administrators  (requires elevation)
+    # S-1-5-18     = NT AUTHORITY\SYSTEM
     subprocess.run(
         ["icacls", filepath, "/inheritance:r",
-         "/grant:r", f"{username}:(R,W)"],
+         "/grant:r", "*S-1-5-32-544:(F)",
+         "/grant:r", "*S-1-5-18:(F)"],
         capture_output=True, timeout=10,
     )
