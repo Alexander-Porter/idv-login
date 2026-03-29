@@ -24,16 +24,13 @@ import time
 import json
 import base64
 import shlex
-from typing import Optional, List, Dict, Any,Tuple
+from typing import Optional, List, Dict, Tuple
 import xxhash
-from datetime import datetime
 from envmgr import genv
+import app_state
 from logutil import setup_logger
 from cloudRes import CloudRes
 from channelHandler.channelUtils import getShortGameId, cmp_game_id
-from cloudRes import CloudRes
-from envmgr import genv
-from logutil import setup_logger
 
 def calculate_xxh64(file_path):
     h = xxhash.xxh64() # 初始化 64位 对象
@@ -131,7 +128,7 @@ class Game:
             env['SYSTEMROOT'] = os.environ.get('SYSTEMROOT', '%SystemRoot%')
             
             # 注入代理环境变量（mitmproxy 代理模式）
-            proxy_mgr = genv.get("PROXY_MGR")
+            proxy_mgr = app_state.proxy_mgr
             if proxy_mgr:
                 proxy_env = proxy_mgr.get_proxy_env()
                 env.update(proxy_env)
@@ -151,7 +148,7 @@ class Game:
                 self.logger.exception(f"启动游戏失败: {str(e)}")
         else:
             env = os.environ.copy()
-            proxy_mgr = genv.get("PROXY_MGR")
+            proxy_mgr = app_state.proxy_mgr
             if proxy_mgr:
                 proxy_env = proxy_mgr.get_proxy_env()
                 env.update(proxy_env)

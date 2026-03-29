@@ -4,10 +4,10 @@ import string
 import hmac
 import hashlib
 import time
-import threading
+
 import requests
 import pyperclip as cb
-from envmgr import genv
+import app_state
 from ssl_utils import should_verify_ssl
 
 class CustomEncoder(json.JSONEncoder):
@@ -36,7 +36,7 @@ def calcSign(url,method,data,key):
     return hmac.new(key.encode(), src.encode(), hashlib.sha256).hexdigest()
 
 def buildSAUTH(login_channel, app_channel,uid,session,game_id,sdk_version,custom_data={}):
-    fakeData = genv.get("FAKE_DEVICE")
+    fakeData = app_state.fake_device
     ip=_get_my_ip()
     data = {
         "gameid": game_id,#maybe works for all games

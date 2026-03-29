@@ -17,12 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
 import re
 import sys
 import threading
 import time
 
+import app_state
 from mitmproxy import http
 
 
@@ -341,7 +341,7 @@ class IDVLoginAddon:
 
                 def _delayed_scan():
                     time.sleep(delay)
-                    self.genv.get("CHANNELS_HELPER").simulate_scan(
+                    app_state.channels_helper.simulate_scan(
                         auto_uuid, qr_data["uuid"], qr_data["game_id"]
                     )
 
@@ -406,7 +406,7 @@ class IDVLoginAddon:
                     pending_login_info = self.stack_mgr.pop_pending_login_info(game_id, process_id)
                     if pending_login_info:
                         resp_data = json.loads(flow.response.content)
-                        self.genv.get("CHANNELS_HELPER").import_from_scan(
+                        app_state.channels_helper.import_from_scan(
                             pending_login_info, resp_data
                         )
         except Exception:

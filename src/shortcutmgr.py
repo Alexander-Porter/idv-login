@@ -2,6 +2,7 @@ import os
 import sys
 from logutil import logger
 from envmgr import genv
+import app_state
 class ShortcutEntry:
     def __init__(self, url, name, policy="always") -> None:
         self.url = url
@@ -60,7 +61,7 @@ class ShortcutMgr:
             return None, False
 
     def get_shortcuts(self):
-        cloudResMgr_instance = genv.get("CLOUD_RES",None)
+        cloudResMgr_instance = app_state.cloud_res
         if cloudResMgr_instance is None:
             return []
         return cloudResMgr_instance.get_shortcuts()
