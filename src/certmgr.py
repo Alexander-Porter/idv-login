@@ -43,7 +43,7 @@ class certmgr:
             self.logger.info(f"证书文件 {cert_path} 不存在，将进行创建。")
             return False  # Not expired because it will be (re)created
         try:
-            with open(cert_path, "rb") as f:
+            with open(cert_path, "rb",encoding='utf-8') as f:
                 cert_data = f.read()
             cert = x509.load_pem_x509_certificate(cert_data)
             # Use timezone-aware datetime for comparison
@@ -170,7 +170,7 @@ class certmgr:
 
     def export_key(self, fn, key):
         try:
-            with open(fn, "wb") as f:
+            with open(fn, "wb",encoding='utf-8') as f:
                 f.write(
                     key.private_bytes(
                         Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
@@ -183,7 +183,7 @@ class certmgr:
 
     def export_cert(self, fn, cert):
         try:
-            with open(fn, "wb") as f:
+            with open(fn, "wb",encoding='utf-8') as f:
                 f.write(cert.public_bytes(Encoding.PEM))
         except Exception as e:
             self.logger.error(str(e))

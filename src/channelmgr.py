@@ -111,7 +111,7 @@ class ChannelManager:
         from channelHandler.oppoChannelHandler import oppoChannel
 
         if os.path.exists(genv.get("FP_CHANNEL_RECORD")):
-            with open(genv.get("FP_CHANNEL_RECORD"), "r") as file:
+            with open(genv.get("FP_CHANNEL_RECORD"), "r",encoding='utf-8') as file:
                 try:
                     data = json.load(file)
                     for item in data:
