@@ -146,18 +146,7 @@ def handle_exit():
             logger.warning(f"注销 URI Scheme 失败: {e}")
             import traceback
             logger.debug(traceback.format_exc())
-
-    # 使用logger而不是print确保消息被记录
-    if logger:
-        logger.info("再见!")
-        # 强制刷新日志缓冲区
-        for handler in logger._core.handlers:
-            try:
-                handler._sink.flush()
-            except Exception:
-                pass
     print("再见!")
-    sys.stdout.flush()  # 确保输出被刷新到终端
 
 def handle_update():
 
@@ -264,7 +253,11 @@ def handle_update():
 def ctrl_handler(ctrl_type):
     if ctrl_type in (0, 1, 2, 5, 6):
         handle_exit()
-        return False
+        # 强制结束进程，防止主线程阻塞在 Qt 事件循环 (app.exec()) 中导致程序假死
+        import time, os
+        time.sleep(0.1)
+        os._exit(0)
+        return True
     return True
 
 
@@ -461,6 +454,17 @@ def initialize():
         #genv.set("httpdns_blocking_enabled",False,True)
         #webbrowser.open(url)
         genv.set(f"{genv.get('VERSION')}_first_use",False,True)
+        from hostmgr import hostmgr
+        try:
+            h_mgr=hostmgr()
+            if h_mgr.isExist(genv.get("DOMAIN_TARGET")):
+                logger.warning(f"Hosts文件中已存在{genv.get('DOMAIN_TARGET')}的记录，正在尝试删除旧记录...")
+                h_mgr.remove(genv.get("DOMAIN_TARGET"))
+            if h_mgr.isExist(genv.get("DOMAIN_TARGET_OVERSEA")):
+                logger.warning(f"Hosts文件中已存在{genv.get('DOMAIN_TARGET_OVERSEA')}的记录，正在尝试删除旧记录...")
+                h_mgr.remove(genv.get("DOMAIN_TARGET_OVERSEA"))
+        except Exception as e:
+            logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
         #from gamemgr import GameManager
         #try:
         #    game_mgr = GameManager()
@@ -995,7 +999,8 @@ def setup_signal_handlers():
         handle_exit()
         # 给一点时间让输出完成
         time.sleep(0.1)
-        sys.exit(0)
+        import os
+        os._exit(0)
     # 捕获常见的终止信号
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # kill 命令
