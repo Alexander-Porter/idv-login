@@ -1067,7 +1067,6 @@ def main(cli_args=None):
             # If a Qt application exists, run its event loop.
             # 在Qt退出前执行清理
             app.aboutToQuit.connect(handle_exit)
-            logger.info("Qt 事件循环启动中...")
             app.setProperty("_main_loop_running", True)
             app.exec()
             # Qt已退出，但handle_exit可能还没完成，稍等一下

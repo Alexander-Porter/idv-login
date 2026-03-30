@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 import re
 import sys
 import threading
@@ -397,10 +398,7 @@ class IDVLoginAddon:
 
             if is_selected:
                 if flow.response.status_code == 200 and self.game_helper.get_auto_close_setting(game_id):
-                    self.logger.info("检测到登录已完成请求，即将自动关闭程序...")
-                    t = threading.Timer(3, sys.exit, args=[0])
-                    t.daemon = True
-                    t.start()
+                    self._trigger_auto_close()
             else:
                 if flow.response.status_code == 200:
                     pending_login_info = self.stack_mgr.pop_pending_login_info(game_id, process_id)
@@ -424,12 +422,35 @@ class IDVLoginAddon:
 
             game_id = form_data.get("game_id", "")
             if self.game_helper.get_auto_close_setting(game_id):
-                self.logger.info("检测到登录已完成请求，即将自动关闭程序...")
-                t = threading.Timer(3, sys.exit, args=[0])
-                t.daemon = True
-                t.start()
+                self._trigger_auto_close()
         except Exception:
             self.logger.exception("处理 data/upload 响应失败")
+
+    def _trigger_auto_close(self):
+        self.logger.info("检测到登录已完成请求，即将安全触发程序关闭逻辑...")
+        def _do_close():
+            try:
+                import app_state
+                if hasattr(app_state, "app") and app_state.app is not None:
+                    from PyQt6.QtCore import QMetaObject, Qt
+                    QMetaObject.invokeMethod(app_state.app, "quit", Qt.ConnectionType.QueuedConnection)
+                    return
+            except Exception as e:
+                self.logger.error(f"通知主循环退出失败: {e}")
+            
+            # 兜底：如果 Qt 循环不存在，则手动调用 main 的清理逻辑后强退
+            #try:
+            #    import __main__
+            #    if hasattr(__main__, "handle_exit"):
+            #        __main__.handle_exit()
+            #except Exception:
+            #    pass
+            #import os
+            #os._exit(0)
+
+        t = threading.Timer(3.0, _do_close)
+        t.daemon = True
+        t.start()
 
     def _modify_oversea_config_response(self, flow: http.HTTPFlow):
         try:
