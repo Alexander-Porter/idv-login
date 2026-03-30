@@ -16,7 +16,9 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import hashlib
 import json
+import os
 import sys
 import threading
 
@@ -31,6 +33,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QMainWindow
 
 from logutil import setup_logger
+from secure_write import write_file_restricted
 
 logger = setup_logger()
 
@@ -44,28 +47,100 @@ _OPEN_PROXY_HOST = "open"
 # In-memory cache for CDN resources: url -> (content_type, body_bytes)
 _cdn_cache: dict[str, tuple[str, bytes]] = {}
 
+# Disk cache directory (initialised lazily via _get_cdn_cache_dir)
+_cdn_cache_dir: str | None = None
 
-def _fetch_cdn_resource(url: str) -> tuple[str, bytes]:
+
+def _get_cdn_cache_dir() -> str:
+    """Return (and create if needed) the on-disk CDN cache directory."""
+    global _cdn_cache_dir
+    if _cdn_cache_dir is None:
+        from envmgr import genv
+        base = genv.get("FP_WORKDIR") or os.getcwd()
+        _cdn_cache_dir = os.path.join(base, "cdn_cache")
+    os.makedirs(_cdn_cache_dir, exist_ok=True)
+    return _cdn_cache_dir
+
+
+def _url_cache_key(url: str) -> str:
+    """Derive a filesystem-safe cache key from the URL basename.
+
+    Keyed by filename so that the same resource served by different CDNs
+    shares one cache entry.  This avoids repeated timeouts when a primary
+    CDN is unreachable: once any mirror delivers the file, all subsequent
+    requests (even to the dead CDN) hit the cache instantly.
+    """
+    from urllib.parse import urlparse
+
+    basename = os.path.basename(urlparse(url).path)
+    if not basename:
+        return hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return hashlib.sha256(basename.encode("utf-8")).hexdigest()
+
+
+def _load_cdn_from_disk(url: str) -> tuple[str, bytes] | None:
+    """Try to load a CDN resource from the on-disk cache."""
+    cache_dir = _get_cdn_cache_dir()
+    key = _url_cache_key(url)
+    meta_path = os.path.join(cache_dir, key + ".meta")
+    data_path = os.path.join(cache_dir, key + ".data")
+    try:
+        if os.path.exists(meta_path) and os.path.exists(data_path):
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            with open(data_path, "rb") as f:
+                body = f.read()
+            return meta.get("content_type", "application/octet-stream"), body
+    except Exception:
+        pass
+    return None
+
+
+def _save_cdn_to_disk(url: str, content_type: str, body: bytes):
+    """Persist a CDN resource to the on-disk cache using secure_write."""
+    cache_dir = _get_cdn_cache_dir()
+    key = _url_cache_key(url)
+    meta_path = os.path.join(cache_dir, key + ".meta")
+    data_path = os.path.join(cache_dir, key + ".data")
+    try:
+        meta = json.dumps({"url": url, "content_type": content_type}).encode("utf-8")
+        write_file_restricted(meta_path, meta)
+        write_file_restricted(data_path, body)
+    except Exception as exc:
+        logger.debug(f"CDN 磁盘缓存写入失败: {url}: {exc}")
+
+
+def _fetch_cdn_resource(url: str) -> tuple[str, bytes, bool]:
     """Fetch a CDN resource via Python (bypasses system proxy).
 
-    Returns ``(content_type, body)``; results are cached in memory.
+    Returns ``(content_type, body, success)``; results are cached in memory
+    and persisted to disk.  Failed fetches are **not** cached so that a
+    subsequent attempt (e.g. after fallback) can retry.
     ``trust_env=False`` is set globally via ``requests.Session`` monkey-patch.
     """
+    # 1) 内存缓存
     cached = _cdn_cache.get(url)
     if cached is not None:
-        return cached
+        return (*cached, True)
+    # 2) 磁盘缓存
+    disk = _load_cdn_from_disk(url)
+    if disk is not None:
+        _cdn_cache[url] = disk
+        return (*disk, True)
+    # 3) 网络获取
     try:
         import requests as _req
-        resp = _req.get(url, timeout=15)
+        resp = _req.get(url, timeout=5)
         resp.raise_for_status()
         ct = resp.headers.get("Content-Type", "application/octet-stream")
         body = resp.content
     except Exception as exc:
         logger.warning(f"CDN 资源获取失败: {url}: {exc}")
-        ct = "text/plain"
-        body = b""
+        return "text/plain", b"", False
     _cdn_cache[url] = (ct, body)
-    return ct, body
+    if body:
+        _save_cdn_to_disk(url, ct, body)
+    return ct, body, True
 
 
 def register_url_scheme():
@@ -172,7 +247,11 @@ class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
             original_url += "?" + query
 
         logger.debug(f"[CDN代理] 获取: {original_url}")
-        ct, body = _fetch_cdn_resource(original_url)
+        ct, body, ok = _fetch_cdn_resource(original_url)
+        if not ok:
+            logger.warning(f"[CDN代理] 失败，返回错误: {original_url}")
+            job.fail(QWebEngineUrlRequestJob.Error.RequestFailed)
+            return
         logger.debug(f"[CDN代理] 完成: {original_url} ({len(body)} bytes, {ct})")
         buf = QBuffer(parent=job)
         buf.setData(QByteArray(body))

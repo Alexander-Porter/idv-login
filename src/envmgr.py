@@ -15,7 +15,7 @@ class genv:
             if cached:
                 try:
                     if os.path.exists(_cachePath):
-                        with open(_cachePath, 'r') as f:
+                        with open(_cachePath, 'r', encoding='utf-8') as f:
                             data=json.load(f)
                     else:
                         data={}
@@ -31,7 +31,7 @@ class genv:
             return _list[key]
         else:
             try:
-                with open(_cachePath, 'r') as f:
+                with open(_cachePath, 'r', encoding='utf-8') as f:
                     data=json.load(f)
                     if key in data:
                         return data[key]
@@ -43,7 +43,7 @@ class genv:
     def get_from_file(key,value):
         try:
             if os.path.exists(_cachePath):
-                with open(_cachePath, 'r') as f:
+                with open(_cachePath, 'r', encoding='utf-8') as f:
                     data=json.load(f)
                     if key in data:
                         return data[key]

@@ -53,8 +53,8 @@ def register_uri_scheme(executable_path: str | None = None) -> bool:
             executable_path = sys.executable
         else:
             executable_path = os.path.abspath(sys.argv[0])
-            # For .py scripts, prepend the interpreter
-            if executable_path.endswith(".py"):
+            # For .py/.pyc/.pyw scripts, prepend the interpreter
+            if executable_path.endswith((".py", ".pyc", ".pyw")):
                 executable_path = f'{sys.executable}" "{executable_path}'
 
     try:
