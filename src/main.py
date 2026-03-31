@@ -495,13 +495,13 @@ def initialize():
     except Exception as e:
         logger.error(f"运行一次性任务失败: {e}")
     #如果是windows，清空DNS缓存
-    if sys.platform=='win32':
-        subprocess.call(
-            "ipconfig /flushdns",
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    #if sys.platform=='win32':
+    #    subprocess.call(
+    #        "ipconfig /flushdns",
+    #        shell=True,
+    #        stdout=subprocess.DEVNULL,
+    #        stderr=subprocess.DEVNULL,
+    #    )
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
@@ -953,14 +953,14 @@ def setup_network_proxy(proxy_port):
     else:
         # 没有自启游戏 → 设置系统/用户级代理，方便用户手动启动的游戏走代理
         _set_proxy(proxy_port)
-        print("\033[33m⚠ 提示：当前使用系统级代理，会处理本机所有网络连接。\033[0m")
-        print("\033[33m  建议在管理页面中导入发烧平台游戏或选择现有游戏目录，\033[0m")
-        print("\033[33m  工具将切换为进程级代理，仅对游戏生效，不影响其他软件。\033[0m")
+        logger.info("提示：当前使用系统级代理，会处理本机所有网络连接。")
+        logger.info("如果出现其他程序无法联网问题，建议在管理页面中导入发烧平台游戏或选择现有游戏目录，")
+        logger.info("设置游戏目录后，工具将切换为进程级代理，仅对游戏生效，不影响其他软件。")
 
     logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
-    print("您现在可以打开游戏了。游戏将通过代理自动路由。")
-    print("\033[33m如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！\033[0m")
-    print("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+    logger.info("拦截成功，您现在可以打开游戏了。游戏将通过代理自动路由。")
+    logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
+    logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
 
 
 def handle_error_and_exit(e):
