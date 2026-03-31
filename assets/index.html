@@ -1195,14 +1195,14 @@
                         const has_ask_for_jump_20260205 = localStorage.getItem('has_ask_for_jump_20260205');
                         if (!currentGameId && data.games.length === 0 && !has_ask_for_jump_20260205) {
                             swal({
-                                title: "游戏ID为空",
+                                title: "游戏ID为空，您可能从未记录过渠道服账号",
                                 text: "您是否要前往安装第五人格新引擎？",
                                 icon: "info",
                                 buttons: ["取消", "跳转"],
                             }).then((willJump) => {
                                 if (willJump) {
                                     localStorage.setItem('has_ask_for_jump_20260205', 'true');
-                                    window.location.href = 'https://localhost/_idv-login/index?game_id=aecfrt3rmaaaaajl-g-h55';
+                                    window.location.href = '/_idv-login/index?game_id=aecfrt3rmaaaaajl-g-h55';
                                 }
                             });
                         }

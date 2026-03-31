@@ -148,6 +148,7 @@ class MiLogin:
         self.appId = appId
         self.oauthData = oauthData
         self.account_type=account_type
+        self._active_browser: MiBrowser = None  # 异步模式下保持强引用
 
         if os.path.exists(DEVICE_RECORD):
             with open(DEVICE_RECORD, "r", encoding="utf-8") as f:
@@ -254,8 +255,12 @@ class MiLogin:
 
         if result is None:
             # 异步模式：浏览器已显示，等待用户登录完成
+            # 必须保持对 browser 的强引用，否则函数返回后局部变量被销毁，
+            # 导致 profile 被释放而 WebEnginePage 仍在运行。
+            self._active_browser = miBrowser
             if on_complete is not None:
                 def _on_async_done(browser):
+                    self._active_browser = None  # 登录完成后释放引用
                     try:
                         if not browser.result or not isinstance(browser.result, tuple):
                             self.oauthData = None

@@ -269,7 +269,7 @@ class HuaweiLogin:
     def __init__(self, channelConfig, refreshToken=None, real_game_id=None):
 
         os.chdir(os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
-        #self.logger = setup_logger()
+        self.logger = setup_logger()
         self.channelConfig = channelConfig
         self.refreshToken = refreshToken
         self.accessToken=None
@@ -277,6 +277,7 @@ class HuaweiLogin:
         self.lastLoginTime = 0
         self.expiredTime = 0
         self.real_game_id = real_game_id
+        self._active_browser: HuaweiBrowser = None  # 异步模式下保持强引用
         if os.path.exists(DEVICE_RECORD):
             with open(DEVICE_RECORD, "r", encoding="utf-8") as f:
                 self.device = json.load(f)
@@ -322,8 +323,12 @@ class HuaweiLogin:
 
         if res is None:
             # 异步模式：浏览器已显示，等待用户登录完成
+            # 必须保持对 browser 的强引用，否则函数返回后局部变量被销毁，
+            # 导致 profile 被释放而 WebEnginePage 仍在运行。
+            self._active_browser = huaWebLogin
             if on_complete is not None:
                 def _on_async_done(browser):
+                    self._active_browser = None  # 登录完成后释放引用
                     try:
                         if not browser.result or browser.result == "":
                             self.logger.warning("华为登录未完成（用户取消或窗口关闭）")
