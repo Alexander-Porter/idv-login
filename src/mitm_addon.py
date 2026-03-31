@@ -342,8 +342,12 @@ class IDVLoginAddon:
 
                 def _delayed_scan():
                     time.sleep(delay)
-                    app_state.channels_helper.simulate_scan(
-                        auto_uuid, qr_data["uuid"], qr_data["game_id"]
+                    # simulate_scan 可能触发 webLogin 创建 Qt 对象，
+                    # 必须在 Qt 主线程中执行
+                    app_state.run_on_main_thread(
+                        lambda: app_state.channels_helper.simulate_scan(
+                            auto_uuid, qr_data["uuid"], qr_data["game_id"]
+                        )
                     )
 
                 t = threading.Thread(target=_delayed_scan, daemon=True)

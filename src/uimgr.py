@@ -199,7 +199,10 @@ class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
         json_body = None
         if method.upper() == "POST":
             device = job.requestBody()
-            if device and device.isOpen():
+            if device:
+                # QIODevice 可能未被打开，需要显式打开
+                if not device.isOpen():
+                    device.open(QIODevice.OpenModeFlag.ReadOnly)
                 raw = bytes(device.readAll())
                 try:
                     json_body = json.loads(raw) if raw else {}

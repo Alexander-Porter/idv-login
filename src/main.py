@@ -62,6 +62,37 @@ logger = None # Will be initialized in __main__
 _console_ctrl_handler = None
 
 
+# -- 全局异常钩子 --
+def _global_excepthook(exc_type, exc_value, exc_tb):
+    """处理主线程中未捕获的异常"""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+        return
+    import traceback
+    tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    if logger:
+        logger.critical(f"未捕获的异常:\n{tb_str}")
+    else:
+        print(f"未捕获的异常:\n{tb_str}", file=sys.stderr)
+
+sys.excepthook = _global_excepthook
+
+def _threading_excepthook(args):
+    """处理子线程中未捕获的异常 (Python 3.8+)"""
+    if args.exc_type is SystemExit:
+        return
+    import traceback
+    tb_str = "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+    thread_name = args.thread.name if args.thread else "Unknown"
+    if logger:
+        logger.critical(f"线程 '{thread_name}' 中未捕获的异常:\n{tb_str}")
+    else:
+        print(f"线程 '{thread_name}' 中未捕获的异常:\n{tb_str}", file=sys.stderr)
+
+import threading
+threading.excepthook = _threading_excepthook
+
+
 def get_computer_name():
     try:
         # 获取计算机名
@@ -429,6 +460,8 @@ def initialize():
     argv = sys.argv if sys.argv else ["idv-login"]
     app = QApplication(argv)
     app_state.app = app
+    # 初始化主线程调度器，必须在 app 设置后、其他线程启动前调用
+    app_state._ensure_invoker()
 
     # 关闭所有窗口后不退出应用 —— 本工具是后台代理服务，应持续运行。
     app.setQuitOnLastWindowClosed(False)
