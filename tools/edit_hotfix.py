@@ -17,6 +17,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from typing import List, Set
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,7 @@ def load_cloudres() -> dict:
 
 def save_cloudres(data: dict):
     """保存 cloudRes.json，保持格式"""
+    data["lastModified"]=int(time.time())
     with open(CLOUDRES_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"✓ 已保存到 {CLOUDRES_PATH}")

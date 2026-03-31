@@ -1016,10 +1016,60 @@
 
         function switchChannel(uuid) {
             game_id = getQueryVariable("game_id");
+            
+            // 显示加载提示
+            swal({
+                title: "正在切换账号",
+                text: "请稍候...",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+                closeOnEsc: false,
+            });
+            
             fetch(`/_idv-login/switch?uuid=${uuid}&game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.current == uuid) {
+                    if (data.status === 'pending' && data.task_id) {
+                        // 异步模式：轮询状态直到完成
+                        const taskId = data.task_id;
+                        function pollSwitchStatus() {
+                            fetch(`/_idv-login/switch-status?task_id=${taskId}`)
+                                .then(r => r.json())
+                                .then(status => {
+                                    if (status.status === 'done') {
+                                        swal.close();
+                                        if (status.result && status.result !== false) {
+                                            swal({
+                                                title: "模拟登录成功",
+                                                icon: "success",
+                                                button: "确定",
+                                            });
+                                            location.reload();
+                                        } else {
+                                            swal({
+                                                title: "登录失败",
+                                                text: "请重试或检查账号状态",
+                                                icon: "error",
+                                                button: "确定",
+                                            });
+                                        }
+                                    } else {
+                                        // 继续轮询
+                                        setTimeout(pollSwitchStatus, 500);
+                                    }
+                                })
+                                .catch(() => {
+                                    swal({
+                                        title: "检查状态失败",
+                                        icon: "error",
+                                        button: "确定",
+                                    });
+                                });
+                        }
+                        pollSwitchStatus();
+                    } else if (data.current == uuid) {
+                        swal.close();
                         swal({
                             title: "模拟登录成功",
                             icon: "success",
@@ -1027,12 +1077,21 @@
                         });
                         location.reload();
                     } else {
+                        swal.close();
                         swal({
                             title: "登录失败",
                             icon: "error",
                             button: "确定",
                         });
                     }
+                })
+                .catch(() => {
+                    swal.close();
+                    swal({
+                        title: "请求失败",
+                        icon: "error",
+                        button: "确定",
+                    });
                 });
         }
         function defaultChannel(uuid) {

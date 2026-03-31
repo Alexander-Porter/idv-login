@@ -365,17 +365,16 @@ class HuaweiLogin:
 
 
     def initAccountData(self) -> object:
-        if self.refreshToken == None:
+        """获取账号数据。
+        
+        调用者需要确保在调用前 accessToken 是有效的。
+        如果 accessToken 过期或为 None，应先调用 newOAuthLogin() 获取新 token。
+        """
+        if self.refreshToken is None:
             return None
-        #access_token=get_access_token(self.channelConfig["app_id"],self.channelConfig["client_secret"],self.refreshToken)
-        #we dont know client secret lol.
-        #get now time
-        now=int(time.time())
-        if now>=self.expiredTime:
-            self.newOAuthLogin()
-        if self.accessToken==None:
+        if self.accessToken is None:
             return None
-        #build urlencoded k-v body
+        
         url = "https://jgw-drcn.jos.dbankcloud.cn/gameservice/api/gbClientApi"
 
         headers = {
@@ -387,7 +386,14 @@ class HuaweiLogin:
         body.update(self.device)
         body["method"] = "client.hms.gs.getGameAuthSign"
         body["extraBody"] = f'json={{"appId":"{str(self.channelConfig["app_id"])}"}}'
-        body["accessToken"]=self.accessToken
+        body["accessToken"] = self.accessToken
 
         response = requests.post(url, headers=headers, data=body, verify=should_verify_ssl())
         return response.json()
+    
+    def is_token_expired(self) -> bool:
+        """检查 accessToken 是否过期或无效"""
+        if self.accessToken is None:
+            return True
+        now = int(time.time())
+        return now >= self.expiredTime

@@ -475,30 +475,49 @@ class ChannelManager:
                 return channel
         return None
 
-    def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str):
-        channel_data = channel.get_uniSdk_data(game_id)
-        if not channel_data:
-            genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-            return False
-        channel_data["uuid"] = scanner_uuid
-        channel_data["game_id"] = game_id
-        body = "&".join([f"{k}={v}" for k, v in channel_data.items()])
-        r = requests.post(
-            "https://service.mkey.163.com/mpay/api/qrcode/confirm_login",
-            data=body,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            verify=should_verify_ssl()
-        )
-        self.logger.info(f"模拟确认请求返回: {r.json()}")
-        if r.status_code == 200:
-            channel.last_login_time = int(time.time())
-            self.save_records()
-            return r.json()
-        else:
-            genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-            return False
+    def simulate_confirm(self, channel: channel, scanner_uuid: str, game_id: str, on_complete=None):
+        def _do_confirm(channel_data):
+            if not channel_data:
+                genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+                if on_complete:
+                    on_complete(False)
+                return False
+            channel_data["uuid"] = scanner_uuid
+            channel_data["game_id"] = game_id
+            body = "&".join([f"{k}={v}" for k, v in channel_data.items()])
+            r = requests.post(
+                "https://service.mkey.163.com/mpay/api/qrcode/confirm_login",
+                data=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                verify=should_verify_ssl()
+            )
+            self.logger.info(f"模拟确认请求返回: {r.json()}")
+            if r.status_code == 200:
+                channel.last_login_time = int(time.time())
+                self.save_records()
+                result = r.json()
+                if on_complete:
+                    on_complete(result)
+                return result
+            else:
+                genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+                if on_complete:
+                    on_complete(False)
+                return False
 
-    def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str):
+        # 检查渠道是否支持异步 get_uniSdk_data
+        if on_complete is not None and hasattr(channel, 'get_uniSdk_data'):
+            import inspect
+            sig = inspect.signature(channel.get_uniSdk_data)
+            if 'on_complete' in sig.parameters:
+                channel.get_uniSdk_data(game_id, on_complete=_do_confirm)
+                return None
+
+        # 同步模式
+        channel_data = channel.get_uniSdk_data(game_id)
+        return _do_confirm(channel_data)
+
+    def simulate_scan(self, uuid: str, scanner_uuid: str, game_id: str, on_complete=None):
         for channel in self.channels:
             if channel.uuid == uuid:
                 data = {
@@ -513,6 +532,13 @@ class ChannelManager:
                 }
                 try:
                     if scanner_uuid=="Kinich":
+                        # 支持异步模式
+                        if on_complete is not None and hasattr(channel, 'get_uniSdk_data'):
+                            import inspect
+                            sig = inspect.signature(channel.get_uniSdk_data)
+                            if 'on_complete' in sig.parameters:
+                                channel.get_uniSdk_data(on_complete=on_complete)
+                                return None
                         return channel.get_uniSdk_data()
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
@@ -530,12 +556,18 @@ class ChannelManager:
                             verify=should_verify_ssl()
                         )
                     if r.status_code == 200:
-                        return self.simulate_confirm(channel, scanner_uuid, data["game_id"])
+                        return self.simulate_confirm(channel, scanner_uuid, data["game_id"], on_complete=on_complete)
                     else:
                         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+                        if on_complete:
+                            on_complete(False)
                         return False
                 except:
                     self.logger.exception("模拟扫码请求失败")
                     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+                    if on_complete:
+                        on_complete(False)
                     return False
+        if on_complete:
+            on_complete(None)
         return None

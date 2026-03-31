@@ -111,6 +111,7 @@ class LocalRequestHandler:
             "/_idv-login/list": self._list_channels,
             "/_idv-login/qrcode": self._wechat_qrcode,
             "/_idv-login/switch": self._switch_channel,
+            "/_idv-login/switch-status": self._switch_status,
             "/_idv-login/del": self._del_channel,
             "/_idv-login/rename": self._rename_channel,
             "/_idv-login/import": self._import_channel,
@@ -309,16 +310,66 @@ class LocalRequestHandler:
             "timestamp": data.get("timestamp", 0),
         })
 
+    _pending_switch = {}  # {task_id: {"status": "pending"|"done", "result": any}}
+
     def _switch_channel(self, args, body, method):
         uuid = args.get("uuid", "")
         game_id = args.get("game_id", "")
         genv.set("CHANNEL_ACCOUNT_SELECTED", uuid)
         data = self.stack_mgr.pop_cached_qrcode_data(game_id) if game_id else None
-        if data:
-            app_state.channels_helper.simulate_scan(uuid, data["uuid"], data["game_id"])
+
+        try:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+        except Exception:
+            app = None
+
+        scanner_uuid = data["uuid"] if data else "Kinich"
+        scan_game_id = data["game_id"] if data else "aecfrt3rmaaaaajl-g-g37"
+
+        if app and app.property("_main_loop_running"):
+            # 异步模式
+            import uuid as uuid_mod
+            from PyQt6.QtCore import QTimer
+            task_id = str(uuid_mod.uuid4())
+            LocalRequestHandler._pending_switch[task_id] = {"status": "pending"}
+
+            def do_switch():
+                def on_done(result):
+                    LocalRequestHandler._pending_switch[task_id] = {
+                        "status": "done", "result": result
+                    }
+
+                try:
+                    app_state.channels_helper.simulate_scan(
+                        uuid, scanner_uuid, scan_game_id, on_complete=on_done
+                    )
+                except Exception:
+                    self.logger.exception("异步切换渠道失败")
+                    LocalRequestHandler._pending_switch[task_id] = {
+                        "status": "done", "result": False
+                    }
+
+            QTimer.singleShot(0, do_switch)
+            return self._json_response(200, {"status": "pending", "task_id": task_id})
         else:
-            app_state.channels_helper.simulate_scan(uuid, "Kinich", "aecfrt3rmaaaaajl-g-g37")
-        return self._json_response(200, {"current": genv.get("CHANNEL_ACCOUNT_SELECTED")})
+            # 同步模式
+            if data:
+                app_state.channels_helper.simulate_scan(uuid, data["uuid"], data["game_id"])
+            else:
+                app_state.channels_helper.simulate_scan(uuid, "Kinich", "aecfrt3rmaaaaajl-g-g37")
+            return self._json_response(200, {"current": genv.get("CHANNEL_ACCOUNT_SELECTED")})
+
+    def _switch_status(self, args, body, method):
+        """检查异步切换渠道的状态"""
+        task_id = args.get("task_id", "")
+        task = LocalRequestHandler._pending_switch.get(task_id)
+        if task is None:
+            return self._json_response(404, {"error": "Unknown task_id"})
+        result = dict(task)
+        if task["status"] == "done":
+            del LocalRequestHandler._pending_switch[task_id]
+        return self._json_response(200, result)
 
     def _del_channel(self, args, body, method):
         success = app_state.channels_helper.delete(args.get("uuid", ""))

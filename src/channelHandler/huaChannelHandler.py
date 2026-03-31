@@ -99,17 +99,51 @@ class huaweiChannel(channelmgr.channel):
         self.refreshToken = self.huaweiLogin.refreshToken
         return self.refreshToken != None
 
-    def _get_session(self):
-        try:
-            data = self.huaweiLogin.initAccountData()
-            res = huaweiLoginResponse(data)
-        except Exception as e:
-            self.logger.error(f"{e}")
-            self.logger.error(f"Failed to get session data {data}")
-            self.refreshToken = None
+    def _get_session(self, on_complete=None):
+        """获取session数据，支持异步模式。
+        
+        当 accessToken 过期需要重新OAuth登录时，会异步弹出浏览器窗口。
+        """
+        def _do_get_session():
+            """实际获取 session 的逻辑"""
+            try:
+                data = self.huaweiLogin.initAccountData()
+                if data is None:
+                    self.logger.error("Failed to get session data: initAccountData returned None")
+                    self.refreshToken = None
+                    return None
+                res = huaweiLoginResponse(data)
+                self.session = res
+                return res
+            except Exception as e:
+                self.logger.error(f"{e}")
+                self.logger.error(f"Failed to get session data")
+                self.refreshToken = None
+                return None
+
+        # 检查是否需要重新 OAuth
+        if self.huaweiLogin.is_token_expired():
+            if on_complete is not None:
+                # 异步模式：先完成 OAuth，再获取 session
+                def _on_login_done(success):
+                    if success:
+                        result = _do_get_session()
+                        on_complete(result)
+                    else:
+                        on_complete(None)
+                self.request_user_login(on_complete=_on_login_done)
+                return None
+            else:
+                # 同步模式不支持，因为浏览器必须在主事件循环中运行
+                self.logger.error("华为渠道 token 过期，需要异步重新登录")
+                return None
+        
+        # token 有效，直接获取 session
+        result = _do_get_session()
+        if on_complete is not None:
+            on_complete(result)
             return None
-        self.session = res
-        return res
+        return result
 
     def is_token_valid(self):
         if self.refreshToken is None:
@@ -177,52 +211,102 @@ class huaweiChannel(channelmgr.channel):
         else:
             return str(self.session.playerLevel)
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    def get_uniSdk_data(self, game_id: str = "", on_complete=None):
+        """获取 UniSDK 登录数据，支持异步模式。
+        
+        当 token 过期需要重新 OAuth 时，会异步弹出浏览器窗口。
+        
+        Args:
+            game_id: 游戏ID
+            on_complete: 异步回调函数，接收登录数据或 None
+        """
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
 
+        def _build_unisdk_data():
+            """构建 UniSDK 数据的实际逻辑"""
+            self.uniBody = channelUtils.buildSAUTH(
+                self.channel_name,
+                self.channel_name,
+                self.session.playerId,
+                self.session.gameAuthSign,
+                getShortGameId(game_id),
+                "6.1.0.301",
+                {
+                    "anonymous": "",
+                    "get_access_token": "0",
+                    "extra_data": self._get_extra_data(),
+                    "timestamp": str(self.session.ts),
+                    "realname": json.dumps({"realname_type": 0, "duration": 0}),
+                },
+            )
+            fd = app_state.fake_device
+            self.logger.info(json.dumps(self.uniBody))
+            self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
+            self.logger.info(f"Get unisdk data for {self.uniData}")
+            self.uniSDKJSON = json.loads(
+                base64.b64decode(self.uniData["unisdk_login_json"]).decode()
+            )
+            res = {
+                "user_id": self.session.playerId,
+                "token": base64.b64encode(self.session.gameAuthSign.encode()).decode(),
+                "login_channel": self.channel_name,
+                "udid": fd["udid"],
+                "app_channel": self.channel_name,
+                "sdk_version": "6.1.0.301",
+                "jf_game_id": getShortGameId(game_id),
+                "pay_channel": self.channel_name,
+                "extra_data": "",
+                "extra_unisdk_data": self._build_extra_unisdk_data(),
+                "gv": "157",
+                "gvn": "1.5.80",
+                "cv": "a1.5.0",
+            }
+            return res
+
+        def _on_session_ready(session):
+            """session 准备好后的回调"""
+            if session is None:
+                if on_complete:
+                    on_complete(None)
+                return None
+            try:
+                result = _build_unisdk_data()
+                if on_complete:
+                    on_complete(result)
+                return result
+            except Exception as e:
+                self.logger.error(f"构建 UniSDK 数据失败: {e}")
+                if on_complete:
+                    on_complete(None)
+                return None
+
+        # 先检查 refreshToken
         if not self.is_token_valid():
-            self.request_user_login()
-        if self._get_session() == None:
+            if on_complete is not None:
+                # 异步模式：先完成登录
+                def _on_login_done(success):
+                    if success:
+                        self._get_session(on_complete=_on_session_ready)
+                    else:
+                        on_complete(None)
+                self.request_user_login(on_complete=_on_login_done)
+                return None
+            else:
+                # 同步模式无法支持完整的 OAuth 流程
+                self.request_user_login()
+                if not self.is_token_valid():
+                    return None
+
+        # 获取 session（可能需要异步重新 OAuth）
+        if on_complete is not None:
+            self._get_session(on_complete=_on_session_ready)
             return None
-        self.uniBody = channelUtils.buildSAUTH(
-            self.channel_name,
-            self.channel_name,
-            self.session.playerId,
-            self.session.gameAuthSign,
-            getShortGameId(game_id),
-            "6.1.0.301",
-            {
-                "anonymous": "",
-                "get_access_token": "0",
-                "extra_data": self._get_extra_data(),
-                "timestamp": str(self.session.ts),
-                "realname": json.dumps({"realname_type": 0, "duration": 0}),
-            },
-        )
-        fd = app_state.fake_device
-        self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
-        self.logger.info(f"Get unisdk data for {self.uniData}")
-        self.uniSDKJSON = json.loads(
-            base64.b64decode(self.uniData["unisdk_login_json"]).decode()
-        )
-        res = {
-            "user_id": self.session.playerId,
-            "token": base64.b64encode(self.session.gameAuthSign.encode()).decode(),
-            "login_channel": self.channel_name,
-            "udid": fd["udid"],
-            "app_channel": self.channel_name,
-            "sdk_version": "6.1.0.301",
-            "jf_game_id": getShortGameId(game_id),
-            "pay_channel": self.channel_name,
-            "extra_data": "",
-            "extra_unisdk_data": self._build_extra_unisdk_data(),
-            "gv": "157",
-            "gvn": "1.5.80",
-            "cv": "a1.5.0",
-        }
-        return res
+        
+        # 同步模式
+        if self._get_session() is None:
+            return None
+        return _build_unisdk_data()
