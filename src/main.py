@@ -465,6 +465,15 @@ def initialize():
                 h_mgr.remove(genv.get("DOMAIN_TARGET_OVERSEA"))
         except Exception as e:
             logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
+        
+        # v6.0.0 新增：首次启动时清理孤立的 weblogin profile/cache 文件夹
+        try:
+            from channelmgr import ChannelManager
+            channel_mgr = ChannelManager()
+            channel_mgr.cleanup_orphaned_weblogin_profiles()
+        except Exception as e:
+            logger.error(f"清理孤立 weblogin profile/cache 失败: {e}")
+        
         #from gamemgr import GameManager
         #try:
         #    game_mgr = GameManager()

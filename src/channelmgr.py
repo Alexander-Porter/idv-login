@@ -150,6 +150,8 @@ class ChannelManager:
             write_json_restricted(genv.get("FP_CHANNEL_RECORD"), [])
             self.channels = []
 
+
+
     def save_records(self):
         for i in self.channels:
             i.before_save()
@@ -316,12 +318,142 @@ class ChannelManager:
         return False
 
     def delete(self, uuid: str):
+        """删除渠道账号，如果是 weblogin 账号则同时删除 profile 和 cache 文件夹"""
         for i, channel in enumerate(self.channels):
             if channel.uuid == uuid:
+                # 删除账号前，如果是 weblogin 账号，清理对应的 profile 和 cache 文件夹
+                self._cleanup_weblogin_data(uuid)
+                
                 del self.channels[i]
                 self.save_records()
                 return True
         return False
+    
+    def _cleanup_weblogin_data(self, uuid: str):
+        """清理 weblogin 账号的 profile 和 cache 文件夹
+        
+        weblogin 账号（使用 WebBrowser 的渠道）：
+        - phone-xxx (OPPO)
+        - xiaomi_app-xxx (小米)
+        - huawei-xxx (华为)
+        - nearme_vivo-xxx (vivo)
+        
+        不包括微信 (wx-xxx)，微信使用扫码登录，不产生 profile。
+        """
+        import shutil
+        
+        # 判断是否是 weblogin 账号（使用 WebBrowser 的渠道）
+        is_weblogin = (
+            uuid.startswith("phone-") or 
+            uuid.startswith("xiaomi_app-") or 
+            uuid.startswith("huawei-") or 
+            uuid.startswith("nearme_vivo-")
+        )
+        
+        if not is_weblogin:
+            return
+        
+        # 删除 profile 文件夹
+        profile_base = genv.get("GLOB_LOGIN_PROFILE_PATH")
+        if profile_base:
+            profile_path = os.path.join(profile_base, uuid)
+            if os.path.exists(profile_path):
+                try:
+                    shutil.rmtree(profile_path)
+                    self.logger.info(f"已删除 weblogin profile: {profile_path}")
+                except Exception as e:
+                    self.logger.warning(f"删除 profile 文件夹失败: {profile_path}, 错误: {e}")
+        
+        # 删除 cache 文件夹
+        cache_base = genv.get("GLOB_LOGIN_CACHE_PATH")
+        if cache_base:
+            cache_path = os.path.join(cache_base, uuid)
+            if os.path.exists(cache_path):
+                try:
+                    shutil.rmtree(cache_path)
+                    self.logger.info(f"已删除 weblogin cache: {cache_path}")
+                except Exception as e:
+                    self.logger.warning(f"删除 cache 文件夹失败: {cache_path}, 错误: {e}")
+
+    def cleanup_orphaned_weblogin_profiles(self):
+        """v6.0.0 新增：清理孤立的 weblogin profile/cache 文件夹
+        
+        逻辑：
+        1. 检查是否有 weblogin 账号，没有则跳过
+        2. 遍历 profile/ 和 cache/ 文件夹，删除不在 channels 中的孤立文件夹
+        
+        由 main.py 在首次启动时调用。
+        """
+        # 检查是否有 weblogin 账号
+        has_weblogin = any(
+            ch.uuid.startswith("phone-") or 
+            ch.uuid.startswith("xiaomi_app-") or 
+            ch.uuid.startswith("huawei-") or 
+            ch.uuid.startswith("nearme_vivo-")
+            for ch in self.channels
+        )
+        
+        if not has_weblogin:
+            return
+        
+        # 收集所有合法的 uuid
+        valid_uuids = {ch.uuid for ch in self.channels}
+        
+        import shutil
+        
+        # 清理孤立的 profile 文件夹
+        profile_base = genv.get("GLOB_LOGIN_PROFILE_PATH")
+        if profile_base and os.path.exists(profile_base):
+            try:
+                for folder_name in os.listdir(profile_base):
+                    folder_path = os.path.join(profile_base, folder_name)
+                    if not os.path.isdir(folder_path):
+                        continue
+                    
+                    # 只清理 weblogin 类型的文件夹
+                    is_weblogin_folder = (
+                        folder_name.startswith("phone-") or 
+                        folder_name.startswith("xiaomi_app-") or 
+                        folder_name.startswith("huawei-") or 
+                        folder_name.startswith("nearme_vivo-")
+                    )
+                    
+                    if is_weblogin_folder and folder_name not in valid_uuids:
+                        try:
+                            shutil.rmtree(folder_path)
+                            self.logger.info(f"清理孤立 profile: {folder_path}")
+                        except Exception as e:
+                            self.logger.warning(f"清理孤立 profile 失败: {folder_path}, 错误: {e}")
+            except Exception as e:
+                self.logger.warning(f"扫描 profile 文件夹失败: {e}")
+        
+        # 清理孤立的 cache 文件夹
+        cache_base = genv.get("GLOB_LOGIN_CACHE_PATH")
+        if cache_base and os.path.exists(cache_base):
+            try:
+                for folder_name in os.listdir(cache_base):
+                    folder_path = os.path.join(cache_base, folder_name)
+                    if not os.path.isdir(folder_path):
+                        continue
+                    
+                    # 只清理 weblogin 类型的文件夹
+                    is_weblogin_folder = (
+                        folder_name.startswith("phone-") or 
+                        folder_name.startswith("xiaomi_app-") or 
+                        folder_name.startswith("huawei-") or 
+                        folder_name.startswith("nearme_vivo-")
+                    )
+                    
+                    if is_weblogin_folder and folder_name not in valid_uuids:
+                        try:
+                            shutil.rmtree(folder_path)
+                            self.logger.info(f"清理孤立 cache: {folder_path}")
+                        except Exception as e:
+                            self.logger.warning(f"清理孤立 cache 失败: {folder_path}, 错误: {e}")
+            except Exception as e:
+                self.logger.warning(f"扫描 cache 文件夹失败: {e}")
+        
+        self.logger.info("孤立 weblogin profile/cache 清理完成")
 
     def build_query_res(self, uuid: str):
         for channel in self.channels:
