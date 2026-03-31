@@ -178,10 +178,22 @@ def _signal_via_named_pipe(payload: bytes) -> bool:
         OPEN_EXISTING = 3
         INVALID_HANDLE = ctypes.c_void_p(-1).value
 
+        # 设置 argtypes 和 restype 确保 ctypes 正确处理参数和返回值
         # restype 必须设为 c_void_p，否则 64 位 Python 下
         # 默认 c_int 返回 -1，与 INVALID_HANDLE (0xFFFFFFFFFFFFFFFF) 不等，
         # 导致无监听器时也误判为连接成功。
+        ctypes.windll.kernel32.CreateFileW.argtypes = [
+            wt.LPCWSTR, wt.DWORD, wt.DWORD, ctypes.c_void_p,
+            wt.DWORD, wt.DWORD, wt.HANDLE
+        ]
         ctypes.windll.kernel32.CreateFileW.restype = ctypes.c_void_p
+        ctypes.windll.kernel32.WriteFile.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p, wt.DWORD,
+            ctypes.POINTER(wt.DWORD), ctypes.c_void_p
+        ]
+        ctypes.windll.kernel32.WriteFile.restype = wt.BOOL
+        ctypes.windll.kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        ctypes.windll.kernel32.CloseHandle.restype = wt.BOOL
 
         handle = ctypes.windll.kernel32.CreateFileW(
             _PIPE_NAME, GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
@@ -225,13 +237,17 @@ def _listener_named_pipe(callback):
     try:
         import ctypes
         import ctypes.wintypes as wt
+        import time
 
         PIPE_ACCESS_INBOUND = 0x00000001
         PIPE_TYPE_BYTE = 0x00000000
         PIPE_WAIT = 0x00000000
         INVALID_HANDLE = ctypes.c_void_p(-1).value
+        ERROR_PIPE_BUSY = 231
 
         # 构建安全描述符：NULL DACL 允许所有用户（含非提权进程）连接管道
+        # 这对于 URI scheme 调用至关重要：当主程序以管理员身份运行时，
+        # 浏览器触发的进程通常是非提权的，需要 NULL DACL 才能连接管道。
         class SECURITY_ATTRIBUTES(ctypes.Structure):
             _fields_ = [
                 ("nLength", wt.DWORD),
@@ -239,7 +255,9 @@ def _listener_named_pipe(callback):
                 ("bInheritHandle", wt.BOOL),
             ]
 
-        sd = ctypes.c_buffer(20)  # SECURITY_DESCRIPTOR_MIN_LENGTH
+        # SECURITY_DESCRIPTOR 在 64 位系统上需要约 40 字节（包含指针字段）
+        # 使用 64 字节以确保在所有平台上安全
+        sd = ctypes.c_buffer(64)
         ctypes.windll.advapi32.InitializeSecurityDescriptor(
             ctypes.byref(sd), 1  # SECURITY_DESCRIPTOR_REVISION
         )
@@ -251,7 +269,19 @@ def _listener_named_pipe(callback):
         sa.lpSecurityDescriptor = ctypes.addressof(sd)
         sa.bInheritHandle = False
 
+        # 设置 argtypes 和 restype 确保 ctypes 正确处理参数和返回值
+        ctypes.windll.kernel32.CreateNamedPipeW.argtypes = [
+            wt.LPCWSTR, wt.DWORD, wt.DWORD, wt.DWORD,
+            wt.DWORD, wt.DWORD, wt.DWORD, ctypes.c_void_p
+        ]
         ctypes.windll.kernel32.CreateNamedPipeW.restype = ctypes.c_void_p
+        ctypes.windll.kernel32.ConnectNamedPipe.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        ctypes.windll.kernel32.ConnectNamedPipe.restype = wt.BOOL
+        ctypes.windll.kernel32.DisconnectNamedPipe.argtypes = [ctypes.c_void_p]
+        ctypes.windll.kernel32.DisconnectNamedPipe.restype = wt.BOOL
+
+        retry_count = 0
+        max_retries = 5
 
         while True:
             handle = ctypes.windll.kernel32.CreateNamedPipeW(
@@ -265,8 +295,18 @@ def _listener_named_pipe(callback):
                 ctypes.byref(sa),
             )
             if handle == INVALID_HANDLE:
-                logger.warning("创建命名管道失败")
+                err = ctypes.windll.kernel32.GetLastError()
+                if err == ERROR_PIPE_BUSY and retry_count < max_retries:
+                    # 管道正忙（可能是之前的进程未正常清理），等待后重试
+                    retry_count += 1
+                    logger.debug(f"命名管道忙，等待重试 ({retry_count}/{max_retries})")
+                    time.sleep(0.5 * retry_count)  # 指数退避
+                    continue
+                logger.warning(f"创建命名管道失败，错误码: {err}")
                 return
+            
+            # 管道创建成功，重置重试计数器
+            retry_count = 0
 
             connected = ctypes.windll.kernel32.ConnectNamedPipe(handle, None)
             if connected or ctypes.windll.kernel32.GetLastError() == 535:  # ERROR_PIPE_CONNECTED
