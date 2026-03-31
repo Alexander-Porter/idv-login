@@ -3,6 +3,7 @@ bcrypt==3.2.2
 argon2-cffi
 Faker
 mitmproxy
+urwid>=2.1.0  # 修复 macOS Python 3.8 构建问题
 psutil
 pycryptodome
 pyperclip
