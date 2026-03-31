@@ -104,6 +104,7 @@ class ChannelManager:
     def __init__(self):
         self.logger = setup_logger()
         self.channels = []
+        self._pending_login_channel = None  # 异步登录期间保持对 channel 的引用，防止 GC
         from channelHandler.miChannelHandler import miChannel
         from channelHandler.huaChannelHandler import huaweiChannel
         from channelHandler.vivoChannelHandler import vivoChannel
@@ -252,7 +253,12 @@ class ChannelManager:
             tmp_channel.uuid=f"phone-{tmp_channel.uuid}"
 
         if on_complete is not None:
+            # 保持对 tmp_channel 的引用，防止异步登录期间被 GC
+            # 否则 tmp_channel 是局部变量，函数返回后会被销毁
+            self._pending_login_channel = tmp_channel
+            
             def _finish_import(success):
+                self._pending_login_channel = None  # 登录完成，释放引用
                 try:
                     if success and tmp_channel.is_token_valid():
                         tmp_channel.last_login_time = int(time.time())
@@ -283,6 +289,7 @@ class ChannelManager:
                 else:
                     tmp_channel.request_user_login(on_complete=_finish_import)
             except Exception:
+                self._pending_login_channel = None  # 异常时也要释放
                 self.logger.exception(f"手动导入失败: {tmp_channel.name}")
                 on_complete(False)
             return
