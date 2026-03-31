@@ -278,12 +278,12 @@ class HuaweiLogin:
         self.expiredTime = 0
         self.real_game_id = real_game_id
         if os.path.exists(DEVICE_RECORD):
-            with open(DEVICE_RECORD, "r") as f:
+            with open(DEVICE_RECORD, "r", encoding="utf-8") as f:
                 self.device = json.load(f)
         else:
             self.device = self.makeFakeDevice()
-            with open(DEVICE_RECORD, "w") as f:
-                json.dump(self.device, f)
+            from secure_write import write_json_restricted
+            write_json_restricted(DEVICE_RECORD, self.device)
 
     def makeFakeDevice(self):
         fake = Faker()

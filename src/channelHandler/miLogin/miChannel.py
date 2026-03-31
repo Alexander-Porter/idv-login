@@ -150,12 +150,12 @@ class MiLogin:
         self.account_type=account_type
 
         if os.path.exists(DEVICE_RECORD):
-            with open(DEVICE_RECORD, "r") as f:
+            with open(DEVICE_RECORD, "r", encoding="utf-8") as f:
                 self.device = json.load(f)
         else:
             self.device = self.makeFakeDevice()
-            with open(DEVICE_RECORD, "w") as f:
-                json.dump(self.device, f)
+            from secure_write import write_json_restricted
+            write_json_restricted(DEVICE_RECORD, self.device)
 
     def initAccountData(self) -> object:
         if self.oauthData == None:

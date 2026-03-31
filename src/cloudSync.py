@@ -271,8 +271,8 @@ class CloudSyncManager:
             "请妥善保管，泄露将导致云端密文可被解密。\n\n"
             f"master_key={master_key}\n"
         )
-        with open(output_path, "w", encoding="utf-8") as file:
-            file.write(content)
+        from secure_write import write_text_restricted
+        write_text_restricted(output_path, content)
         return output_path
 
     def _derive_aes_key(self, master_key: str) -> bytes:
@@ -460,8 +460,8 @@ class CloudSyncManager:
         channels_path = genv.get("FP_CHANNEL_RECORD", "")
         if not channels_path:
             raise ValueError("渠道账号文件路径不存在")
-        with open(channels_path, "w", encoding="utf-8") as file:
-            json.dump(channels, file)
+        from secure_write import write_json_restricted
+        write_json_restricted(channels_path, channels)
 
     def _write_edge_files(self, edge_files: Dict[str, str]):
         work_dir = genv.get("FP_WORKDIR", "")
@@ -469,8 +469,8 @@ class CloudSyncManager:
             if filename not in self.EDGE_FILE_CANDIDATES:
                 continue
             file_path = os.path.join(work_dir, filename)
-            with open(file_path, "wb") as file:
-                file.write(base64.b64decode(content_base64))
+            from secure_write import write_file_restricted
+            write_file_restricted(file_path, base64.b64decode(content_base64))
 
     def _append_access_log(self, logs: List[dict], action: str):
         logs.append(

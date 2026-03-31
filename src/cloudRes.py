@@ -69,8 +69,8 @@ class CloudRes:
             local_last_modified = self.local_data.get('lastModified', 0)
             if cloud_last_modified > local_last_modified:
                 self.local_data = cloud_data
-                with open(self.cache_file, 'w', encoding='utf-8') as f:
-                    json.dump(cloud_data, f, ensure_ascii=False, indent=4)
+                from secure_write import write_json_restricted
+                write_json_restricted(self.cache_file, cloud_data)
                 logger.info("云端配置有更新，应用成功")
             else:
                 logger.info("本地配置已是最新")

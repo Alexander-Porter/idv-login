@@ -47,6 +47,12 @@ def write_json_restricted(filepath: str, obj):
             json.dump(obj, f, ensure_ascii=False)
 
 
+def write_text_restricted(filepath: str, text: str, encoding: str = "utf-8"):
+    """Write text with restricted permissions. Default UTF-8 encoding."""
+    data = text.encode(encoding)
+    write_file_restricted(filepath, data)
+
+
 def _win_write_restricted(filepath: str, data: bytes, *, binary: bool = True):
     """Windows: write then restrict ACL to Administrators/SYSTEM only.
 

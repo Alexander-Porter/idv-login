@@ -345,8 +345,8 @@ def initialize():
                     with open(local_cloudres_path, "r", encoding="utf-8") as f:
                         local_cloudres = json.load(f)
                     cache_path = os.path.join(genv.get("FP_WORKDIR"), "cache.json")
-                    with open(cache_path, "w", encoding="utf-8") as f:
-                        json.dump(local_cloudres, f, ensure_ascii=False, indent=4)
+                    from secure_write import write_json_restricted
+                    write_json_restricted(cache_path, local_cloudres)
                     CloudPaths = []
                     print("【云端配置】未检测到版本信息，已使用本地 assets\\cloudRes.json。")
                 except Exception as e:
@@ -385,10 +385,10 @@ def initialize():
             "is_root": 0,
             "oaid": "",
         }
-        with open(genv.get("FP_FAKE_DEVICE"), "w") as f:
-            json.dump(sdkDevice, f)
+        from secure_write import write_json_restricted
+        write_json_restricted(genv.get("FP_FAKE_DEVICE"), sdkDevice)
     else:
-        with open(genv.get("FP_FAKE_DEVICE"), "r") as f:
+        with open(genv.get("FP_FAKE_DEVICE"), "r", encoding="utf-8") as f:
             sdkDevice = json.load(f)
     app_state.fake_device = sdkDevice
     

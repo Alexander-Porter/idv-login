@@ -170,12 +170,10 @@ class certmgr:
 
     def export_key(self, fn, key):
         try:
-            with open(fn, "wb") as f:
-                f.write(
-                    key.private_bytes(
-                        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
-                    )
-                )
+            from secure_write import write_file_restricted
+            write_file_restricted(fn, key.private_bytes(
+                Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
+            ))
         except Exception as e:
             self.logger.error(str(e))
             self.logger.error("导出私钥失败！")
