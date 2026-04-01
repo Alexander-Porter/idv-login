@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775033183,
+  "lastModified": 1775045991,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -125,22 +125,6 @@
       "need_hotfix_version": [
         "v6.0.0-beta"
       ],
-      "target_module": "mitm_addon",
-      "target_commit": "5ee596f407f8ede6b9e273312818b22e38bbe761",
-      "note": "支持自动登录异步回调"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.0-beta"
-      ],
-      "target_module": "channelHandler.vivoChannelHandler",
-      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
-      "note": "vivo渠道异步登录支持"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.0-beta"
-      ],
       "target_module": "channelHandler.oppoChannelHandler",
       "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
       "note": "oppo渠道异步登录支持"
@@ -176,6 +160,22 @@
       "target_module": "hostmgr",
       "target_commit": "dbf0fc6516a4e5143dc848a993555ee31770acb3",
       "note": "修复 hosts 文件只读导致初始化失败的问题，自动修复权限"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "mitm_addon",
+      "target_commit": "02ace04c0809837a32de5a142f15bade1ca8849f",
+      "note": "修复渠道服登录有时提示失败的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "channelHandler.vivoChannelHandler",
+      "target_commit": "02ace04c0809837a32de5a142f15bade1ca8849f",
+      "note": "修复vivo多账号时自动选择第一个账号的问题"
     }
   ],
   "shortcuts": [
