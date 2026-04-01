@@ -65,4 +65,4 @@ class hostmgr:
     
     def isExist(self, dnsname)->bool :
         m_host = Hosts()
-        m_host.exists(names=[dnsname])
+        return m_host.exists(names=[dnsname])

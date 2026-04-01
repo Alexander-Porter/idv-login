@@ -276,15 +276,20 @@ class ChannelManager:
                 if channle_name == "myapp":
                     # 微信登录不使用浏览器，在后台线程运行避免阻塞主线程
                     import threading
-                    from PyQt6.QtCore import QTimer
+                    import app_state
                     def _run_sync():
                         try:
+                            self.logger.info("微信登录：开始 request_user_login")
                             tmp_channel.request_user_login()
+                            self.logger.info(f"微信登录：request_user_login 完成，session={tmp_channel.session is not None}")
                             success = tmp_channel.is_token_valid()
+                            self.logger.info(f"微信登录：is_token_valid={success}")
                         except Exception:
                             self.logger.exception(f"微信异步登录失败")
                             success = False
-                        QTimer.singleShot(0, lambda s=success: _finish_import(s))
+                        # 必须在主线程调用 _finish_import，因为后续可能涉及 Qt 操作
+                        self.logger.info(f"微信登录：准备调用 _finish_import(success={success})")
+                        app_state.run_on_main_thread(lambda: _finish_import(success))
                     threading.Thread(target=_run_sync, daemon=True).start()
                 else:
                     tmp_channel.request_user_login(on_complete=_finish_import)
