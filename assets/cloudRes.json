@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775015690,
+  "lastModified": 1775033183,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -157,14 +157,6 @@
       "need_hotfix_version": [
         "v6.0.0-beta"
       ],
-      "target_module": "hostmgr",
-      "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
-      "note": "解决了打开游戏提示网络错误的问题"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.0-beta"
-      ],
       "target_module": "run_once",
       "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
       "note": "解决了打开游戏提示网络错误的问题"
@@ -176,6 +168,14 @@
       "target_module": "channelmgr",
       "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
       "note": "解决了工具无法正常登录微信渠道服的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "hostmgr",
+      "target_commit": "dbf0fc6516a4e5143dc848a993555ee31770acb3",
+      "note": "修复 hosts 文件只读导致初始化失败的问题，自动修复权限"
     }
   ],
   "shortcuts": [
