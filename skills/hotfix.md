@@ -51,6 +51,12 @@ python tools/edit_hotfix.py add \
 ```bash
 # 验证 JSON 格式正确
 python -m json.tool assets/cloudRes.json > /dev/null && echo "JSON valid"
+```
+
+# 询问用户
+提交前，必须显式询问用户是否允许提交更改。
+使用ask_user/ask_questions/query_user.
+
 
 # 提交更改
 git add assets/cloudRes.json

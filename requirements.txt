@@ -1,6 +1,7 @@
 cryptography==42.0.8
 bcrypt==3.2.2
 argon2-cffi
+pillow
 Faker
 mitmproxy
 urwid>=2.1.0  # 修复 macOS Python 3.8 构建问题
