@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775005847,
+  "lastModified": 1775005848,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -134,7 +134,7 @@
         "v6.0.0-beta"
       ],
       "target_module": "channelHandler/vivoChannelHandler",
-      "target_commit": "6f50811",
+      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
       "note": "vivo渠道异步登录支持"
     },
     {
@@ -142,7 +142,7 @@
         "v6.0.0-beta"
       ],
       "target_module": "channelHandler/oppoChannelHandler",
-      "target_commit": "6f50811",
+      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
       "note": "oppo渠道异步登录支持"
     },
     {
@@ -150,7 +150,7 @@
         "v6.0.0-beta"
       ],
       "target_module": "channelHandler/miChannelHandler",
-      "target_commit": "6f50811",
+      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
       "note": "mi渠道异步登录支持"
     },
     {
@@ -158,7 +158,7 @@
         "v6.0.0-beta"
       ],
       "target_module": "channelHandler/wechatChannelHandler",
-      "target_commit": "6f50811",
+      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
       "note": "wechat渠道异步登录支持"
     }
   ],
