@@ -27,6 +27,72 @@ from logutil import setup_logger
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.vivoLogin.vivoChannel import VivoLogin
 
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QLabel,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
+    QCheckBox,
+)
+
+
+def _show_account_selector(accounts: list) -> str:
+    """弹出账号选择对话框（阻塞式，使用 exec() 嵌套事件循环）。
+    
+    Args:
+        accounts: vivoSubAccount 列表
+    
+    Returns:
+        选中的 subOpenId，或取消时返回第一个账号的 ID
+    """
+    app_inst = QApplication.instance()
+    if app_inst is None:
+        return accounts[0].subOpenId if accounts else ""
+
+    parent = QWidget()
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("选择小号")
+    dialog.setMinimumWidth(300)
+    layout = QVBoxLayout(dialog)
+    layout.addWidget(QLabel("检测到多个小号，请选择要登录的账号："))
+
+    lst = QListWidget(dialog)
+    for acc in accounts:
+        lst.addItem(f"{acc.nickName}")
+    lst.setCurrentRow(0)
+    layout.addWidget(lst)
+
+    remember_cb = QCheckBox("记住选择（下次自动使用此小号）", dialog)
+    remember_cb.setChecked(True)
+    layout.addWidget(remember_cb)
+
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+    )
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    layout.addWidget(buttons)
+
+    # exec() 会启动嵌套事件循环，不会阻塞 UI
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        # 用户取消，使用第一个账号
+        parent.deleteLater()
+        return accounts[0].subOpenId if accounts else ""
+
+    row = lst.currentRow()
+    if row < 0 or row >= len(accounts):
+        parent.deleteLater()
+        return accounts[0].subOpenId if accounts else ""
+
+    selected_id = accounts[row].subOpenId
+    should_remember = remember_cb.isChecked()
+    parent.deleteLater()
+    
+    return selected_id, should_remember
+
 class vivoSubAccount:
     def __init__(self, data: dict) -> None:
         self.nickName = data.get("nickName", "默认帐号")
@@ -101,8 +167,18 @@ class vivoChannel(channelmgr.channel):
     def request_user_login(self, on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
 
-        def _process_login_data(resp, can_prompt=True):
-            """处理登录数据（同步/异步共用逻辑）。"""
+        def _finalize_login():
+            """完成登录的最后步骤：登录选中的小号"""
+            for i in range(len(self.session.subAccounts)):
+                if self.session.subAccounts[i].subOpenId == self.chosenAccount:
+                    self.activeAccount = self.session.subAccounts[i]
+                    self.activeAccount.openToken = self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
+            if self.name == self.uuid:
+                self.name = f"{self.session.nickName}-{self.activeAccount.nickName}"
+            return self.session is not None
+
+        def _process_login_data(resp):
+            """处理登录数据，多账号时弹出 Qt 对话框选择。"""
             if resp is None:
                 self.session = None
                 return False
@@ -114,36 +190,35 @@ class vivoChannel(channelmgr.channel):
             elif len(self.session.subAccounts) == 1:
                 self.chosenAccount = self.session.subAccounts[0].subOpenId
             else:
+                # 多账号情况
                 if self.chosenAccount != "":
+                    # 检查已保存的账号是否存在
+                    found = False
                     for i in range(len(self.session.subAccounts)):
                         if self.session.subAccounts[i].subOpenId == self.chosenAccount:
                             self.logger.info(f"尝试登录指定账号{self.session.subAccounts[i].nickName}")
+                            found = True
                             break
+                    if not found:
+                        self.chosenAccount = ""  # 不存在，需要重新选择
+                
+                if self.chosenAccount == "":
+                    # 需要用户选择账号 - 弹出 Qt 对话框
+                    # exec() 使用嵌套事件循环，不会阻塞 UI
+                    result = _show_account_selector(self.session.subAccounts)
+                    if isinstance(result, tuple):
+                        selected_id, should_remember = result
+                        self.chosenAccount = selected_id
+                        # should_remember 可用于持久化，但 chosenAccount 已经会被保存到 channel_records.json
                     else:
-                        self.chosenAccount = self.session.subAccounts[0].subOpenId
-                elif can_prompt:
-                    print("有多个小号，请选择一个登录")
-                    for i in range(len(self.session.subAccounts)):
-                        print(f"{i+1}:{self.session.subAccounts[i].nickName}")
-                    choice = int(input("请输入序号并回车:"))
-                    if choice > 0 and choice <= len(self.session.subAccounts):
-                        self.chosenAccount = self.session.subAccounts[choice-1].subOpenId
-                    else:
-                        self.chosenAccount = self.session.subAccounts[0].subOpenId
-                else:
-                    self.chosenAccount = self.session.subAccounts[0].subOpenId
-            for i in range(len(self.session.subAccounts)):
-                if self.session.subAccounts[i].subOpenId == self.chosenAccount:
-                    self.activeAccount = self.session.subAccounts[i]
-                    self.activeAccount.openToken = self.vivoLogin.loginSubAccount(self.activeAccount.subOpenId)
-            if self.name == self.uuid:
-                self.name = f"{self.session.nickName}-{self.activeAccount.nickName}"
-            return self.session is not None
+                        self.chosenAccount = result
+
+            return _finalize_login()
 
         if on_complete is not None:
             def _on_done(resp):
                 try:
-                    success = _process_login_data(resp, can_prompt=False)
+                    success = _process_login_data(resp)
                 except Exception:
                     self.logger.exception("Vivo异步登录处理失败")
                     success = False
@@ -152,7 +227,7 @@ class vivoChannel(channelmgr.channel):
             return
 
         resp = self.vivoLogin.webLogin(self.cookies)
-        return _process_login_data(resp, can_prompt=True)
+        return _process_login_data(resp)
 
     def is_token_valid(self):
         return self.session!=None

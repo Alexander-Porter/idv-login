@@ -346,7 +346,8 @@ class IDVLoginAddon:
                     # 必须在 Qt 主线程中执行
                     def _do_scan():
                         def _on_scan_complete(result):
-                            if result and result is not False:
+                            # result 可能是空字典 {} (返回200但内容为空)，这也算成功
+                            if result is not None and result is not False:
                                 self.logger.info("自动登录成功")
                             else:
                                 self.logger.warning("自动登录失败，可能需要重新授权")
