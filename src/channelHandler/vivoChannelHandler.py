@@ -199,47 +199,71 @@ class vivoChannel(channelmgr.channel):
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
         return json.dumps(res)
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    def get_uniSdk_data(self, game_id: str = "", on_complete=None):
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
 
-        if not self.is_token_valid():
-            self.request_user_login()
+        def _build_unisdk_data():
+            """构建 UniSDK 数据"""
+            self.uniBody = channelUtils.buildSAUTH(
+                self.channel_name,
+                self.channel_name,
+                self.activeAccount.subOpenId,
+                self.activeAccount.openToken,
+                getShortGameId(game_id),
+                "4.7.2.0",
+                {
+                    "realname": json.dumps({"realname_type": 0, "age": 22}),
+                },
+            )
+            fd = app_state.fake_device
+            self.logger.info(json.dumps(self.uniBody))
+            self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),True)
+            self.logger.info(f"Get unisdk data for {self.uniData}")
+            self.uniSDKJSON = json.loads(
+                base64.b64decode(self.uniData["unisdk_login_json"]).decode()
+            )
+            res = {
+                "user_id": self.activeAccount.subOpenId,
+                "token": base64.b64encode(self.activeAccount.openToken.encode()).decode(),
+                "login_channel": self.channel_name,
+                "udid": fd["udid"],
+                "app_channel": self.channel_name,
+                "sdk_version": "4.7.2.0",
+                "jf_game_id": getShortGameId(game_id),
+                "pay_channel": self.channel_name,
+                "extra_data": "",
+                "extra_unisdk_data": self._build_extra_unisdk_data(),
+                "gv": "157",
+                "gvn": "1.5.80",
+                "cv": "a1.5.0",
+            }
+            return res
 
-        self.uniBody = channelUtils.buildSAUTH(
-            self.channel_name,
-            self.channel_name,
-            self.activeAccount.subOpenId,
-            self.activeAccount.openToken,
-            getShortGameId(game_id),
-            "4.7.2.0",
-            {
-                "realname": json.dumps({"realname_type": 0, "age": 22}),
-            },
-        )
-        fd = app_state.fake_device
-        self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),True)
-        self.logger.info(f"Get unisdk data for {self.uniData}")
-        self.uniSDKJSON = json.loads(
-            base64.b64decode(self.uniData["unisdk_login_json"]).decode()
-        )
-        res = {
-            "user_id": self.activeAccount.subOpenId,
-            "token": base64.b64encode(self.activeAccount.openToken.encode()).decode(),
-            "login_channel": self.channel_name,
-            "udid": fd["udid"],
-            "app_channel": self.channel_name,
-            "sdk_version": "4.7.2.0",
-            "jf_game_id": getShortGameId(game_id),
-            "pay_channel": self.channel_name,
-            "extra_data": "",
-            "extra_unisdk_data": self._build_extra_unisdk_data(),
-            "gv": "157",
-            "gvn": "1.5.80",
-            "cv": "a1.5.0",
-        }
-        return res
+        if not self.is_token_valid():
+            if on_complete is not None:
+                def _on_login_done(success):
+                    if success and self.is_token_valid():
+                        try:
+                            result = _build_unisdk_data()
+                            on_complete(result)
+                        except Exception as e:
+                            self.logger.error(f"构建 UniSDK 数据失败: {e}")
+                            on_complete(None)
+                    else:
+                        on_complete(None)
+                self.request_user_login(on_complete=_on_login_done)
+                return None
+            else:
+                self.request_user_login()
+                if not self.is_token_valid():
+                    return None
+
+        result = _build_unisdk_data()
+        if on_complete is not None:
+            on_complete(result)
+            return None
+        return result

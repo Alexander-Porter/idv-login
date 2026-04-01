@@ -112,42 +112,61 @@ class wechatChannel(channelmgr.channel):
         self.uniData = None
         self.session: myappVeriftResp = myappVeriftResp(session) if session != None else None
 
-    def request_user_login(self):
-        if self.session == None:
-            genv.set("GLOB_LOGIN_UUID", self.uuid)
-            resp = self.wechatLogin.webLogin()
-            if resp == None:
-                self.session = None
-                return False
-            self.session = myappVeriftResp(resp)
-            #get user info
-            #https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID
-            try:
+    def request_user_login(self, on_complete=None):
+        """请求用户登录，支持异步模式。
+        
+        Args:
+            on_complete: 异步回调函数，接收登录结果 (True/False)
+        """
+        def _do_login():
+            if self.session == None:
+                genv.set("GLOB_LOGIN_UUID", self.uuid)
+                resp = self.wechatLogin.webLogin()
+                if resp == None:
+                    self.session = None
+                    return False
+                self.session = myappVeriftResp(resp)
+                #get user info
+                #https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID
+                try:
+                    r = requests.get(
+                        f"https://api.weixin.qq.com/sns/userinfo?access_token={self.session.atk}&openid={self.session.openid}",
+                        verify=should_verify_ssl()
+                    )
+                    r.encoding="utf-8"
+                    self.name=r.json().get("nickname")
+                except:
+                    pass
+            else:
+                self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
                 r = requests.get(
-                    f"https://api.weixin.qq.com/sns/userinfo?access_token={self.session.atk}&openid={self.session.openid}",
+                    f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}",
                     verify=should_verify_ssl()
                 )
-                r.encoding="utf-8"
-                self.name=r.json().get("nickname")
-            except:
-                pass
+                if not r.status_code == 200:
+                    self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。status={r.status_code}")
+                    self.session = None
+                    return _do_login()  # 递归调用内部函数
+                self.session.rtk = r.json().get("refresh_token")
+                self.session.atk = r.json().get("access_token")
+                self.logger.info("微信 ac-token 刷新成功")
+            if self.session!=None:
+                self.last_login_time=int(time.time())
+                return True
+            return False
+
+        if on_complete is not None:
+            # 异步模式：在线程中执行登录
+            import threading
+            def _async_login():
+                result = _do_login()
+                on_complete(result)
+            thread = threading.Thread(target=_async_login)
+            thread.start()
+            return None
         else:
-            self.logger.info(f"刷新 ac-token，当前时间: {int(time.time())}，过期时间: {self.last_login_time+self.session.atk_expire}")
-            r = requests.get(
-                f"https://api.weixin.qq.com/sns/oauth2/refresh_token?appid={self.wx_appid}&grant_type=refresh_token&refresh_token={self.session.rtk}",
-                verify=should_verify_ssl()
-            )
-            if not r.status_code == 200:
-                self.logger.error(f"Refresh token 过期，疑似被顶号，重新唤起扫码登录。status={r.status_code}")
-                self.session = None
-                return self.request_user_login()
-            self.session.rtk = r.json().get("refresh_token")
-            self.session.atk = r.json().get("access_token")
-            self.logger.info("微信 ac-token 刷新成功")
-        if self.session!=None:
-            self.last_login_time=int(time.time())
-            return True
-        return False
+            # 同步模式
+            return _do_login()
 
     def is_token_valid(self):
         #	/sns/auth
@@ -225,51 +244,93 @@ class wechatChannel(channelmgr.channel):
 
         return json.dumps(res)
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    def get_uniSdk_data(self, game_id: str = "", on_complete=None):
+        """获取 UniSDK 登录数据，支持异步模式。
+        
+        当 token 过期需要重新登录时，可异步执行登录流程。
+        
+        Args:
+            game_id: 游戏ID
+            on_complete: 异步回调函数，接收登录数据或 None
+        """
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
         self.logger.info(f"Get unisdk data for {self.name}")
         import channelHandler.channelUtils as channelUtils
 
+        def _build_unisdk_data():
+            """构建 UniSDK 数据的实际逻辑"""
+            self.uniBody = channelUtils.buildSAUTH(
+                self.channel_name,
+                self.channel_name,
+                self.session.openid,
+                self.session.atk,
+                getShortGameId(game_id),
+                "2.2.2",
+                {
+                    "get_access_token": "1",
+                    "extra_data": self._get_extra_data(),
+                },
+            )
+            fd = app_state.fake_device
+            self.logger.info(json.dumps(self.uniBody))
+            self.uniData = channelUtils.postSignedData(
+                self.uniBody, getShortGameId(game_id), True
+            )
+
+            self.logger.info(f"Get unisdk data for {self.uniData}")
+            self.uniSDKJSON = json.loads(
+                base64.b64decode(self.uniData["unisdk_login_json"]).decode()
+            )
+            res = {
+                "user_id": self.session.openid,
+                "token": self.session.atk,
+                "login_channel": self.channel_name,
+                "udid": fd["udid"],
+                "app_channel": self.channel_name,
+                "sdk_version": "2.2.2",
+                "jf_game_id": getShortGameId(game_id),
+                "pay_channel": self.channel_name,
+                "extra_data": "",
+                "extra_unisdk_data": self._build_extra_unisdk_data(),
+                "gv": "157",
+                "gvn": "1.5.80",
+                "cv": "a1.5.0",
+            }
+            return res
+
+        def _on_login_ready():
+            """登录完成后构建数据"""
+            try:
+                result = _build_unisdk_data()
+                if on_complete:
+                    on_complete(result)
+                return result
+            except Exception as e:
+                self.logger.error(f"构建 UniSDK 数据失败: {e}")
+                if on_complete:
+                    on_complete(None)
+                return None
+
+        # 检查 token 是否有效
         if not self.is_token_valid():
-            self.request_user_login()
+            if on_complete is not None:
+                # 异步模式：先完成登录
+                def _on_login_done(success):
+                    if success:
+                        _on_login_ready()
+                    else:
+                        on_complete(None)
+                self.request_user_login(on_complete=_on_login_done)
+                return None
+            else:
+                # 同步模式
+                self.request_user_login()
+                if not self.is_token_valid():
+                    return None
 
-        self.uniBody = channelUtils.buildSAUTH(
-            self.channel_name,
-            self.channel_name,
-            self.session.openid,
-            self.session.atk,
-            getShortGameId(game_id),
-            "2.2.2",
-            {
-                "get_access_token": "1",
-                "extra_data": self._get_extra_data(),
-            },
-        )
-        fd = app_state.fake_device
-        self.logger.info(json.dumps(self.uniBody))
-        self.uniData = channelUtils.postSignedData(
-            self.uniBody, getShortGameId(game_id), True
-        )
-
-        self.logger.info(f"Get unisdk data for {self.uniData}")
-        self.uniSDKJSON = json.loads(
-            base64.b64decode(self.uniData["unisdk_login_json"]).decode()
-        )
-        res = {
-            "user_id": self.session.openid,
-            "token": self.session.atk,
-            "login_channel": self.channel_name,
-            "udid": fd["udid"],
-            "app_channel": self.channel_name,
-            "sdk_version": "2.2.2",
-            "jf_game_id": getShortGameId(game_id),
-            "pay_channel": self.channel_name,
-            "extra_data": "",
-            "extra_unisdk_data": self._build_extra_unisdk_data(),
-            "gv": "157",
-            "gvn": "1.5.80",
-            "cv": "a1.5.0",
-        }
-        return res
+        # 同步模式或 token 有效时直接构建数据
+        if on_complete is not None:
+            return _on_login_ready()
+        return _build_unisdk_data()

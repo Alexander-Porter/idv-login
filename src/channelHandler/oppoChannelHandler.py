@@ -395,7 +395,7 @@ class oppoChannel(channelmgr.channel):
         res["SAUTH_JSON"] = base64.b64encode(json.dumps(json_data).encode()).decode()
         return json.dumps(res)
 
-    def get_uniSdk_data(self, game_id: str = ""):
+    def get_uniSdk_data(self, game_id: str = "", on_complete=None):
         """按“其他渠道范式”返回用于 confirm_login 的 unisdk 数据。
 
         关键：
@@ -412,7 +412,21 @@ class oppoChannel(channelmgr.channel):
         short_game_id = getShortGameId(game_id)
 
         if not self.is_token_valid():
-            self.request_user_login()
+            if on_complete is not None:
+                def _on_login_done(success):
+                    if success and self.is_token_valid():
+                        try:
+                            result = self._build_oppo_unisdk_result(short_game_id)
+                            on_complete(result)
+                        except Exception as e:
+                            self.logger.error(f"OPPO UniSDK error: {e}")
+                            on_complete(None)
+                    else:
+                        on_complete(None)
+                self.request_user_login(on_complete=_on_login_done)
+                return None
+            else:
+                self.request_user_login()
 
         # 使用前 refresh 一次，尽量拿到最新 secondaryTokenMap（失败直接抛出）
         self.refresh_before_use()
@@ -635,7 +649,7 @@ class oppoChannel(channelmgr.channel):
         fd2 = app_state.fake_device
         udid2 = fd2["udid"]
 
-        return {
+        result = {
             "user_id": account_id,
             "token": base64.b64encode(ticket.encode()).decode(),
             "login_channel": self.channel_name,
@@ -650,6 +664,15 @@ class oppoChannel(channelmgr.channel):
             "gvn": "1.5.80",
             "cv": "a1.5.0",
         }
+        
+        if on_complete is not None:
+            on_complete(result)
+            return None
+        return result
+
+    def _build_oppo_unisdk_result(self, short_game_id: str):
+        """构建 OPPO UniSDK 数据（用于异步回调时调用）"""
+        return self.get_uniSdk_data(game_id=short_game_id)
 
     def is_token_valid(self):
         return isinstance(self.loginResp, dict) and bool(self.loginResp)
