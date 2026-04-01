@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775005849,
+  "lastModified": 1775015689,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -157,9 +157,25 @@
       "need_hotfix_version": [
         "v6.0.0-beta"
       ],
+      "target_module": "hostmgr",
+      "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
+      "note": "解决了打开游戏提示网络错误的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "run_once",
+      "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
+      "note": "解决了打开游戏提示网络错误的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
       "target_module": "channelHandler.wechatChannelHandler",
-      "target_commit": "8988c2189d56f29cebfb0b79179e402185dd68ef",
-      "note": "wechat渠道异步登录支持"
+      "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
+      "note": "解决了工具无法正常登录微信渠道服的问题"
     }
   ],
   "shortcuts": [
