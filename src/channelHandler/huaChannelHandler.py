@@ -244,9 +244,7 @@ class huaweiChannel(channelmgr.channel):
                 },
             )
             fd = app_state.fake_device
-            self.logger.info(json.dumps(self.uniBody))
             self.uniData = channelUtils.postSignedData(self.uniBody,getShortGameId(game_id),False)
-            self.logger.info(f"Get unisdk data for {self.uniData}")
             self.uniSDKJSON = json.loads(
                 base64.b64decode(self.uniData["unisdk_login_json"]).decode()
             )

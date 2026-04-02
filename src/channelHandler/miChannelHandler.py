@@ -214,7 +214,6 @@ class miChannel(channelmgr.channel):
             self.uniData = channelUtils.postSignedData(
                 self.uniBody, getShortGameId(game_id)
             )
-            self.logger.info(f"Get unisdk data for {self.uniData}")
             self.uniSDKJSON = json.loads(
                 base64.b64decode(self.uniData["unisdk_login_json"]).decode()
             )

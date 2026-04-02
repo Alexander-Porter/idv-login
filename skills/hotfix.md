@@ -19,13 +19,10 @@
 
 ## 添加 Hotfix 步骤
 
-### 步骤 1: 确认 commit 已推送
-
-确保包含修复的 commit 已经推送到远程仓库（Gitee/GitHub），否则客户端无法下载。
+### 步骤 1: 查看最近提交
 
 ```bash
 git log --oneline -5  # 查看最近提交
-git push origin main  # 确保已推送
 ```
 
 ### 步骤 2: 使用脚本编辑 cloudRes.json
