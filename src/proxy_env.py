@@ -113,8 +113,6 @@ def _set_win(port: int, no_proxy_domains: list = None):
     genv.set("_SAVED_PROXY_ENV", saved)
     genv.set("_LAST_PROXY_PORT", port, True)  # 持久化记录使用的代理端口
     _get_logger().info(f"已设置用户代理环境变量: {proxy_url}")
-    if no_proxy_value:
-        _get_logger().info(f"已设置 NO_PROXY: {no_proxy_value}")
 
 
 def _unset_win():
