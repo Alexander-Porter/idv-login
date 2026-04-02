@@ -505,7 +505,7 @@
     "netease_qrcode_login_game_list": [
         {
             "game_id": "h55",
-            "app_channel": "netease.wyzymnqsd_cps_dev"
+            "app_channel": "a50_sdk_cn"
         }
     ],
     "feature_game_short_ids": [
