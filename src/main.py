@@ -924,15 +924,18 @@ def setup_network_proxy(proxy_port):
                 query["app_channel"] = CloudRes().get_qrcode_app_channel(
                     getShortGameId(game_id)
                 )
-                query["qrcode_channel_type"] = "3"
+                query["qrcode_channel_type"] = "2"
                 query["gv"] = "251881013"
                 query["gvn"] = "2025.0707.1013"
-                query["cv"] = cv
+                query["dst_jf_game_id"]= getShortGameId(game_id)
+                query["cv"] = "c0.0.0"
                 query["sv"] = "35"
                 query["app_type"] = "games"
                 query["app_mode"] = "2"
                 query["_cloud_extra_base64"] = "e30="
                 query["sc"] = "1"
+                query["is_remember"]="2"
+                
 
     # Create the UI manager for the Qt window
     from uimgr import UIManager
