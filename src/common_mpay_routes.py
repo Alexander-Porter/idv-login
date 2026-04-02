@@ -193,6 +193,9 @@ def register_mpay_routes(
             process_id = query.get("process_id", "")
             if create_login_query_hook:
                 create_login_query_hook(query, game_id)
+            query["qrcode_channel_type"] = "2"
+            query["cv"] = "c0.0.0"
+            query["is_remember"] = "2"
             resp: Response = proxy(request, query)
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             data = {
