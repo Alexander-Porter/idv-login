@@ -187,11 +187,27 @@ class MitmProxyManager:
         proxy_url = f"http://127.0.0.1:{self.port}"
         env["HTTP_PROXY"] = proxy_url
         env["HTTPS_PROXY"] = proxy_url
+        # 设置 NO_PROXY 以绕过特定域名
+        no_proxy_value = self._get_no_proxy_value()
+        if no_proxy_value:
+            env["NO_PROXY"] = no_proxy_value
         if sys.platform != "win32":
             # Unix 环境变量区分大小写，需要同时设置小写
             env["http_proxy"] = proxy_url
             env["https_proxy"] = proxy_url
+            if no_proxy_value:
+                env["no_proxy"] = no_proxy_value
         return env
+
+    def _get_no_proxy_value(self) -> str:
+        """从 CloudRes 获取 NO_PROXY 域名列表并拼接为逗号分隔的字符串。"""
+        try:
+            from cloudRes import CloudRes
+            cloudres = CloudRes()
+            domains = cloudres.get_no_proxy_domains()
+            return ",".join(domains) if domains else ""
+        except Exception:
+            return ""
 
 
 class _ResponseLogAddon:

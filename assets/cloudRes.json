@@ -488,5 +488,22 @@
   ],
   "detail_html": "<h1>idv-login登录助手 v6.0.0-beta 更新日志</h1>\n<h2>v6.0.0 架构重构</h2>\n<p>[·] 缩短启动时间：采用 mitmproxy 代理模式，告别对 443 端口和 hosts 文件的劫持，经过群友实测启动时间在2秒左右\n[·] 去除了HTTPDNS屏蔽、网吧模式等过时的功能</p>\n<h2>v6.0.0 新功能</h2>\n<p>[·] 日志脱敏：渠道登录日志移除账号敏感信息，分享日志更方便\n[·] 安全保存：渠道服账号信息等敏感文件，限制只有管理员才能访问，减轻盗号风险\n[·] 垃圾清理：渠道服账号信息删除后，会一并删除浏览器缓存文件，减少空间占用</p>\n<h2>历史版本更新日志</h2>\n<h3>v5.9.1 新功能</h3>\n<p>[·] OPPO渠道服新增支持账号密码登录，并补全工具内二次验证流程，支持邮箱验证码、密码等二次验证方式\n[·] 新增支持HarmonyOS(鸿蒙)账号登录（与安卓、iOS渠道并列）</p>\n<h3>v5.9.1 问题修复</h3>\n<p>[·] 修复部分Qt相关闪退问题，提升稳定性\n[·] 修复OPPO渠道服登录流程中\"长时间未操作\"等易失败场景\n[·] 修复华为渠道在Qt6下无法正确记住账号密码的问题</p>",
   "critical_update": false,
-  "time": "2026-04-01 11:58:39"
+  "time": "2026-04-01 11:58:39",
+  "no_proxy_domains": [
+    ".gameyw.netease.com",
+    ".gameyw.easebar.com",
+    ".ps.netease.com",
+    ".ps.easebar.com",
+    ".matrix.netease.com",
+    ".matrix.easebar.com",
+    ".unisdk.netease.com",
+    ".unisdk.easebar.com",
+    ".gsf.netease.com",
+    ".gsf.easebar.com",
+    ".update.netease.com",
+    ".update.easebar.com",
+    ".nie.netease.com",
+    ".nie.easebar.com",
+    ".cc.163.com"
+  ]
 }

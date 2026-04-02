@@ -207,3 +207,15 @@ class CloudRes:
         if not isinstance(hotfixes, list):
             return []
         return hotfixes
+
+    def get_no_proxy_domains(self):
+        """返回云端下发的 NO_PROXY 域名列表。
+
+        每个域名应以 '.' 开头以支持子域名匹配。
+        例如：['.gameyw.netease.com', '.ps.netease.com']
+        """
+        data = self.local_data or {}
+        domains = data.get("no_proxy_domains") or []
+        if not isinstance(domains, list):
+            return []
+        return domains

@@ -26,6 +26,8 @@ def _get_logger():
 _PROXY_ENV_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
 # Windows 注册表值名不区分大小写，只需处理大写即可
 _PROXY_ENV_VARS_WIN = ("HTTP_PROXY", "HTTPS_PROXY")
+_NO_PROXY_ENV_VARS = ("NO_PROXY", "no_proxy")
+_NO_PROXY_ENV_VARS_WIN = ("NO_PROXY",)
 
 
 # ==================================================================
@@ -34,12 +36,25 @@ _PROXY_ENV_VARS_WIN = ("HTTP_PROXY", "HTTPS_PROXY")
 
 def set_proxy(port: int):
     """根据当前平台设置系统/用户级代理。"""
+    # 从云端获取 NO_PROXY 域名列表
+    no_proxy_domains = _get_no_proxy_domains()
     if sys.platform == "win32":
-        _set_win(port)
+        _set_win(port, no_proxy_domains)
     elif sys.platform == "darwin":
         _set_darwin(port)
     else:
         _set_linux(port)
+
+
+def _get_no_proxy_domains():
+    """从 CloudRes 获取 NO_PROXY 域名列表。"""
+    try:
+        from cloudRes import CloudRes
+        cloudres = CloudRes()
+        return cloudres.get_no_proxy_domains()
+    except Exception as e:
+        _get_logger().warning(f"获取 NO_PROXY 域名列表失败: {e}")
+        return []
 
 
 def unset_proxy():
@@ -56,14 +71,17 @@ def unset_proxy():
 #  Windows — 用户级环境变量
 # ==================================================================
 
-def _set_win(port: int):
+def _set_win(port: int, no_proxy_domains: list = None):
     import winreg
     proxy_url = f"http://127.0.0.1:{port}"
     saved: dict = {}
+    # 构建 NO_PROXY 值
+    no_proxy_value = ",".join(no_proxy_domains) if no_proxy_domains else ""
     try:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
         ) as key:
+            # 保存并设置代理环境变量
             for var in _PROXY_ENV_VARS_WIN:
                 try:
                     old_val, _ = winreg.QueryValueEx(key, var)
@@ -71,6 +89,15 @@ def _set_win(port: int):
                 except FileNotFoundError:
                     saved[var] = None
                 winreg.SetValueEx(key, var, 0, winreg.REG_SZ, proxy_url)
+            # 保存并设置 NO_PROXY 环境变量
+            if no_proxy_value:
+                for var in _NO_PROXY_ENV_VARS_WIN:
+                    try:
+                        old_val, _ = winreg.QueryValueEx(key, var)
+                        saved[var] = old_val
+                    except FileNotFoundError:
+                        saved[var] = None
+                    winreg.SetValueEx(key, var, 0, winreg.REG_SZ, no_proxy_value)
     except Exception as e:
         _get_logger().error(f"设置用户代理环境变量失败: {e}")
         return
@@ -81,9 +108,13 @@ def _set_win(port: int):
     # 必须立即清理，否则 QtWebEngine Chromium 子进程会继承代理设置。
     for var in _PROXY_ENV_VARS:
         os.environ.pop(var, None)
+    for var in _NO_PROXY_ENV_VARS:
+        os.environ.pop(var, None)
     genv.set("_SAVED_PROXY_ENV", saved)
     genv.set("_LAST_PROXY_PORT", port, True)  # 持久化记录使用的代理端口
     _get_logger().info(f"已设置用户代理环境变量: {proxy_url}")
+    if no_proxy_value:
+        _get_logger().info(f"已设置 NO_PROXY: {no_proxy_value}")
 
 
 def _unset_win():
