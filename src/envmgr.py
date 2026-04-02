@@ -22,7 +22,9 @@ class genv:
                     data[key]=value
                     from secure_write import write_json_restricted
                     write_json_restricted(_cachePath, data)
-                except:
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     print("Failed to cache data",key,value)
                     pass
 
