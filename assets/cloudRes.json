@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775132677,
+    "lastModified": 1775146467,
     "version": "v6.0.0-beta",
     "hotfix": [
         {
@@ -24,28 +24,11 @@
         },
         {
             "need_hotfix_version": [
-                "v5.9.0-beta",
-                "v5.9.1-stable"
-            ],
-            "target_module": "main",
-            "target_commit": "424dda8c1da235e11870b83ac7a4311ec9b3ac08",
-            "note": "为云配置增加了备用端点，减小因为某些服务商抽风导致工具整个坏掉的概率。"
-        },
-        {
-            "need_hotfix_version": [
                 "v5.8.3.1-beta"
             ],
             "target_module": "channelHandler.WebLoginUtils",
             "target_commit": "e666fc5edd5b7360dfc522be673da9c906e9dff2",
             "note": "修改初始化问题，防止vivo导出cookies死锁"
-        },
-        {
-            "need_hotfix_version": [
-                "v5.9.0-beta"
-            ],
-            "target_module": "channelmgr",
-            "target_commit": "1616e83c8ff4b3a6f24fe9bcf7818fa15d68416c",
-            "note": "修复OPPO渠道服使用传统扫码登录提示不支持的问题，使得两种登录模式共存"
         },
         {
             "need_hotfix_version": [
@@ -100,14 +83,6 @@
             "need_hotfix_version": [
                 "v6.0.0-beta"
             ],
-            "target_module": "channelmgr",
-            "target_commit": "5ee596f407f8ede6b9e273312818b22e38bbe761",
-            "note": "支持simulate_scan异步回调"
-        },
-        {
-            "need_hotfix_version": [
-                "v6.0.0-beta"
-            ],
             "target_module": "local_handler",
             "target_commit": "5ee596f407f8ede6b9e273312818b22e38bbe761",
             "note": "支持switch_channel异步模式"
@@ -135,14 +110,6 @@
             "target_module": "run_once",
             "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
             "note": "解决了打开游戏提示网络错误的问题"
-        },
-        {
-            "need_hotfix_version": [
-                "v6.0.0-beta"
-            ],
-            "target_module": "channelmgr",
-            "target_commit": "2c4eb230e9857872b5279c246340ceb2974e164f",
-            "note": "解决了工具无法正常登录微信渠道服的问题"
         },
         {
             "need_hotfix_version": [
@@ -188,17 +155,42 @@
             "need_hotfix_version": [
                 "v6.0.0-beta"
             ],
-            "target_module": "main",
-            "target_commit": "77913c2f51b4f2c5fd7eae8f300ae3a447347b0f",
-            "note": "延长退出超时确保环境变量广播完成"
+            "target_module": "mitm_addon",
+            "target_commit": "2b3af707bbf66b123b8fab04d4017966e4e292ae",
+            "note": "优化了扫码界面的安全问题"
         },
         {
             "need_hotfix_version": [
                 "v6.0.0-beta"
             ],
-            "target_module": "mitm_addon",
-            "target_commit": "2b3af707bbf66b123b8fab04d4017966e4e292ae",
-            "note": "优化了扫码界面的安全问题"
+            "target_module": "main",
+            "target_commit": "25abf230f3ed46d06af82354fb41de8f74a8a686",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v6.0.0-beta"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "25abf230f3ed46d06af82354fb41de8f74a8a686",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.9.0-beta",
+                "v5.9.1-stable"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "3cdc226e3da4f95d798f469f4bb313bcd8ddef55",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "010376be95ca87fa71a64ee5e3766e371e7160a6",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
         },
         {
             "need_hotfix_version": [
@@ -207,8 +199,8 @@
                 "v5.9.1-stable"
             ],
             "target_module": "common_mpay_routes",
-            "target_commit": "97125a36f232d51202da5b697c356dc3f7942491",
-            "note": "优化了扫码界面的安全问题"
+            "target_commit": "3cdc226e3da4f95d798f469f4bb313bcd8ddef55",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
         }
     ],
     "shortcuts": [
