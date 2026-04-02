@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775045991,
+  "lastModified": 1775118401,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -176,6 +176,38 @@
       "target_module": "channelHandler.vivoChannelHandler",
       "target_commit": "02ace04c0809837a32de5a142f15bade1ca8849f",
       "note": "修复vivo多账号时自动选择第一个账号的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "proxy_env",
+      "target_commit": "7978d66f1e63a793d85670f5b730a9e35166557b",
+      "note": "减少代理流量范围，使归宿照片等资源能在工具退出后正常加载"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "7978d66f1e63a793d85670f5b730a9e35166557b",
+      "note": "添加 NO_PROXY 域名列表获取方法"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "mitm_proxy",
+      "target_commit": "7978d66f1e63a793d85670f5b730a9e35166557b",
+      "note": "在进程级代理中添加 NO_PROXY 支持"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "main",
+      "target_commit": "77913c2f51b4f2c5fd7eae8f300ae3a447347b0f",
+      "note": "延长退出超时确保环境变量广播完成"
     }
   ],
   "shortcuts": [
