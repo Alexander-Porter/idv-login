@@ -285,8 +285,9 @@ def ctrl_handler(ctrl_type):
     if ctrl_type in (0, 1, 2, 5, 6):
         handle_exit()
         # 强制结束进程，防止主线程阻塞在 Qt 事件循环 (app.exec()) 中导致程序假死
+        # 等待 1 秒以确保清理操作（如 WM_SETTINGCHANGE 广播）有足够时间完成
         import time, os
-        time.sleep(0.1)
+        time.sleep(1.0)
         os._exit(0)
         return True
     return True
@@ -1039,8 +1040,8 @@ def setup_signal_handlers():
         print(f"捕获到信号 {sig}，正在执行清理...")
         sys.stdout.flush()
         handle_exit()
-        # 给一点时间让输出完成
-        time.sleep(0.1)
+        # 等待 1 秒以确保清理操作（如 WM_SETTINGCHANGE 广播）有足够时间完成
+        time.sleep(1.0)
         import os
         os._exit(0)
     # 捕获常见的终止信号
