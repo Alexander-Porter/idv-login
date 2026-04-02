@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775118401,
+  "lastModified": 1775121036,
   "version": "v6.0.0-beta",
   "hotfix": [
     {
@@ -536,6 +536,7 @@
     ".update.easebar.com",
     ".nie.netease.com",
     ".nie.easebar.com",
-    ".cc.163.com"
+    ".cc.163.com",
+    ".webapp.163.com"
   ]
 }
