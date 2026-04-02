@@ -363,6 +363,8 @@ class IDVLoginAddon:
             # Change the QR code redirect URL
             # Use the idvlogin:// URI scheme so the system opens our Qt window
             uri_scheme_url = f"idvlogin://open?game_id={game_id}"
+            data["scanner_guide_text"] = "已开启记住账号，可长期保存账号记录"
+            data["scanner_download_guide_text"]="如果您正在为代肝/共号扫码，请注意保护账号安全，谨防诈骗"
             data["qrcode_scanners"][0]["url"] = uri_scheme_url
 
             flow.response.content = json.dumps(data).encode()
