@@ -226,6 +226,8 @@ def register_mpay_routes(
                 )
             new_config = resp.get_json()
             new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id=" + request.args["game_id"]
+            new_config["scanner_guide_text"] = "已开启记住账号，可长期保存账号记录"
+            new_config["scanner_download_guide_text"] = "如果您正在为代肝/共号扫码，请注意保护账号安全，谨防诈骗"
             return jsonify(new_config)
         except Exception:
             return proxy(request)
