@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775203643,
+    "lastModified": 1775226178,
     "version": "v6.0.1-stable",
     "hotfix": [
         {
@@ -561,6 +561,7 @@
         ".nie.netease.com",
         ".nie.easebar.com",
         ".cc.163.com",
-        ".webapp.163.com"
+        ".webapp.163.com",
+        ".amap.com"
     ]
 }
