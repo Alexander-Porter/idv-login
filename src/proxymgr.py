@@ -243,15 +243,17 @@ def _create_login_query_hook(query, game_id):
         query["app_channel"] = CloudRes().get_qrcode_app_channel(
             getShortGameId(game_id)
         )
-        query["qrcode_channel_type"] = "3"
+        query["qrcode_channel_type"] = "2"
         query["gv"] = "251881013"
         query["gvn"] = "2025.0707.1013"
-        query["cv"] = "a5.10.0"
+        query["dst_jf_game_id"] = getShortGameId(game_id)
+        query["cv"] = "c0.0.0"
         query["sv"] = "35"
         query["app_type"] = "games"
         query["app_mode"] = "2"
         query["_cloud_extra_base64"] = "e30="
         query["sc"] = "1"
+        query["is_remember"] = "2"
 
 
 def _exchange_token_request(is_selected, game_id, form_data):

@@ -193,9 +193,6 @@ def register_mpay_routes(
             process_id = query.get("process_id", "")
             if create_login_query_hook:
                 create_login_query_hook(query, game_id)
-            query["qrcode_channel_type"] = "2"
-            query["cv"] = "c0.0.0"
-            query["is_remember"] = "2"
             resp: Response = proxy(request, query)
             genv.set("CHANNEL_ACCOUNT_SELECTED", "")
             data = {
@@ -205,7 +202,7 @@ def register_mpay_routes(
             ## 发烧平台-开始
             if query.get("dst_jf_game_id","")!="":
                 data["dst_jf_game_id"]=query["dst_jf_game_id"]
-                if not genv.get("has_opened_admin",False):
+                if (not genv.get("has_opened_admin",False)) and (not query.get("_cloud_extra_base64", "")):
                     import webbrowser
                     genv.set("has_opened_admin",True)
                     webbrowser.open("https://localhost/_idv-login/index?game_id="+query["dst_jf_game_id"])
