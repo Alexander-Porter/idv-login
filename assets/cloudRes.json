@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775178289,
+    "lastModified": 1775179849,
     "version": "v6.0.0-beta",
     "hotfix": [
         {
@@ -155,14 +155,6 @@
             "need_hotfix_version": [
                 "v6.0.0-beta"
             ],
-            "target_module": "mitm_addon",
-            "target_commit": "2b3af707bbf66b123b8fab04d4017966e4e292ae",
-            "note": "优化了扫码界面的安全问题"
-        },
-        {
-            "need_hotfix_version": [
-                "v6.0.0-beta"
-            ],
             "target_module": "main",
             "target_commit": "25abf230f3ed46d06af82354fb41de8f74a8a686",
             "note": "渠道服支持原生扫码记住账号，与官服同级"
@@ -173,6 +165,51 @@
             ],
             "target_module": "channelmgr",
             "target_commit": "25abf230f3ed46d06af82354fb41de8f74a8a686",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta",
+                "v5.9.0-beta",
+                "v5.9.1-stable"
+            ],
+            "target_module": "common_mpay_routes",
+            "target_commit": "c3538b0c13f2e688119290013861492bc2b182cb",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta",
+                "v5.9.0-beta",
+                "v5.9.1-stable"
+            ],
+            "target_module": "proxymgr",
+            "target_commit": "c3538b0c13f2e688119290013861492bc2b182cb",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v6.0.0-beta"
+            ],
+            "target_module": "mitm_addon",
+            "target_commit": "a9dce9419d99748be2238166901ee092eda43920",
+            "note": "渠道服支持原生扫码记住账号，修复多余管理界面弹出"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.9.0-beta",
+                "v5.9.1-stable"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "c3538b0c13f2e688119290013861492bc2b182cb",
+            "note": "渠道服支持原生扫码记住账号，与官服同级"
+        },
+        {
+            "need_hotfix_version": [
+                "v5.8.3.1-beta"
+            ],
+            "target_module": "channelmgr",
+            "target_commit": "010376be95ca87fa71a64ee5e3766e371e7160a6",
             "note": "渠道服支持原生扫码记住账号，与官服同级"
         }
     ],
