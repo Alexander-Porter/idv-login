@@ -136,13 +136,13 @@ def parse_uri(uri: str) -> dict:
 # Single-instance signaling
 # ------------------------------------------------------------------
 
-def signal_running_instance(game_id: str) -> bool:
+def signal_running_instance(game_id: str, action: str = "open") -> bool:
     """Try to send *game_id* to an already-running instance.
 
     On Windows we use a named pipe; on Unix a domain socket.
     Returns ``True`` if a running instance was found and signaled.
     """
-    payload = json.dumps({"game_id": game_id}).encode("utf-8")
+    payload = json.dumps({"game_id": game_id, "action": action}).encode("utf-8")
     if sys.platform == "win32":
         return _signal_via_named_pipe(payload)
     else:
@@ -152,7 +152,7 @@ def signal_running_instance(game_id: str) -> bool:
 def start_uri_listener(callback):
     """Start a background thread that listens for incoming URI signals.
 
-    *callback* is called with ``game_id: str`` whenever another
+    *callback* is called with ``(action: str, game_id: str)`` whenever another
     process sends a signal via :func:`signal_running_instance`.
     """
     t = threading.Thread(
@@ -320,7 +320,8 @@ def _listener_named_pipe(callback):
                     if data:
                         msg = json.loads(data.decode("utf-8", errors="replace"))
                         game_id = msg.get("game_id", "")
-                        callback(game_id)
+                        action = msg.get("action", "open")
+                        callback(action, game_id)
                 except Exception:
                     logger.debug("读取命名管道数据失败", exc_info=True)
 
@@ -347,7 +348,8 @@ def _listener_unix_socket(callback):
                 if data:
                     msg = json.loads(data.decode("utf-8", errors="replace"))
                     game_id = msg.get("game_id", "")
-                    callback(game_id)
+                    action = msg.get("action", "open")
+                    callback(action, game_id)
             except Exception:
                 logger.debug("读取Unix socket数据失败", exc_info=True)
             finally:

@@ -512,9 +512,8 @@ def initialize():
         #try:
         #    game_mgr = GameManager()
         #    for game in game_mgr.games.values():
-        #        start_args=CloudRes().get_start_argument(getShortGameId(game.game_id)) or ""
-        #        logger.info(f"新建快捷方式: {game.path}，启动参数: {start_args}")
-        #        game.create_launch_shortcut(start_args=start_args,bypass_path_check=False)
+        #        logger.info(f"新建快捷方式: {game.path}")
+        #        game.create_tool_launch_shortcut(game.path or "")
                 
         #except Exception as e:
         #    logger.error(f"首次使用创建快捷方式失败: {e}")
@@ -726,7 +725,7 @@ def handle_download_task(task_file_path):
                     game.should_auto_start=True
                 game_mgr._save_games()
                 print(f"下载任务完成，准备创建游戏启动快捷方式，启动参数: {start_args}")
-                game.create_launch_shortcut(start_args=start_args,bypass_path_check=True)
+                game.create_tool_launch_shortcut(game.path or "")
 
                 
         if ui_server_process:
@@ -968,10 +967,18 @@ def setup_network_proxy(proxy_port):
     from uri_scheme import register_uri_scheme, start_uri_listener
     register_uri_scheme()
 
-    # Start the URI listener so that new --uri invocations open the UI
-    def _on_uri_signal(game_id: str):
-        logger.info(f"收到 URI 信号: game_id={game_id}")
-        ui_mgr.open_for_game(game_id)
+    # Start the URI listener so that new --uri invocations signal this instance
+    def _on_uri_signal(action: str, game_id: str):
+        logger.info(f"收到 URI 信号: action={action}, game_id={game_id}")
+        if action == "start" and game_id:
+            game = game_helper.get_game(game_id)
+            if game:
+                logger.info(f"通过信号启动游戏: {game.name or game_id}")
+                game.start()
+            else:
+                logger.warning(f"信号指定的游戏未找到: {game_id}")
+        else:
+            ui_mgr.open_for_game(game_id)
 
     start_uri_listener(_on_uri_signal)
 
@@ -980,19 +987,49 @@ def setup_network_proxy(proxy_port):
         startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
         ui_mgr.open_for_game(startup_game_id)
 
-    # Auto-start games with proxy environment
+    # 启动优先级：快捷方式启动（进程级代理）> 全局模式 > 有应用设置自启
+    uri_action = genv.get("URI_STARTUP_ACTION", "")
+    uri_game_id = genv.get("URI_STARTUP_GAME_ID", "")
     auto_games = game_helper.list_auto_start_games()
-    if auto_games:
-        names = "\n".join(g.name for g in auto_games)
-        logger.info(f"检测到有游戏设置了自动启动，游戏列表{names}")
+    # 代理模式：显式设置优先；未设置时，有自启游戏则进程模式，否则全局，并固化结果
+    proxy_mode = genv.get("proxy_mode", "")
+    if not proxy_mode:
+        proxy_mode = "process" if auto_games else "global"
+        genv.set("proxy_mode", proxy_mode, True)
+    
+    if uri_action == "start" and uri_game_id:
+        # 最高优先级：快捷方式启动（进程级代理），仅启动指定游戏
+        game = game_helper.get_game(uri_game_id)
+        if game:
+            logger.info(f"通过快捷方式启动游戏: {game.name or uri_game_id}")
+            game.start()
+        else:
+            logger.warning(f"未找到游戏: {uri_game_id}")
+        # 清理启动参数
+        genv.set("URI_STARTUP_ACTION", "")
+        genv.set("URI_STARTUP_GAME_ID", "")
+    elif proxy_mode == "global":
+        # 次优先级：全局模式 → 设置系统/用户级代理
+        _set_proxy(proxy_port)
+        logger.info("提示：当前使用全局代理模式，会处理本机所有网络连接。")
+        if auto_games:
+            # 全局模式下也启动自启游戏（它们会继承代理环境变量）
+            names = ", ".join(g.name for g in auto_games)
+            logger.info(f"同时启动自启游戏: {names}")
+            for g in auto_games:
+                g.start()
+        else:
+            logger.info("如果出现其他程序无法联网问题，可在管理页面切换为进程代理模式。")
+    elif auto_games:
+        # 第三优先级：进程模式但有自启游戏 → 启动自启游戏（进程级代理）
+        names = ", ".join(g.name for g in auto_games)
+        logger.info(f"进程代理模式，启动自启游戏: {names}")
         for g in auto_games:
             g.start()
     else:
-        # 没有自启游戏 → 设置系统/用户级代理，方便用户手动启动的游戏走代理
-        _set_proxy(proxy_port)
-        logger.info("提示：当前使用系统级代理，会处理本机所有网络连接。")
-        logger.info("如果出现其他程序无法联网问题，建议在管理页面中导入发烧平台游戏或选择现有游戏目录，")
-        logger.info("设置游戏目录后，工具将切换为进程级代理，仅对游戏生效，不影响其他软件。")
+        # 进程代理模式且没有自启游戏
+        logger.info("当前使用进程代理模式，请通过桌面快捷方式启动游戏。")
+        logger.info("如需设置全局代理，可在管理页面切换为全局模式。")
 
     logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
     logger.info("拦截成功，您现在可以打开游戏了。游戏将通过代理自动路由。")
@@ -1143,7 +1180,7 @@ if __name__ == "__main__":
         if CLI_ARGS.open_ui and not CLI_ARGS.uri:
             CLI_ARGS.uri = "idvlogin://open"
         if CLI_ARGS.uri:
-            # URI scheme invocation (e.g. idvlogin://open?game_id=xxx)
+            # URI scheme invocation (e.g. idvlogin://open?game_id=xxx or idvlogin://start?game_id=xxx)
             # 如果当前进程没有管理员权限，先提权再处理 URI
             if sys.platform == "win32" and ctypes.windll.shell32.IsUserAnAdmin() == 0:
                 if getattr(sys, 'frozen', False):
@@ -1162,14 +1199,24 @@ if __name__ == "__main__":
             # Try to signal the already-running instance via named pipe.
             from uri_scheme import parse_uri, signal_running_instance
             params = parse_uri(CLI_ARGS.uri)
+            action = params.get("action", "open")
             game_id = params.get("game_id", "")
-            if signal_running_instance(game_id):
-                # Successfully signaled the running instance; exit.
+            
+            # idvlogin://start?game_id=xxx - 启动工具并仅启动该游戏（进程代理模式）
+            # idvlogin://open?game_id=xxx - 打开 UI
+            # 两种 action 都先尝试信号已运行实例
+            if signal_running_instance(game_id, action):
+                # 已运行实例收到信号，退出本进程
                 sys.exit(0)
-            # No running instance — fall through and start normally.
-            # Store the game_id so the UI opens for it after startup.
-            genv.set("URI_STARTUP_GAME_ID", game_id)
-            genv.set("URI_STARTUP_OPEN_UI", "1")
+            # 无已运行实例，作为新实例启动
+            if action == "start" and game_id:
+                genv.set("URI_STARTUP_ACTION", "start")
+                genv.set("URI_STARTUP_GAME_ID", game_id)
+            else:
+                # No running instance — fall through and start normally.
+                # Store the game_id so the UI opens for it after startup.
+                genv.set("URI_STARTUP_GAME_ID", game_id)
+                genv.set("URI_STARTUP_OPEN_UI", "1")
     except SystemExit:
         raise
     except Exception:

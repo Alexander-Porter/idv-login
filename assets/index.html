@@ -589,7 +589,7 @@
                 <span><i class="bi bi-gear me-2"></i>工具设置</span>
             </div>
             <div class="card-body">
-                <div class="row">
+                <div class="row g-3">
                     <div class="col-md-6">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
@@ -599,6 +599,18 @@
                             <button onclick="exportLogs()" class="btn btn-outline-info">
                                 <i class="bi bi-download me-1"></i>导出日志
                             </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <strong>代理模式</strong>
+                                <small class="d-block text-muted">选择全局代理或仅游戏进程代理</small>
+                            </div>
+                            <select id="proxyModeSelect" class="form-select w-auto" onchange="setProxyMode(this.value)">
+                                <option value="global">全局模式</option>
+                                <option value="process">进程模式</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -758,6 +770,9 @@
                                     <i class="bi bi-play-fill me-1"></i>立即启动游戏
                                 </button>
                             </div>
+                            <button onclick="createGameShortcut()" class="btn btn-outline-secondary w-100 mt-2">
+                                <i class="bi bi-link-45deg me-1"></i>创建桌面快捷方式（通过工具启动游戏）
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2242,6 +2257,9 @@
             // 启动工具状态检查
             startStatusCheck();
 
+            // 加载代理模式设置
+            loadProxyMode();
+
             // 首先加载游戏列表
             loadGameList();
 
@@ -2429,6 +2447,79 @@
                 })
                 .catch(function (e) {
                     swal("日志导出失败", String(e), "error");
+                });
+        }
+
+        // 代理模式相关功能
+        function loadProxyMode() {
+            fetch('/_idv-login/proxy-mode')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        document.getElementById('proxyModeSelect').value = data.mode;
+                    }
+                })
+                .catch(function (e) {
+                    console.error('加载代理模式失败:', e);
+                });
+        }
+
+        function setProxyMode(mode) {
+            fetch('/_idv-login/set-proxy-mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: mode })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        var modeText = mode === 'global' ? '全局模式' : '进程模式';
+                        var tipText = mode === 'global' 
+                            ? '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为进程模式。'
+                            : '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。';
+                        swal({
+                            title: "已切换为" + modeText,
+                            text: tipText,
+                            icon: "success",
+                            button: "确定",
+                        });
+                    } else {
+                        swal("切换失败", data.error || "未知错误", "error");
+                        loadProxyMode(); // 恢复原值
+                    }
+                })
+                .catch(function (e) {
+                    swal("切换失败", String(e), "error");
+                    loadProxyMode();
+                });
+        }
+
+        function createGameShortcut() {
+            var gameId = document.getElementById('gameSelect').value;
+            if (!gameId) {
+                swal("请先选择游戏", "", "warning");
+                return;
+            }
+            fetch('/_idv-login/create-game-shortcut', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game_id: gameId })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        swal({
+                            title: "快捷方式创建成功",
+                            text: "已在桌面创建游戏启动快捷方式。\n\n使用此快捷方式启动游戏，将自动通过工具代理网络。",
+                            icon: "success",
+                            button: "确定",
+                        });
+                    } else {
+                        swal("创建失败", data.error || "未知错误", "error");
+                    }
+                })
+                .catch(function (e) {
+                    swal("创建失败", String(e), "error");
                 });
         }
 

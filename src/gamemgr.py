@@ -216,19 +216,55 @@ class Game:
             self.logger.error(f"验证快捷方式失败: {e}")
             return False
 
-    def create_launch_shortcut(self, start_args: str,bypass_path_check=False) -> bool:
-        #print(f"Creating shortcut for game {self.game_id} with args: {start_args}")
+    def create_tool_launch_shortcut(self, icon_source_path: str = "") -> bool:
+        """创建通过工具启动游戏的桌面快捷方式。
+        
+        快捷方式目标为工具启动脚本，参数为 --uri "idvlogin://start?game_id=xxx"，
+        图标来自 icon_source_path（如游戏 exe）或工具的 icon.ico。
+        """
         if sys.platform != "win32":
             return False
-        if (not self.path or not os.path.exists(self.path)) and not bypass_path_check:
+        
+        # 查找 点我启动工具.bat：从当前脚本目录开始，向上最多找 3 层
+        # 打包后布局: {app}/python-embed/python.exe, {app}/src/*, {app}/点我启动工具.bat
+        # 开发环境布局: {dev}/src/*, {dev}/tools/点我启动工具.bat
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bat_path = ""
+        search_dir = script_dir
+        for _ in range(4):
+            candidate = os.path.join(search_dir, "点我启动工具.bat")
+            if os.path.exists(candidate):
+                bat_path = candidate
+                break
+            # 也检查 tools/ 子目录（开发环境）
+            candidate_tools = os.path.join(search_dir, "tools", "点我启动工具.bat")
+            if os.path.exists(candidate_tools):
+                bat_path = candidate_tools
+                break
+            search_dir = os.path.dirname(search_dir)
+        
+        if not bat_path:
+            self.logger.error("未找到 点我启动工具.bat")
             return False
-
-        shortcut_dir = self._get_shortcut_dir()
-        if not shortcut_dir:
+        
+        # 桌面路径
+        try:
+            import ctypes.wintypes
+            CSIDL_DESKTOP = 0
+            buf = ctypes.create_unicode_buffer(260)
+            ctypes.windll.shell32.SHGetFolderPathW(0, CSIDL_DESKTOP, 0, 0, buf)
+            desktop_path = buf.value
+        except Exception:
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        
+        if not os.path.exists(desktop_path):
+            self.logger.error(f"桌面路径不存在: {desktop_path}")
             return False
+        
         try:
             import win32com.client
-            #尝试从launcher_data中获取名称
+            
+            # 获取游戏名称
             name_from_launcher = ""
             if genv.get("launcher_data_cache", {}) and isinstance(genv.get("launcher_data_cache", {}), dict):
                 launcher_data = genv.get("launcher_data_cache", {}).get(str(self.default_distribution), {})
@@ -237,23 +273,34 @@ class Game:
                     if display_name:
                         name_from_launcher = display_name
             name = name_from_launcher if name_from_launcher else (self.name if self.name else self.game_id)
-            shortcut_path = self._build_unique_shortcut_path(shortcut_dir, name)
+            name = f"{name}(IDV-LOGIN)"
+            shortcut_path = self._build_unique_shortcut_path(desktop_path, name)
+            
             shell = win32com.client.Dispatch("WScript.Shell")
             shortcut = shell.CreateShortCut(shortcut_path)
-            normalized_path = os.path.normpath(self.path)
-            normalized_working_dir = os.path.dirname(normalized_path)
-            shortcut.Targetpath = normalized_path
-            shortcut.Arguments = start_args
-            shortcut.WorkingDirectory = normalized_working_dir
-            shortcut.Description = name
-            shortcut.IconLocation = f"{normalized_path},0"
+            
+            # 目标和参数 - 使用 bat 文件
+            shortcut.Targetpath = bat_path
+            uri_arg = f'idvlogin://start?game_id={self.game_id}'
+            shortcut.Arguments = f'--uri "{uri_arg}"'
+            shortcut.WorkingDirectory = os.path.dirname(bat_path)
+            shortcut.Description = f"通过登录助手启动 {name}"
+            
+            # 图标：优先使用游戏 exe，否则使用 icon.ico
+            icon_ico = os.path.join(os.path.dirname(bat_path), "icon.ico")
+            if icon_source_path and os.path.exists(icon_source_path):
+                icon_path = icon_source_path
+            elif os.path.exists(icon_ico):
+                icon_path = icon_ico
+            else:
+                icon_path = bat_path
+            shortcut.IconLocation = f"{icon_path},0"
+            
             shortcut.save()
-            if not self._verify_created_shortcut(shortcut_path, normalized_path, start_args, normalized_working_dir):
-                return False
-            self.logger.info(f"创建游戏快捷方式成功: {shortcut_path}")
+            self.logger.info(f"创建工具启动快捷方式成功: {shortcut_path}")
             return True
         except Exception as e:
-            self.logger.error(f"创建游戏快捷方式失败: {e}")
+            self.logger.error(f"创建工具启动快捷方式失败: {e}")
             return False
 
     def get_root_path(self) -> str:
@@ -888,7 +935,7 @@ class GameManager:
             if CloudRes().is_convert_to_normal(getShortGameId(final_game_id)):
                 start_args = CloudRes().get_start_argument(getShortGameId(final_game_id)) or ""
 
-            game.create_launch_shortcut(start_args)
+            game.create_tool_launch_shortcut(game.path or "")
             game.should_auto_start=True
         except Exception:
             self.logger.exception("导入Fever游戏后创建快捷方式失败")

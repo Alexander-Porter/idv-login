@@ -144,6 +144,9 @@ class LocalRequestHandler:
             "/_idv-login/index": self._serve_index,
             "/_idv-login/export-logs": self._export_logs,
             "/_idv-login/open-external-url": self._open_external_url,
+            "/_idv-login/proxy-mode": self._get_proxy_mode,
+            "/_idv-login/set-proxy-mode": self._set_proxy_mode,
+            "/_idv-login/create-game-shortcut": self._create_game_shortcut,
 
         }
 
@@ -647,7 +650,7 @@ class LocalRequestHandler:
                 sgid = getShortGameId(gid)
                 if CloudRes().is_convert_to_normal(sgid):
                     sa = CloudRes().get_start_argument(sgid)
-                    game.create_launch_shortcut(sa, bypass_path_check=True)
+                    game.create_tool_launch_shortcut(game.path or "")
             self.game_helper._save_games()
             return self._json_response(200, {"success": updated, "path": game_path, "version": game.get_version()})
         except Exception as e:
@@ -667,7 +670,7 @@ class LocalRequestHandler:
                 sgid = getShortGameId(gid)
                 if CloudRes().is_convert_to_normal(sgid):
                     sa = CloudRes().get_start_argument(sgid)
-                    game.create_launch_shortcut(sa)
+                    game.create_tool_launch_shortcut(game.path or "")
             except Exception:
                 self.logger.exception("更新后创建快捷方式失败")
             self.game_helper._save_games()
@@ -952,3 +955,36 @@ class LocalRequestHandler:
             webbrowser.open(url)
             return self._json_response(200, {"success": True})
         return self._json_response(400, {"success": False, "error": "invalid url"})
+
+    def _get_proxy_mode(self, args, body, method):
+        """获取当前代理模式 (global/process)。"""
+        mode = genv.get("proxy_mode", "global")
+        return self._json_response(200, {"success": True, "mode": mode})
+
+    def _set_proxy_mode(self, args, body, method):
+        """设置代理模式 (global/process)。"""
+        mode = body.get("mode", "") if body else ""
+        if mode not in ("global", "process"):
+            return self._json_response(400, {"success": False, "error": "无效的模式，应为 global 或 process"})
+        genv.set("proxy_mode", mode, True)
+        self.logger.info(f"代理模式已切换为: {mode}")
+        return self._json_response(200, {"success": True, "mode": mode})
+
+    def _create_game_shortcut(self, args, body, method):
+        """为指定游戏创建桌面快捷方式（通过工具启动）。"""
+        game_id = body.get("game_id", "") if body else args.get("game_id", "")
+        if not game_id:
+            return self._json_response(400, {"success": False, "error": "缺少 game_id 参数"})
+        
+        game = self.game_helper.get_existing_game(game_id)
+        if not game:
+            return self._json_response(404, {"success": False, "error": f"未找到游戏: {game_id}"})
+        
+        # 尝试使用游戏路径作为图标来源
+        icon_source = game.path if game.path and os.path.exists(game.path) else ""
+        
+        success = game.create_tool_launch_shortcut(icon_source)
+        if success:
+            return self._json_response(200, {"success": True, "message": "快捷方式创建成功"})
+        else:
+            return self._json_response(500, {"success": False, "error": "快捷方式创建失败"})
