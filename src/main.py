@@ -345,7 +345,8 @@ def initialize():
         self.trust_env = False
 
     _requests_mod.Session.__init__ = _no_trust_env_init
-
+    #Refer to https://forum.qt.io/post/833203. LGTM, yet potentially risky.
+    os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("DOMAIN_TARGET_OVERSEA","sdk-os.mpsdk.easebar.com")
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
