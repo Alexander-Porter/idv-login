@@ -12,6 +12,189 @@ def _show_msgbox(title: str, text: str, *, is_error: bool = False):
         print(f"[{title}] {text}")
 
 
+def _show_yesno(title: str, text: str) -> bool:
+    """Yes/No 弹窗，返回用户是否选择 Yes"""
+    import sys
+    if sys.platform == "win32":
+        import ctypes
+        # MB_YESNO | MB_ICONQUESTION
+        result = ctypes.windll.user32.MessageBoxW(0, text, title, 0x24)
+        return result == 6  # IDYES
+    else:
+        print(f"[{title}] {text}")
+        return input("(y/n): ").strip().lower() == 'y'
+
+
+def _select_exe_file(title: str = "选择游戏可执行文件") -> str:
+    """打开文件选择对话框选择 exe 文件"""
+    import sys
+    if sys.platform != "win32":
+        return ""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        
+        OFN_FILEMUSTEXIST = 0x1000
+        OFN_PATHMUSTEXIST = 0x800
+        MAX_PATH = 260
+        
+        class OPENFILENAMEW(ctypes.Structure):
+            _fields_ = [
+                ("lStructSize", wintypes.DWORD),
+                ("hwndOwner", wintypes.HWND),
+                ("hInstance", wintypes.HINSTANCE),
+                ("lpstrFilter", wintypes.LPCWSTR),
+                ("lpstrCustomFilter", wintypes.LPWSTR),
+                ("nMaxCustFilter", wintypes.DWORD),
+                ("nFilterIndex", wintypes.DWORD),
+                ("lpstrFile", wintypes.LPWSTR),
+                ("nMaxFile", wintypes.DWORD),
+                ("lpstrFileTitle", wintypes.LPWSTR),
+                ("nMaxFileTitle", wintypes.DWORD),
+                ("lpstrInitialDir", wintypes.LPCWSTR),
+                ("lpstrTitle", wintypes.LPCWSTR),
+                ("Flags", wintypes.DWORD),
+                ("nFileOffset", wintypes.WORD),
+                ("nFileExtension", wintypes.WORD),
+                ("lpstrDefExt", wintypes.LPCWSTR),
+                ("lCustData", wintypes.LPARAM),
+                ("lpfnHook", wintypes.LPVOID),
+                ("lpTemplateName", wintypes.LPCWSTR),
+                ("pvReserved", wintypes.LPVOID),
+                ("dwReserved", wintypes.DWORD),
+                ("FlagsEx", wintypes.DWORD),
+            ]
+        
+        file_buffer = ctypes.create_unicode_buffer(MAX_PATH)
+        ofn = OPENFILENAMEW()
+        ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
+        ofn.lpstrFilter = "可执行文件\0*.exe\0所有文件\0*.*\0\0"
+        ofn.lpstrFile = ctypes.cast(file_buffer, wintypes.LPWSTR)
+        ofn.nMaxFile = MAX_PATH
+        ofn.lpstrTitle = title
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
+        
+        if ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
+            return file_buffer.value
+        return ""
+    except Exception:
+        return ""
+
+
+def _probe_game_setup(logger):
+    """游戏设置引导：检查自启游戏配置"""
+    import sys
+    if sys.platform != "win32":
+        return
+    
+    # 已经引导过了
+    if genv.get("game_setup_probe_done_0403", False):
+        return
+    
+    from gamemgr import GameManager
+    from channelHandler.channelUtils import getShortGameId, cmp_game_id
+    game_mgr = GameManager()
+    
+    all_games = game_mgr.list_games()
+    auto_start_games = game_mgr.list_auto_start_games()
+    fever_games = game_mgr.list_fever_games()
+    
+    # 建立发烧平台游戏的短id映射
+    fever_by_short_id = {}
+    for fg in fever_games:
+        short_id = getShortGameId(fg.get("game_id", ""))
+        if short_id:
+            fever_by_short_id[short_id] = fg
+    
+    if not all_games:
+        # 情况 1：游戏列表为空 → 建议导入发烧平台游戏
+        if fever_games:
+            imported_any = False
+            for fg in fever_games:
+                name = fg.get("display_name") or fg.get("game_id", "未知游戏")
+                if _show_yesno(
+                    "导入游戏",
+                    f"检测到您尚未添加任何游戏。\n\n"
+                    f"在发烧平台发现游戏：{name}\n"
+                    f"是否导入此游戏？"
+                ):
+                    try:
+                        game_mgr.import_fever_game(fg["game_id"])
+                        logger.info(f"已导入发烧平台游戏: {fg['game_id']}")
+                        imported_any = True
+                    except Exception as e:
+                        logger.error(f"导入游戏失败 {fg['game_id']}: {e}")
+            
+            if imported_any:
+                # 导入完成后，import_fever_game 已自动设置 should_auto_start=True
+                genv.set("game_setup_probe_done_0403", True, True)
+                return
+        
+        # 没有发烧平台游戏或用户全部跳过
+        _show_msgbox(
+            "欢迎使用",
+            "由于没有扫描出任何已有游戏，工具将使用全局代理模式\n"
+            '如果出现网络问题，请参考常见问题解决方案：问题33。',
+        )
+        genv.set("game_setup_probe_done_0403", True, True)
+        return
+    
+    if all_games and not auto_start_games:
+        # 情况 2：有游戏但没有自启游戏 → 建议设置
+        set_any = False
+        for g in all_games:
+            game_id = g["game_id"]
+            game_name = g.get("name") or game_id
+            short_id = getShortGameId(game_id)
+            
+            # 检查发烧平台是否有对应游戏
+            fever_match = fever_by_short_id.get(short_id)
+            
+            if fever_match:
+                # 发烧平台有对应游戏，可以自动获取路径
+                if _show_yesno(
+                    "设置自启游戏",
+                    f"检测到您尚未设置自启游戏。\n"
+                    f"如果不设置，工具将使用系统级代理，可能导致网络问题，具体请查阅常见问题解决方案问题33。\n\n"
+                    f'是否将"{game_name}"设为自启游戏？\n'
+                    f"（已在发烧平台找到对应路径，无需手动选择）"
+                ):
+                    try:
+                        # 用 import_fever_game 来设置路径和自启
+                        game_mgr.import_fever_game(fever_match["game_id"])
+                        logger.info(f"已从发烧平台设置自启游戏: {game_id}")
+                        set_any = True
+                    except Exception as e:
+                        logger.error(f"设置自启失败 {game_id}: {e}")
+            else:
+                # 需要用户手动选择 exe 路径
+                if _show_yesno(
+                    "设置自启游戏",
+                    f"检测到您尚未设置自启游戏。\n"
+                    f"如果不设置，工具将使用系统级代理，可能导致网络问题，具体请查阅常见问题解决方案问题33。\n\n"
+                    f'是否将"{game_name}"设为自启游戏？\n'
+                    f"（需要选择游戏可执行文件/快捷方式位置）"
+                ):
+                    exe_path = _select_exe_file(f"选择 {game_name} 的可执行文件")
+                    if exe_path:
+                        try:
+                            game_mgr.set_game_path(game_id, exe_path)
+                            game_mgr.set_game_auto_start(game_id, True)
+                            logger.info(f"已设置自启游戏: {game_id}, 路径: {exe_path}")
+                            set_any = True
+                        except Exception as e:
+                            logger.error(f"设置自启失败 {game_id}: {e}")
+                    else:
+                        logger.info(f"用户未选择 {game_id} 的可执行文件，跳过")
+            
+            # 只要设置了一个就够了
+            if set_any:
+                break
+    
+    # 情况 3：有游戏且有自启 → 什么都不提醒
+    genv.set("game_setup_probe_done_0403", True, True)
+
+
 def run_once():
     """一次性任务，通过 genv 键控制只执行一次"""
     logger = setup_logger()
@@ -46,6 +229,12 @@ def run_once():
                     is_error=True,
                 )
                 logger.error("config.json 修复失败，写入仍然不可用")
+    
+    # 游戏设置引导
+    try:
+        _probe_game_setup(logger)
+    except Exception as e:
+        logger.error(f"游戏设置引导失败: {e}")
     
     # 清理旧版本遗留的 hosts 记录（修复 isExist bug 后需要重新执行）
     if not genv.get("hosts_cleanup_v600_done", False):
