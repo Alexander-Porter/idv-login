@@ -323,7 +323,7 @@ class IDVLoginAddon:
             dst_jf_game_id = query.get("dst_jf_game_id", "")
             if dst_jf_game_id:
                 qr_data["dst_jf_game_id"] = dst_jf_game_id
-                if not self.genv.get("has_opened_admin", False):
+                if (not self.genv.get("has_opened_admin", False)) and (not query.get("_cloud_extra_base64", "")):
                     self.genv.set("has_opened_admin", True)
                     if self.ui_manager:
                         self.ui_manager.open_for_game(dst_jf_game_id)
