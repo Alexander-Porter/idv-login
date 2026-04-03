@@ -5,72 +5,124 @@ Restricted-permission file writes.
 All sensitively-stored files (account tokens, config, keys, etc.)
 should use the helpers in this module so that they are readable
 only by the current user.
+
+Writes are atomic: data goes to a temporary file first, then
+``os.replace()`` swaps it into place.  A per-path file lock
+(``msvcrt`` on Windows, ``fcntl`` on Unix) prevents concurrent
+writers from corrupting each other.
 """
 
 import json
 import os
 import sys
+import tempfile
+import threading
+
+_write_locks: dict[str, threading.Lock] = {}
+_meta_lock = threading.Lock()
+
+
+def _get_lock(filepath: str) -> threading.Lock:
+    key = os.path.normcase(os.path.abspath(filepath))
+    with _meta_lock:
+        if key not in _write_locks:
+            _write_locks[key] = threading.Lock()
+        return _write_locks[key]
+
+
+def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
+    """Write *data* atomically via temp-file + os.replace().
+
+    On Unix the temp file is created with mode 0o600 when *restrict_unix*
+    is True.  On Windows, ACLs are applied after the rename.
+    """
+    dirpath = os.path.dirname(os.path.abspath(filepath)) or "."
+    fd = None
+    tmp_path = None
+    try:
+        if sys.platform != "win32" and restrict_unix:
+            fd = tempfile.mkstemp(dir=dirpath, prefix=".tmp_", suffix=".json")
+            tmp_path = fd[1]
+            os.write(fd[0], data)
+            os.close(fd[0])
+            fd = None
+            os.chmod(tmp_path, 0o600)
+        else:
+            with tempfile.NamedTemporaryFile(
+                dir=dirpath, prefix=".tmp_", suffix=".json",
+                delete=False, mode="wb",
+            ) as tmp:
+                tmp.write(data)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_path = tmp.name
+
+        os.replace(tmp_path, filepath)
+        tmp_path = None  # rename succeeded, nothing to clean up
+
+        if sys.platform == "win32":
+            _win_restrict_acl(filepath)
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd[0])
+            except OSError:
+                pass
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def write_file_restricted(filepath: str, data: bytes):
-    """Write *data* (bytes) and restrict permissions to current user."""
+    """Write *data* (bytes) atomically and restrict permissions."""
+    lock = _get_lock(filepath)
+    lock.acquire(timeout=5)
     try:
-        if sys.platform != "win32":
-            fd = os.open(filepath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            try:
-                os.write(fd, data)
-            finally:
-                os.close(fd)
-        else:
-            _win_write_restricted(filepath, data, binary=True)
+        _atomic_write(filepath, data)
     except Exception:
-        # Fallback: standard write
+        # Fallback: standard write (still better than losing data silently)
         with open(filepath, "wb") as f:
             f.write(data)
+    finally:
+        try:
+            lock.release()
+        except RuntimeError:
+            pass
 
 
 def write_json_restricted(filepath: str, obj):
-    """Serialize *obj* as JSON and write with restricted permissions."""
+    """Serialize *obj* as JSON and write atomically with restricted permissions."""
     text = json.dumps(obj, ensure_ascii=False)
     data = text.encode("utf-8")
+    lock = _get_lock(filepath)
+    lock.acquire(timeout=5)
     try:
-        if sys.platform != "win32":
-            fd = os.open(filepath, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            try:
-                os.write(fd, data)
-            finally:
-                os.close(fd)
-        else:
-            _win_write_restricted(filepath, data, binary=True)
+        _atomic_write(filepath, data)
     except Exception:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(obj, f, ensure_ascii=False)
+    finally:
+        try:
+            lock.release()
+        except RuntimeError:
+            pass
 
 
 def write_text_restricted(filepath: str, text: str, encoding: str = "utf-8"):
-    """Write text with restricted permissions. Default UTF-8 encoding."""
+    """Write text atomically with restricted permissions."""
     data = text.encode(encoding)
     write_file_restricted(filepath, data)
 
 
-def _win_write_restricted(filepath: str, data: bytes, *, binary: bool = True):
-    """Windows: write then restrict ACL to Administrators/SYSTEM only.
-
-    Non-elevated users must use UAC to access the file, even if they
-    created it.  Uses well-known SIDs for locale independence.
-    """
-    mode = "wb" if binary else "w"
-    with open(filepath, mode) as f:
-        f.write(data)
+def _win_restrict_acl(filepath: str):
+    """Restrict ACL to Administrators + SYSTEM on Windows."""
     import subprocess
-    # /reset 清除所有显式 ACE 并恢复为继承权限（移除旧版本残留的用户 ACE）
     subprocess.run(
         ["icacls", filepath, "/reset"],
         capture_output=True, timeout=10,
     )
-    # /inheritance:r 移除所有继承的 ACE，然后仅授权 Administrators 和 SYSTEM
-    # S-1-5-32-544 = BUILTIN\Administrators  (requires elevation)
-    # S-1-5-18     = NT AUTHORITY\SYSTEM
     subprocess.run(
         ["icacls", filepath, "/inheritance:r",
          "/grant:r", "*S-1-5-32-544:(F)",

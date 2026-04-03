@@ -759,7 +759,7 @@ class GameManager:
         """获取自动关闭延迟时间"""
         game = self.get_game(game_id)
         if game:
-            return game.login_delay
+            return max(game.login_delay, 3)
         return 6
 
     def get_game_default_launcher_data(self, game_id: str) -> int:
