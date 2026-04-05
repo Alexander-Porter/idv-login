@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775238318,
+  "lastModified": 1775238319,
   "version": "v6.0.1-stable",
   "hotfix": [
     {
@@ -563,6 +563,7 @@
     ".cc.163.com",
     ".webapp.163.com",
     ".amap.com",
-    ".autonavi.com"
+    ".autonavi.com",
+    ".pyq.netease.com"
   ]
 }
