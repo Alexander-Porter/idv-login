@@ -2,7 +2,13 @@
 """热更新管理模块。
 
 从 main.py 提取：负责热更新的探测、下载、应用、回滚及用户提示。
-支持替换已存在的模块文件，也支持创建新模块文件。
+
+TODO: 支持创建新模块文件的热更新
+当前实现仅支持替换已存在的模块文件。若需热更新一个原本不存在的新模块，
+需要修改 _apply_one() 函数：
+1. 当 target_path 不存在时，直接创建新文件（无需备份）
+2. 在 _record_update 中标记 "is_new_module": True
+3. 在回滚时检查此标记，若为新模块则删除文件而非恢复备份
 """
 
 import importlib.util
@@ -258,22 +264,10 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
     target_path, target_kind = _resolve_module_target_path(module_name)
     if not target_path or not target_kind:
         return False, f"无法定位模块文件: {module_name}"
-
-    is_new_module = not os.path.exists(target_path)
-
-    if is_new_module:
-        # 新模块：确保父目录存在且可写
-        parent_dir = os.path.dirname(target_path)
-        if not os.path.isdir(parent_dir):
-            try:
-                os.makedirs(parent_dir, exist_ok=True)
-            except Exception as e:
-                return False, f"创建目录失败: {parent_dir} ({e})"
-        if not os.access(parent_dir, os.W_OK):
-            return False, f"目录不可写: {parent_dir}"
-    else:
-        if not os.access(target_path, os.W_OK):
-            return False, f"模块文件不可写（可能无权限或在只读目录）: {target_path}"
+    if not os.path.exists(target_path):
+        return False, f"模块文件不存在: {target_path}"
+    if not os.access(target_path, os.W_OK):
+        return False, f"模块文件不可写（可能无权限或在只读目录）: {target_path}"
 
     remote_rel = "src/" + "/".join(module_name.split(".")) + ".py"
     url = f"https://gitee.com/opguess/idv-login/raw/{commit}/{remote_rel}"
@@ -285,7 +279,7 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
     if not ok:
         return False, f"下载失败: {url} ({err})"
 
-    backup_path = _next_backup_path(target_path) if not is_new_module else ""
+    backup_path = _next_backup_path(target_path)
 
     if target_kind == "py":
         # write to temp near target
@@ -304,15 +298,14 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
                 pass
             return False, "新文件编译失败，已放弃应用"
 
-        if not is_new_module:
+        try:
+            shutil.copy2(target_path, backup_path)
+        except Exception as e:
             try:
-                shutil.copy2(target_path, backup_path)
-            except Exception as e:
-                try:
-                    os.remove(tmp_path)
-                except Exception:
-                    pass
-                return False, f"备份失败: {e}"
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            return False, f"备份失败: {e}"
 
         try:
             shutil.move(tmp_path, target_path)
@@ -321,11 +314,7 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
                 raise RuntimeError("新文件落盘后编译失败")
         except Exception as e:
             try:
-                if is_new_module:
-                    # 新模块回滚：删除刚创建的文件
-                    if os.path.exists(target_path):
-                        os.remove(target_path)
-                elif os.path.exists(backup_path):
+                if os.path.exists(backup_path):
                     shutil.copy2(backup_path, target_path)
                     _delete_pyc_for_source(target_path)
                     _compile_source(target_path)
@@ -364,28 +353,24 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
                 pass
             return False, f"新文件编译失败，已放弃应用: {errc}"
 
-        if not is_new_module:
+        try:
+            shutil.copy2(target_path, backup_path)
+        except Exception as e:
             try:
-                shutil.copy2(target_path, backup_path)
-            except Exception as e:
-                try:
-                    os.remove(tmp_source_path)
-                except Exception:
-                    pass
-                try:
-                    os.remove(tmp_pyc_path)
-                except Exception:
-                    pass
-                return False, f"备份失败: {e}"
+                os.remove(tmp_source_path)
+            except Exception:
+                pass
+            try:
+                os.remove(tmp_pyc_path)
+            except Exception:
+                pass
+            return False, f"备份失败: {e}"
 
         try:
             os.replace(tmp_pyc_path, target_path)
         except Exception as e:
             try:
-                if is_new_module:
-                    if os.path.exists(target_path):
-                        os.remove(target_path)
-                elif os.path.exists(backup_path):
+                if os.path.exists(backup_path):
                     shutil.copy2(backup_path, target_path)
             except Exception:
                 pass
@@ -408,8 +393,7 @@ def _apply_one(item: dict) -> Tuple[bool, str]:
             "note": (item or {}).get("note", ""),
             "target_kind": target_kind,
             "target_path": os.path.abspath(target_path),
-            "backup_path": os.path.abspath(backup_path) if backup_path else "",
-            "is_new_module": is_new_module,
+            "backup_path": os.path.abspath(backup_path),
             "applied_at": int(time.time()),
             "url": url,
         },
@@ -424,25 +408,8 @@ def _rollback_one(hotfix_id: str) -> Tuple[bool, str]:
         return False, "记录损坏"
     target_path = rec.get("target_path")
     backup_path = rec.get("backup_path")
-    is_new_module = rec.get("is_new_module", False)
-
-    if not target_path:
-        return False, "缺少 target_path"
-
-    if is_new_module:
-        # 新模块回滚：删除文件
-        try:
-            if os.path.exists(target_path):
-                os.remove(target_path)
-                if str(target_path).endswith(".py"):
-                    _delete_pyc_for_source(target_path)
-            _record_update(hotfix_id, {"status": "rolled_back", "rolled_back_at": int(time.time())})
-            return True, "已回滚（删除新模块）"
-        except Exception as e:
-            return False, f"回滚失败: {e}"
-
-    if not backup_path:
-        return False, "缺少 backup_path"
+    if not target_path or not backup_path:
+        return False, "缺少 target_path/backup_path"
     if not os.path.exists(backup_path):
         return False, f"备份文件不存在: {backup_path}"
     try:

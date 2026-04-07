@@ -605,10 +605,9 @@
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <strong>代理模式</strong>
-                                <small class="d-block text-muted">选择兼容模式（推荐）、全局代理或进程代理</small>
+                                <small class="d-block text-muted">选择全局代理或仅游戏进程代理</small>
                             </div>
                             <select id="proxyModeSelect" class="form-select w-auto" onchange="setProxyMode(this.value)">
-                                <option value="compat">兼容模式（推荐）</option>
                                 <option value="global">全局模式</option>
                                 <option value="process">进程模式</option>
                             </select>
@@ -2474,12 +2473,10 @@
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.success) {
-                        var modeText = mode === 'compat' ? '兼容模式' : mode === 'global' ? '全局模式' : '进程模式';
-                        var tipText = mode === 'compat'
-                            ? '通过 DNS 劫持拦截游戏流量，不影响其他程序。推荐大多数用户使用。\n重启工具后生效。'
-                            : mode === 'global' 
-                            ? '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为兼容模式。\n重启工具后生效。'
-                            : '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。\n重启工具后生效。';
+                        var modeText = mode === 'global' ? '全局模式' : '进程模式';
+                        var tipText = mode === 'global' 
+                            ? '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为进程模式。'
+                            : '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。';
                         swal({
                             title: "已切换为" + modeText,
                             text: tipText,

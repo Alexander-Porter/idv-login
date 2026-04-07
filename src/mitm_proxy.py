@@ -16,9 +16,19 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+# TODO: 当 hotfixmgr 支持创建新模块后，将以下功能拆分为独立文件：
+# - DNS 策略管理 (NRPT/Hosts) -> dns_policy.py
+# - 本地 DNS 服务器 -> local_dns_server.py
+# - DNS 回环防止机制 -> 保留在 mitm_proxy.py
+# 参见：https://github.com/KKeygen/idv-login/issues/XXX
+
 import asyncio
 import os
+import random
 import socket
+import ssl
+import struct
+import subprocess
 import sys
 import threading
 
@@ -27,6 +37,9 @@ from logutil import setup_logger
 
 
 logger = setup_logger()
+
+# 防止 PowerShell 子进程修改当前控制台字体/代码页
+_CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 # Default proxy listen port
 DEFAULT_PROXY_PORT = 10717
@@ -107,17 +120,661 @@ def _patched_getaddrinfo(*args):
 socket.getaddrinfo = _patched_getaddrinfo
 
 
-# Re-export from split modules for backward compatibility
-from local_dns_server import (  # noqa: E402, F401
-    UPSTREAM_DNS_SERVERS, HARDCODED_IPS,
-    probe_hardcoded_ip, resolve_domain_ip,
-    DnsPacket, LocalDnsServer,
-)
-from dns_policy import (  # noqa: E402, F401
-    is_nrpt_available, add_nrpt_rule, remove_nrpt_rule,
-    remove_all_nrpt_rules, flush_dns_cache,
-    DnsPolicyManager,
-)
+# ==================================================================
+# 本地 DNS 服务器 - 兼容模式专用
+# TODO: 拆分到 local_dns_server.py
+# ==================================================================
+
+# 预配置的上游 DNS 服务器列表（避免 DNS 回环）
+UPSTREAM_DNS_SERVERS = [
+    "223.5.5.5",      # 阿里 DNS
+    "119.29.29.29",   # 腾讯 DNSPod
+    "114.114.114.114",  # 114 DNS
+    "8.8.8.8",        # Google DNS
+]
+
+# 硬编码的目标服务器 IP（用于 DNS 回环时的备用方案）
+HARDCODED_IPS = {
+    "service.mkey.163.com": "42.186.193.21",
+    "sdk-os.mpsdk.easebar.com": "8.222.80.103",
+}
+
+
+def probe_hardcoded_ip(domain: str, timeout: float = 3.0) -> bool:
+    """探测硬编码 IP 是否可访问。
+
+    Args:
+        domain: 域名
+        timeout: 超时时间（秒）
+
+    Returns:
+        是否可访问
+    """
+    ip = HARDCODED_IPS.get(domain)
+    if not ip:
+        return False
+
+    try:
+        # 尝试建立 HTTPS 连接
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        with socket.create_connection((ip, 443), timeout=timeout) as sock:
+            with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                # 连接成功
+                return True
+    except Exception as e:
+        logger.debug(f"探测 {domain} ({ip}) 失败: {e}")
+        return False
+
+
+def resolve_domain_ip(domain: str, use_hardcoded_first: bool = True) -> str | None:
+    """解析域名的真实 IP。
+
+    优先使用硬编码 IP（如果可访问），否则通过上游 DNS 解析。
+
+    Args:
+        domain: 域名
+        use_hardcoded_first: 是否优先尝试硬编码 IP
+
+    Returns:
+        IP 地址，解析失败返回 None
+    """
+    # 1. 尝试硬编码 IP
+    if use_hardcoded_first and domain in HARDCODED_IPS:
+        hardcoded_ip = HARDCODED_IPS[domain]
+        if probe_hardcoded_ip(domain):
+            logger.debug(f"使用硬编码 IP: {domain} -> {hardcoded_ip}")
+            return hardcoded_ip
+        else:
+            logger.warning(f"硬编码 IP {hardcoded_ip} 不可访问，尝试 DNS 解析")
+
+    # 2. 通过上游 DNS 解析
+    for dns_server in UPSTREAM_DNS_SERVERS:
+        try:
+            # 构造 DNS 查询
+            query = _build_dns_query(domain)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(2.0)
+                sock.sendto(query, (dns_server, 53))
+                response, _ = sock.recvfrom(512)
+                ip = _parse_dns_response(response)
+                if ip:
+                    logger.debug(f"DNS 解析成功: {domain} -> {ip} (via {dns_server})")
+                    return ip
+        except Exception as e:
+            logger.debug(f"DNS 解析失败 ({dns_server}): {e}")
+            continue
+
+    # 3. 回退到硬编码 IP（即使不可访问）
+    if domain in HARDCODED_IPS:
+        logger.warning(f"DNS 解析失败，回退到硬编码 IP: {domain} -> {HARDCODED_IPS[domain]}")
+        return HARDCODED_IPS[domain]
+
+    return None
+
+
+def _build_dns_query(domain: str) -> bytes:
+    """构造 DNS A 记录查询报文。"""
+    # Header
+    transaction_id = random.randint(0, 65535)
+    flags = 0x0100  # Standard query, recursion desired
+    header = struct.pack("!HHHHHH", transaction_id, flags, 1, 0, 0, 0)
+
+    # Question
+    question = b""
+    for label in domain.split("."):
+        question += struct.pack("!B", len(label)) + label.encode("ascii")
+    question += b"\x00"  # Null terminator
+    question += struct.pack("!HH", 1, 1)  # QTYPE=A, QCLASS=IN
+
+    return header + question
+
+
+def _parse_dns_response(response: bytes) -> str | None:
+    """解析 DNS 响应，提取第一个 A 记录。"""
+    try:
+        # Skip header (12 bytes)
+        pos = 12
+
+        # Skip question section
+        while response[pos] != 0:
+            pos += response[pos] + 1
+        pos += 5  # Null + QTYPE(2) + QCLASS(2)
+
+        # Parse answer section
+        an_count = struct.unpack("!H", response[6:8])[0]
+        for _ in range(an_count):
+            # Skip name (may be compressed)
+            if response[pos] >= 192:
+                pos += 2
+            else:
+                while response[pos] != 0:
+                    pos += response[pos] + 1
+                pos += 1
+
+            rtype, rclass, ttl, rdlength = struct.unpack("!HHIH", response[pos:pos + 10])
+            pos += 10
+
+            if rtype == 1 and rdlength == 4:  # A record
+                ip = ".".join(str(b) for b in response[pos:pos + 4])
+                return ip
+
+            pos += rdlength
+
+    except Exception:
+        pass
+
+    return None
+
+
+class DnsPacket:
+    """简单的 DNS 报文解析器。"""
+
+    def __init__(self, data: bytes):
+        self.raw = data
+        self.id = struct.unpack("!H", data[:2])[0]
+        self.flags = struct.unpack("!H", data[2:4])[0]
+        self.qd_count = struct.unpack("!H", data[4:6])[0]
+        self.an_count = struct.unpack("!H", data[6:8])[0]
+        self.ns_count = struct.unpack("!H", data[8:10])[0]
+        self.ar_count = struct.unpack("!H", data[10:12])[0]
+
+        # 解析查询域名
+        self.qname = ""
+        self.qtype = 0
+        self.qclass = 0
+        self._parse_question(data[12:])
+
+    def _parse_question(self, data: bytes):
+        """解析 DNS 问题部分。"""
+        labels = []
+        i = 0
+        while i < len(data):
+            length = data[i]
+            if length == 0:
+                i += 1
+                break
+            if length >= 192:  # 压缩指针，本实现不处理
+                i += 2
+                break
+            labels.append(data[i + 1: i + 1 + length].decode("ascii", errors="ignore"))
+            i += 1 + length
+
+        self.qname = ".".join(labels).lower()
+        if i + 4 <= len(data):
+            self.qtype = struct.unpack("!H", data[i:i + 2])[0]
+            self.qclass = struct.unpack("!H", data[i + 2:i + 4])[0]
+
+    def build_response(self, ip_address: str) -> bytes:
+        """构建包含单个 A 记录的响应报文。
+
+        Args:
+            ip_address: 响应的 IP 地址
+
+        Returns:
+            DNS 响应报文字节
+        """
+        # 响应头
+        response_flags = 0x8180  # QR=1, Opcode=0, AA=1, TC=0, RD=1, RA=1, Z=0, RCODE=0
+        header = struct.pack(
+            "!HHHHHH",
+            self.id,
+            response_flags,
+            1,  # QDCOUNT
+            1,  # ANCOUNT
+            0,  # NSCOUNT
+            0,  # ARCOUNT
+        )
+
+        # 问题部分：直接复制原始问题
+        question_end = 12
+        i = 12
+        while i < len(self.raw):
+            if self.raw[i] == 0:
+                question_end = i + 5  # 包含 null + QTYPE(2) + QCLASS(2)
+                break
+            i += 1 + self.raw[i]
+        question = self.raw[12:question_end]
+
+        # 回答部分
+        # Name: 使用指针压缩 (0xC00C 指向偏移 12 处的域名)
+        answer = struct.pack(
+            "!HHHLH",
+            0xC00C,  # 压缩指针
+            1,       # TYPE: A
+            1,       # CLASS: IN
+            300,     # TTL: 300 秒
+            4,       # RDLENGTH: 4 字节
+        )
+
+        # IP 地址
+        ip_parts = [int(x) for x in ip_address.split(".")]
+        answer += struct.pack("!BBBB", *ip_parts)
+
+        return header + question + answer
+
+
+class LocalDnsServer:
+    """本地 DNS 服务器。
+
+    对指定域名返回固定 IP，其他请求转发到上游 DNS 服务器。
+    """
+
+    def __init__(
+        self,
+        intercept_domains: set[str],
+        target_ip: str = "127.0.0.1",
+        listen_host: str = "127.0.0.1",
+        listen_port: int = 53,
+    ):
+        """
+        Args:
+            intercept_domains: 要拦截的域名集合
+            target_ip: 拦截域名返回的 IP 地址
+            listen_host: 监听地址
+            listen_port: 监听端口
+        """
+        self.intercept_domains = {d.lower() for d in intercept_domains}
+        self.target_ip = target_ip
+        self.listen_host = listen_host
+        self.listen_port = listen_port
+
+        self._socket: socket.socket | None = None
+        self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._running = False
+
+    def start(self) -> bool:
+        """启动 DNS 服务器。
+
+        Returns:
+            是否成功启动
+        """
+        if self._running:
+            logger.warning("DNS 服务器已在运行")
+            return True
+
+        try:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self._socket.bind((self.listen_host, self.listen_port))
+            self._socket.settimeout(1.0)  # 1 秒超时，用于检查停止事件
+        except OSError as e:
+            logger.error(f"DNS 服务器绑定端口失败: {e}")
+            if self._socket:
+                self._socket.close()
+                self._socket = None
+            return False
+
+        self._stop_event.clear()
+        self._thread = threading.Thread(
+            target=self._server_loop,
+            name="LocalDnsServer",
+            daemon=True,
+        )
+        self._thread.start()
+        self._running = True
+        logger.debug(f"本地 DNS 服务器已启动: {self.listen_host}:{self.listen_port}")
+        return True
+
+    def stop(self):
+        """停止 DNS 服务器。"""
+        if not self._running:
+            return
+
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=3.0)
+
+        if self._socket:
+            try:
+                self._socket.close()
+            except Exception:
+                pass
+            self._socket = None
+
+        self._running = False
+        logger.debug("本地 DNS 服务器已停止")
+
+    def _server_loop(self):
+        """服务器主循环。"""
+        while not self._stop_event.is_set():
+            try:
+                data, addr = self._socket.recvfrom(512)
+            except socket.timeout:
+                continue
+            except Exception as e:
+                if not self._stop_event.is_set():
+                    logger.debug(f"DNS 服务器接收异常: {e}")
+                continue
+
+            # 在独立线程中处理请求（避免阻塞主循环）
+            threading.Thread(
+                target=self._handle_request,
+                args=(data, addr),
+                daemon=True,
+            ).start()
+
+    def _handle_request(self, data: bytes, addr: tuple):
+        """处理单个 DNS 请求。"""
+        try:
+            packet = DnsPacket(data)
+            logger.debug(f"DNS 查询: {packet.qname} (type={packet.qtype}) from {addr}")
+
+            # 检查是否需要拦截
+            should_intercept = False
+            for domain in self.intercept_domains:
+                if packet.qname == domain or packet.qname.endswith("." + domain):
+                    should_intercept = True
+                    break
+
+            if should_intercept and packet.qtype == 1:  # A 记录
+                # 返回本地 IP
+                response = packet.build_response(self.target_ip)
+                logger.debug(f"DNS 拦截: {packet.qname} -> {self.target_ip}")
+            else:
+                # 转发到上游 DNS
+                response = self._forward_to_upstream(data)
+                if response is None:
+                    logger.warning(f"DNS 转发失败: {packet.qname}")
+                    return
+
+            self._socket.sendto(response, addr)
+
+        except Exception as e:
+            logger.debug(f"DNS 请求处理异常: {e}")
+
+    def _forward_to_upstream(self, data: bytes) -> bytes | None:
+        """将 DNS 请求转发到上游服务器。
+
+        使用预配置的 IP 地址直接连接，避免 NRPT 回环。
+        """
+        for dns_server in UPSTREAM_DNS_SERVERS:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    sock.settimeout(2.0)
+                    sock.sendto(data, (dns_server, 53))
+                    response, _ = sock.recvfrom(512)
+                    return response
+            except Exception:
+                continue
+
+        return None
+
+    @property
+    def is_running(self) -> bool:
+        """服务器是否正在运行。"""
+        return self._running
+
+
+# ==================================================================
+# DNS 策略管理 - 兼容模式专用 (NRPT/Hosts)
+# TODO: 拆分到 dns_policy.py
+# ==================================================================
+
+# 用于标识本工具创建的 NRPT 规则的显示名称前缀
+_NRPT_RULE_PREFIX = "IDVLogin_"
+
+
+def is_nrpt_available() -> bool:
+    """检测 Windows NRPT 命令是否可用。
+
+    NRPT 功能需要 Windows 7+ 且具有管理员权限。
+    """
+    if sys.platform != "win32":
+        return False
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-Command Add-DnsClientNrptRule -ErrorAction SilentlyContinue"],
+            capture_output=True,
+            timeout=10,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        return result.returncode == 0 and b"Add-DnsClientNrptRule" in result.stdout
+    except Exception as e:
+        logger.debug(f"检测 NRPT 可用性失败: {e}")
+        return False
+
+
+def add_nrpt_rule(domain: str, dns_server: str = "127.0.0.1") -> bool:
+    """为指定域名添加 NRPT 规则，将 DNS 解析指向本地 DNS 服务器。
+
+    Args:
+        domain: 要劫持的域名，如 "service.mkey.163.com"
+        dns_server: DNS 服务器地址，默认 "127.0.0.1"
+
+    Returns:
+        是否成功添加规则
+    """
+    if sys.platform != "win32":
+        logger.warning("NRPT 仅支持 Windows 平台")
+        return False
+
+    rule_name = f"{_NRPT_RULE_PREFIX}{domain.replace('.', '_')}"
+
+    # 先尝试删除同名规则（如果存在）
+    remove_nrpt_rule(domain)
+
+    # 添加 NRPT 规则
+    # -Namespace: 匹配的域名后缀（以 . 开头表示后缀匹配，不带 . 表示精确匹配）
+    # -NameServers: 指定该域名使用的 DNS 服务器
+    # -DisplayName: 规则显示名称，用于标识
+    ps_cmd = (
+        f'Add-DnsClientNrptRule -Namespace ".{domain}" '
+        f'-NameServers "{dns_server}" '
+        f'-DisplayName "{rule_name}" '
+        f'-ErrorAction Stop'
+    )
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            timeout=15,
+            text=True,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        if result.returncode == 0:
+            logger.debug(f"已添加 NRPT 规则: {domain} -> {dns_server}")
+            return True
+        else:
+            logger.error(f"添加 NRPT 规则失败: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"添加 NRPT 规则异常: {e}")
+        return False
+
+
+def remove_nrpt_rule(domain: str) -> bool:
+    """移除指定域名的 NRPT 规则。
+
+    Args:
+        domain: 域名
+
+    Returns:
+        是否成功移除（规则不存在也返回 True）
+    """
+    if sys.platform != "win32":
+        return True
+
+    rule_name = f"{_NRPT_RULE_PREFIX}{domain.replace('.', '_')}"
+
+    # 查找并删除匹配的规则
+    ps_cmd = (
+        f'Get-DnsClientNrptRule | '
+        f'Where-Object {{ $_.DisplayName -eq "{rule_name}" }} | '
+        f'Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue'
+    )
+
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            timeout=15,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        logger.debug(f"已移除 NRPT 规则: {domain}")
+        return True
+    except Exception as e:
+        logger.warning(f"移除 NRPT 规则失败: {e}")
+        return False
+
+
+def remove_all_nrpt_rules() -> bool:
+    """移除本工具创建的所有 NRPT 规则。"""
+    if sys.platform != "win32":
+        return True
+
+    ps_cmd = (
+        f'Get-DnsClientNrptRule | '
+        f'Where-Object {{ $_.DisplayName -like "{_NRPT_RULE_PREFIX}*" }} | '
+        f'Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue'
+    )
+
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            timeout=15,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        logger.debug("已移除所有 IDVLogin NRPT 规则")
+        return True
+    except Exception as e:
+        logger.warning(f"移除 NRPT 规则失败: {e}")
+        return False
+
+
+def flush_dns_cache() -> bool:
+    """刷新 DNS 缓存。"""
+    if sys.platform != "win32":
+        return True
+
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", "Clear-DnsClientCache"],
+            capture_output=True,
+            timeout=10,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        logger.debug("已刷新 DNS 缓存")
+        return True
+    except Exception as e:
+        logger.warning(f"刷新 DNS 缓存失败: {e}")
+        return False
+
+
+class DnsPolicyManager:
+    """DNS 策略管理器 - 统一管理 NRPT 和 Hosts 方式的 DNS 劫持。
+
+    优先使用 NRPT，如果不可用则回退到 Hosts 文件方式。
+    """
+
+    def __init__(self, domains: list[str], target_ip: str = "127.0.0.1"):
+        """
+        Args:
+            domains: 要劫持的域名列表
+            target_ip: 劫持目标 IP，默认 127.0.0.1
+        """
+        self.domains = domains
+        self.target_ip = target_ip
+        self._use_nrpt = False
+        self._active = False
+        self._hostmgr = None
+
+    def setup(self) -> bool:
+        """设置 DNS 劫持策略。
+
+        Returns:
+            是否成功设置
+        """
+        if self._active:
+            logger.warning("DNS 策略已激活，无需重复设置")
+            return True
+
+        # 优先尝试 NRPT
+        if is_nrpt_available():
+            logger.debug("检测到 NRPT 可用，使用 NRPT 方式")
+            success = True
+            for domain in self.domains:
+                if not add_nrpt_rule(domain, self.target_ip):
+                    success = False
+                    break
+
+            if success:
+                flush_dns_cache()
+                self._use_nrpt = True
+                self._active = True
+                return True
+            else:
+                # NRPT 部分失败，回滚并尝试 Hosts 方式
+                logger.warning("NRPT 设置部分失败，回滚并尝试 Hosts 方式")
+                remove_all_nrpt_rules()
+
+        # 回退到 Hosts 文件方式
+        logger.debug("使用 Hosts 文件方式进行 DNS 劫持")
+        try:
+            from hostmgr import hostmgr
+            self._hostmgr = hostmgr()
+            for domain in self.domains:
+                # 先移除可能存在的旧记录
+                if self._hostmgr.isExist(domain):
+                    self._hostmgr.remove(domain)
+                self._hostmgr.add(domain, self.target_ip)
+                logger.debug(f"已添加 Hosts 记录: {domain} -> {self.target_ip}")
+
+            flush_dns_cache()
+            self._use_nrpt = False
+            self._active = True
+            return True
+        except Exception as e:
+            logger.error(f"Hosts 文件方式设置失败: {e}")
+            return False
+
+    def cleanup(self):
+        """清理 DNS 劫持策略，恢复原始状态。"""
+        if not self._active:
+            return
+
+        if self._use_nrpt:
+            # 清理 NRPT 规则
+            for domain in self.domains:
+                remove_nrpt_rule(domain)
+            logger.debug("已清理 NRPT DNS 策略")
+        else:
+            # 清理 Hosts 记录
+            if self._hostmgr is None:
+                try:
+                    from hostmgr import hostmgr
+                    self._hostmgr = hostmgr()
+                except Exception:
+                    pass
+
+            if self._hostmgr:
+                for domain in self.domains:
+                    try:
+                        if self._hostmgr.isExist(domain):
+                            self._hostmgr.remove(domain)
+                            logger.debug(f"已移除 Hosts 记录: {domain}")
+                    except Exception as e:
+                        logger.warning(f"移除 Hosts 记录失败 ({domain}): {e}")
+
+        flush_dns_cache()
+        self._active = False
+
+    @property
+    def is_using_nrpt(self) -> bool:
+        """是否正在使用 NRPT 方式。"""
+        return self._use_nrpt
+
+    @property
+    def is_active(self) -> bool:
+        """DNS 策略是否已激活。"""
+        return self._active
 
 
 class MitmProxyManager:
