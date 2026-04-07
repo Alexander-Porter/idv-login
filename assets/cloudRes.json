@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775568411,
+    "lastModified": 1775569123,
     "version": "v6.0.1-stable",
     "hotfix": [
         {
@@ -533,6 +533,12 @@
                 "wx_appid": "wxffce2402edcefa12",
                 "channel": "1106561880"
             }
+        },
+        {
+            "package_name": "com.netease.wyclx.nearme.gamecenter",
+            "app_channel": "oppo",
+            "game_id": "dm0",
+            "oppo": "com.netease.wyclx.nearme.gamecenter"
         }
     ],
     "netease_qrcode_login_game_list": [
