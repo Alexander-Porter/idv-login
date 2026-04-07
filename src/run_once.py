@@ -382,10 +382,22 @@ def run_once():
         except Exception as e:
             logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
 
-    # 清理残留的系统代理环境变量（工具崩溃/异常退出可能遗留）
-    if not genv.get("proxy_env_cleanup_v602_done", False):
+    # 一次性清理残留的 NRPT 规则和代理环境变量（工具崩溃/异常退出可能遗留）
+    if not genv.get("nrpt_env_cleanup_v603_done", False):
         import sys
         if sys.platform == "win32":
+            try:
+                from mitm_proxy import remove_all_nrpt_rules
+                remove_all_nrpt_rules()
+                logger.info("已清理残留 NRPT 规则")
+            except Exception as e:
+                logger.error(f"清理残留 NRPT 规则失败: {e}")
+            try:
+                from proxy_env import unset_proxy
+                unset_proxy()
+                logger.info("已清理残留代理环境变量")
+            except Exception:
+                pass
             try:
                 import winreg
                 _stale_ports = ("10717", "10718")
@@ -400,6 +412,6 @@ def run_once():
                                 logger.info(f"已清理残留环境变量: {var}={val}")
                         except FileNotFoundError:
                             pass
-                genv.set("proxy_env_cleanup_v602_done", True, True)
             except Exception as e:
                 logger.error(f"清理残留代理环境变量失败: {e}")
+            genv.set("nrpt_env_cleanup_v603_done", True, True)

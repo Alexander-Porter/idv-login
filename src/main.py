@@ -172,13 +172,6 @@ def handle_exit():
             if logger:
                 logger.warning(f"清理 DNS 策略失败: {e}")
 
-    # 无论模式，兜底清理所有残留 NRPT 规则
-    if sys.platform == "win32":
-        try:
-            from mitm_proxy import remove_all_nrpt_rules
-            remove_all_nrpt_rules()
-        except Exception:
-            pass
     # 清理自定义 DNS 缓存
     try:
         from mitm_proxy import clear_custom_dns
@@ -320,9 +313,9 @@ def ctrl_handler(ctrl_type):
     if ctrl_type in (0, 1, 2, 5, 6):
         handle_exit()
         # 强制结束进程，防止主线程阻塞在 Qt 事件循环 (app.exec()) 中导致程序假死
-        # 等待 1 秒以确保清理操作（如 WM_SETTINGCHANGE 广播）有足够时间完成
+        # 等待足够时间以确保清理操作（NRPT 规则删除、WM_SETTINGCHANGE 广播等）完成
         import time, os
-        time.sleep(1.0)
+        time.sleep(3.0)
         os._exit(0)
         return True
     return True
@@ -426,18 +419,6 @@ def initialize():
 
     # handle exit
     atexit.register(handle_exit)
-
-    # 无论当前模式，启动时清理可能残留的 NRPT 规则和代理环境变量（上次崩溃/强杀遗留）
-    if sys.platform == "win32":
-        try:
-            from mitm_proxy import remove_all_nrpt_rules
-            remove_all_nrpt_rules()
-        except Exception:
-            pass
-        try:
-            _unset_proxy()
-        except Exception:
-            pass
 
     from cloudRes import CloudRes
     m_cloudres=CloudRes(CloudPaths,genv.get('FP_WORKDIR'))
@@ -1018,6 +999,11 @@ def setup_network_proxy(proxy_port):
 
     # 兼容模式特殊处理
     if proxy_mode == "compat":
+        # 兼容模式不使用代理环境变量，清理上次可能残留的设置
+        try:
+            _unset_proxy()
+        except Exception:
+            pass
         logger.info("正在启动兼容模式...")
         try:
             _setup_compat_mode(addon)
@@ -1407,8 +1393,8 @@ def setup_signal_handlers():
         print(f"捕获到信号 {sig}，正在执行清理...")
         sys.stdout.flush()
         handle_exit()
-        # 等待 1 秒以确保清理操作（如 WM_SETTINGCHANGE 广播）有足够时间完成
-        time.sleep(1.0)
+        # 等待足够时间以确保清理操作（NRPT 规则删除、WM_SETTINGCHANGE 广播等）完成
+        time.sleep(3.0)
         import os
         os._exit(0)
     # 捕获常见的终止信号

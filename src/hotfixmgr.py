@@ -236,6 +236,13 @@ def _restart_self(reason: str = ""):
     except Exception:
         pass
 
+    # 重启前执行清理（NRPT 规则、DNS 服务器、代理环境变量等）
+    try:
+        from main import handle_exit
+        handle_exit()
+    except Exception:
+        pass
+
     if getattr(sys, 'frozen', False):
         args = [sys.executable] + sys.argv[1:]
     else:
