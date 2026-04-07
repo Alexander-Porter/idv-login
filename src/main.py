@@ -172,6 +172,13 @@ def handle_exit():
             if logger:
                 logger.warning(f"清理 DNS 策略失败: {e}")
 
+    # 无论模式，兜底清理所有残留 NRPT 规则
+    if sys.platform == "win32":
+        try:
+            from mitm_proxy import remove_all_nrpt_rules
+            remove_all_nrpt_rules()
+        except Exception:
+            pass
     # 清理自定义 DNS 缓存
     try:
         from mitm_proxy import clear_custom_dns
@@ -419,6 +426,14 @@ def initialize():
 
     # handle exit
     atexit.register(handle_exit)
+
+    # 无论当前模式，启动时清理可能残留的 NRPT 规则（上次崩溃/强杀遗留）
+    if sys.platform == "win32":
+        try:
+            from mitm_proxy import remove_all_nrpt_rules
+            remove_all_nrpt_rules()
+        except Exception:
+            pass
 
     from cloudRes import CloudRes
     m_cloudres=CloudRes(CloudPaths,genv.get('FP_WORKDIR'))
