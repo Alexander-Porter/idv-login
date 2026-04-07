@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775238319,
+  "lastModified": 1775532158,
   "version": "v6.0.1-stable",
   "hotfix": [
     {
@@ -208,8 +208,7 @@
     },
     {
       "need_hotfix_version": [
-        "v6.0.0-beta",
-        "v6.0.1-stable"
+        "v6.0.0-beta"
       ],
       "target_module": "run_once",
       "target_commit": "694545175cc6442357bb81eb8d0d608121bad598",
@@ -226,12 +225,38 @@
     },
     {
       "need_hotfix_version": [
-        "v6.0.0-beta",
-        "v6.0.1-stable"
+        "v6.0.0-beta"
       ],
       "target_module": "main",
       "target_commit": "b4662d22314e46ca4ca87513f4fbedb5e0a12660",
       "note": "临时修复渠道服管理界面白屏的问题，如没有白屏，则此热更新是否更新随意"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-stable",
+        "v6.0.1-stable"
+      ],
+      "target_module": "mitm_proxy",
+      "target_commit": "8894130e3ee9134cb8ba9b75bb4dcb26ab33e671",
+      "note": "尝试修复退出工具后无法切换账号问题和阴阳师地图加载失败问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-stable",
+        "v6.0.1-stable"
+      ],
+      "target_module": "main",
+      "target_commit": "8894130e3ee9134cb8ba9b75bb4dcb26ab33e671",
+      "note": "尝试修复退出工具后无法切换账号问题和阴阳师地图加载失败问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-stable",
+        "v6.0.1-stable"
+      ],
+      "target_module": "run_once",
+      "target_commit": "8894130e3ee9134cb8ba9b75bb4dcb26ab33e671",
+      "note": "尝试修复退出工具后无法切换账号问题和阴阳师地图加载失败问题"
     }
   ],
   "shortcuts": [
