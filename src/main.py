@@ -61,6 +61,10 @@ m_cloudres=None
 logger = None # Will be initialized in __main__
 _console_ctrl_handler = None
 
+# Compat mode globals
+_dns_policy_mgr = None  # DnsPolicyManager instance for compat mode
+_dns_server = None      # LocalDnsServer instance for compat mode
+
 
 # -- 全局异常钩子 --
 def _global_excepthook(exc_type, exc_value, exc_tb):
@@ -111,7 +115,7 @@ def get_computer_name():
 _exit_handled = False
 
 def handle_exit():
-    global _exit_handled
+    global _exit_handled, _dns_policy_mgr, _dns_server
     if _exit_handled:
         return  # 已经执行过清理，不要重复执行
     _exit_handled = True
@@ -150,6 +154,30 @@ def handle_exit():
         else:
             print("mitmproxy 代理已停止")
             sys.stdout.flush()
+
+    # 兼容模式清理：停止 DNS 服务器和清理 DNS 策略
+    if _dns_server:
+        try:
+            _dns_server.stop()
+            _dns_server = None
+        except Exception as e:
+            if logger:
+                logger.warning(f"停止 DNS 服务器失败: {e}")
+
+    if _dns_policy_mgr:
+        try:
+            _dns_policy_mgr.cleanup()
+            _dns_policy_mgr = None
+        except Exception as e:
+            if logger:
+                logger.warning(f"清理 DNS 策略失败: {e}")
+
+    # 清理自定义 DNS 缓存
+    try:
+        from mitm_proxy import clear_custom_dns
+        clear_custom_dns()
+    except Exception:
+        pass
 
     # 恢复代理设置（Windows 环境变量 / macOS networksetup / Linux gsettings）
     try:
@@ -871,13 +899,17 @@ def setup_shortcuts():
 def setup_network_proxy(proxy_port):
     """Set up the mitmproxy-based network proxy.
 
-    Instead of modifying the hosts file and listening on port 443,
-    we start mitmproxy in normal (regular) proxy mode.  Game
-    processes are launched with ``HTTP_PROXY`` / ``HTTPS_PROXY``
-    environment variables pointing at the proxy so all their
-    traffic flows through mitmproxy automatically.
+    Supports three modes:
+    - "global": Sets system-level HTTP_PROXY/HTTPS_PROXY environment variables
+    - "process": Sets proxy variables only for game subprocess
+    - "compat": Uses DNS hijacking (NRPT/Hosts) + local DNS server + mitmproxy reverse proxy
+
+    In compat mode, the workflow is:
+    1. Set up DNS policy (NRPT rules or Hosts file) to redirect target domains to 127.0.0.1
+    2. Start local DNS server on 127.0.0.1:53 to respond with 127.0.0.1 for target domains
+    3. Start mitmproxy in reverse proxy mode on port 443 to handle incoming HTTPS requests
     """
-    global m_proxy
+    global m_proxy, _dns_policy_mgr, _dns_server
 
     from gamemgr import GameManager
     from channelHandler.channelUtils import getShortGameId
@@ -956,13 +988,52 @@ def setup_network_proxy(proxy_port):
         ui_manager=ui_mgr,
     )
 
-    # Create and start the proxy manager
-    from mitm_proxy import MitmProxyManager
-    proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port)
+    # 获取代理模式
+    uri_action = genv.get("URI_STARTUP_ACTION", "")
+    uri_game_id = genv.get("URI_STARTUP_GAME_ID", "")
+    auto_games = game_helper.list_auto_start_games()
+    proxy_mode = genv.get("proxy_mode", "")
+    if not proxy_mode:
+        proxy_mode = "process" if auto_games else "global"
+        genv.set("proxy_mode", proxy_mode, True)
 
-    proxy_mgr.start()
-    m_proxy = proxy_mgr
-    app_state.proxy_mgr = proxy_mgr
+    # 兼容模式特殊处理
+    if proxy_mode == "compat":
+        logger.info("正在启动兼容模式...")
+        try:
+            _setup_compat_mode(addon)
+        except Exception as e:
+            logger.error(f"兼容模式启动失败: {e}，回退到常规代理模式")
+            # 清理可能已部分设置的资源
+            if _dns_policy_mgr:
+                try:
+                    _dns_policy_mgr.cleanup()
+                except Exception:
+                    pass
+                _dns_policy_mgr = None
+            if _dns_server:
+                try:
+                    _dns_server.stop()
+                except Exception:
+                    pass
+                _dns_server = None
+            from mitm_proxy import clear_custom_dns
+            clear_custom_dns()
+            # 回退到常规模式
+            proxy_mode = "process" if auto_games else "global"
+            genv.set("proxy_mode", proxy_mode, True)
+            from mitm_proxy import MitmProxyManager
+            proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port, mode="regular")
+            proxy_mgr.start()
+            m_proxy = proxy_mgr
+            app_state.proxy_mgr = proxy_mgr
+    else:
+        # 常规代理模式（global 或 process）
+        from mitm_proxy import MitmProxyManager
+        proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port, mode="regular")
+        proxy_mgr.start()
+        m_proxy = proxy_mgr
+        app_state.proxy_mgr = proxy_mgr
 
     # Register the URI scheme so QR code redirects open our Qt window
     from uri_scheme import register_uri_scheme, start_uri_listener
@@ -988,17 +1059,16 @@ def setup_network_proxy(proxy_port):
         startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
         ui_mgr.open_for_game(startup_game_id)
 
-    # 启动优先级：快捷方式启动（进程级代理）> 全局模式 > 有应用设置自启
-    uri_action = genv.get("URI_STARTUP_ACTION", "")
-    uri_game_id = genv.get("URI_STARTUP_GAME_ID", "")
-    auto_games = game_helper.list_auto_start_games()
-    # 代理模式：显式设置优先；未设置时，有自启游戏则进程模式，否则全局，并固化结果
-    proxy_mode = genv.get("proxy_mode", "")
-    if not proxy_mode:
-        proxy_mode = "process" if auto_games else "global"
-        genv.set("proxy_mode", proxy_mode, True)
-    
-    if uri_action == "start" and uri_game_id:
+    # 根据模式执行不同的启动逻辑
+    if proxy_mode == "compat":
+        # 兼容模式：无需设置代理环境变量，DNS 劫持会自动生效
+        logger.info("提示：当前使用兼容模式，通过 DNS 劫持拦截游戏流量。")
+        if auto_games:
+            names = ", ".join(g.name for g in auto_games)
+            logger.info(f"同时启动自启游戏: {names}")
+            for g in auto_games:
+                g.start()
+    elif uri_action == "start" and uri_game_id:
         # 最高优先级：快捷方式启动（进程级代理），仅启动指定游戏
         game = game_helper.get_game(uri_game_id)
         if game:
@@ -1032,10 +1102,238 @@ def setup_network_proxy(proxy_port):
         logger.info("当前使用进程代理模式，请通过桌面快捷方式启动游戏。")
         logger.info("如需设置全局代理，可在管理页面切换为全局模式。")
 
-    logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
+    if proxy_mode == "compat":
+        logger.info("兼容模式已就绪！DNS 劫持和反向代理已启动。")
+    else:
+        logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
     logger.info("拦截成功，您现在可以打开游戏了。游戏将通过代理自动路由。")
     logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
     logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+
+
+def _setup_compat_mode(addon):
+    """设置兼容模式：DNS 劫持 + 本地 DNS 服务器 + 反向代理。"""
+    global m_proxy, _dns_policy_mgr, _dns_server
+
+    # 目标域名
+    target_domains = [
+        genv.get("DOMAIN_TARGET", "service.mkey.163.com"),
+        genv.get("DOMAIN_TARGET_OVERSEA", "sdk-os.mpsdk.easebar.com"),
+    ]
+
+    # 0. 检测并处理 443 端口占用
+    _check_and_handle_port_443()
+
+    # 1. 预解析目标域名的真实 IP（防止 DNS 回环）
+    from mitm_proxy import resolve_domain_ip, add_custom_dns
+
+    resolved_ips = {}
+    for domain in target_domains:
+        ip = resolve_domain_ip(domain, use_hardcoded_first=True)
+        if ip:
+            resolved_ips[domain] = ip
+            add_custom_dns(domain, 443, ip)
+            logger.debug(f"目标服务器: {domain} -> {ip}")
+        else:
+            logger.warning(f"无法解析 {domain}，兼容模式可能无法正常工作")
+
+    if not resolved_ips:
+        logger.error("所有目标域名解析失败，无法启动兼容模式")
+        raise RuntimeError("Failed to resolve any target domain for compat mode")
+
+    # 保存解析结果供其他模块使用
+    genv.set("COMPAT_RESOLVED_IPS", resolved_ips)
+
+    # 2. 设置 DNS 策略（NRPT 或 Hosts）
+    from mitm_proxy import DnsPolicyManager
+    _dns_policy_mgr = DnsPolicyManager(domains=target_domains, target_ip="127.0.0.1")
+    if not _dns_policy_mgr.setup():
+        logger.error("DNS 策略设置失败，无法启动兼容模式")
+        raise RuntimeError("Failed to setup DNS policy for compat mode")
+
+    method = "NRPT" if _dns_policy_mgr.is_using_nrpt else "Hosts 文件"
+    logger.debug(f"DNS 策略已设置 (方式: {method})")
+
+    # 3. 启动本地 DNS 服务器
+    from mitm_proxy import LocalDnsServer
+    _dns_server = LocalDnsServer(
+        intercept_domains=set(target_domains),
+        target_ip="127.0.0.1",
+        listen_host="127.0.0.1",
+        listen_port=53,
+    )
+    if not _dns_server.start():
+        logger.error("本地 DNS 服务器启动失败")
+        _dns_policy_mgr.cleanup()
+        _dns_policy_mgr = None
+        raise RuntimeError("Failed to start local DNS server for compat mode")
+
+    logger.debug("本地 DNS 服务器已启动 (127.0.0.1:53)")
+
+    # 4. 启动 mitmproxy 反向代理
+    from mitm_proxy import MitmProxyManager
+    proxy_mgr = MitmProxyManager(addon=addon, mode="compat")
+    proxy_mgr.start()
+    m_proxy = proxy_mgr
+    app_state.proxy_mgr = proxy_mgr
+
+
+def _ask_user_confirmation(title: str, message: str) -> bool:
+    """向用户询问确认，优先使用 Qt 对话框，回退到 Windows API，最后使用控制台。
+    
+    Args:
+        title: 对话框标题
+        message: 对话框消息
+        
+    Returns:
+        用户是否确认（是/否）
+    """
+    # 1. 尝试使用 Qt 对话框（如果已初始化）
+    try:
+        if app_state.app is not None:
+            from PyQt6.QtWidgets import QMessageBox
+            reply = QMessageBox.question(
+                None, title, message,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            return reply == QMessageBox.StandardButton.Yes
+    except Exception:
+        pass
+    
+    # 2. 尝试使用 Windows API（仅 Windows）
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            MB_YESNO = 0x04
+            MB_ICONQUESTION = 0x20
+            IDYES = 6
+            result = ctypes.windll.user32.MessageBoxW(
+                0, message, title, MB_YESNO | MB_ICONQUESTION
+            )
+            return result == IDYES
+        except Exception:
+            pass
+    
+    # 3. 回退到控制台输入（回车为肯定）
+    print(f"\n{title}")
+    print(message)
+    user_input = input("按回车键确认，输入其他内容取消: ")
+    return user_input == ""
+
+
+def _check_and_handle_port_443():
+    """检测并处理 443 端口占用。"""
+    import psutil
+
+    def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind((host, port))
+                return False
+            except socket.error:
+                return True
+
+    if not is_port_in_use(443):
+        return
+
+    logger.warning("检测到 443 端口被占用，正在查找占用进程...")
+
+    # 查找占用 443 端口的进程
+    occupying_pids = []
+    if sys.platform == "win32":
+        try:
+            result = subprocess.run(
+                ["netstat", "-ano"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            for line in result.stdout.splitlines():
+                if ":443 " in line and "LISTENING" in line:
+                    parts = line.split()
+                    if len(parts) >= 5:
+                        pid = parts[-1]
+                        if pid.isdigit():
+                            occupying_pids.append(int(pid))
+        except Exception as e:
+            logger.warning(f"查找占用进程失败: {e}")
+    else:
+        try:
+            result = subprocess.run(
+                ["lsof", "-i", ":443", "-sTCP:LISTEN"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            for line in result.stdout.splitlines()[1:]:  # Skip header
+                parts = line.split()
+                if len(parts) >= 2:
+                    pid = parts[1]
+                    if pid.isdigit():
+                        occupying_pids.append(int(pid))
+        except Exception as e:
+            logger.warning(f"查找占用进程失败: {e}")
+
+    if not occupying_pids:
+        logger.warning("无法确定占用 443 端口的进程，请手动关闭后重试")
+        _ask_user_confirmation("端口占用", "无法确定占用 443 端口的进程。\n请手动关闭相关进程后按确认继续。")
+        return
+
+    # 获取进程信息并提示用户
+    for pid in set(occupying_pids):
+        try:
+            proc = psutil.Process(pid)
+            exe_name = proc.exe()
+            logger.warning(f"进程 {exe_name} (PID={pid}) 正在占用 443 端口")
+
+            # Windows PID 4 是 System 进程（HTTP.sys 服务）
+            if sys.platform == "win32" and pid == 4:
+                logger.warning("这是 Windows HTTP 服务 (PID=4)，将尝试停止 http 服务")
+                if _ask_user_confirmation(
+                    "停止 Windows HTTP 服务",
+                    "Windows HTTP 服务 (PID=4) 正在占用 443 端口。\n"
+                    "这通常由 IIS、SQL Server Reporting Services 等引起。\n\n"
+                    "是否停止 Windows HTTP 服务？"
+                ):
+                    try:
+                        subprocess.run(
+                            ["net", "stop", "http", "/y"],
+                            check=True, timeout=30,
+                            capture_output=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                        )
+                        logger.info("HTTP 服务已停止")
+                        time.sleep(2)
+                    except Exception as e:
+                        logger.error(f"停止 HTTP 服务失败: {e}")
+            else:
+                if _ask_user_confirmation(
+                    "终止占用端口的进程",
+                    f"进程 {exe_name}\n(PID={pid}) 正在占用 443 端口。\n\n"
+                    f"是否终止该进程？"
+                ):
+                    try:
+                        if sys.platform == "win32":
+                            subprocess.run(
+                                ["taskkill", "/f", "/pid", str(pid)],
+                                check=True, timeout=10,
+                                capture_output=True,
+                                creationflags=subprocess.CREATE_NO_WINDOW,
+                            )
+                        else:
+                            subprocess.run(["kill", "-9", str(pid)], check=True, timeout=10)
+                        logger.info(f"进程 {pid} 已终止")
+                        time.sleep(2)
+                    except Exception as e:
+                        logger.error(f"终止进程失败: {e}")
+        except psutil.AccessDenied:
+            logger.warning(f"无权限访问进程 {pid}，请以管理员身份运行")
+        except psutil.NoSuchProcess:
+            pass
+        except Exception as e:
+            logger.warning(f"获取进程 {pid} 信息失败: {e}")
 
 
 def handle_error_and_exit(e):
