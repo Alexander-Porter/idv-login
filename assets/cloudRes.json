@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775569123,
+    "lastModified": 1775569198,
     "version": "v6.0.1-stable",
     "hotfix": [
         {
@@ -537,7 +537,7 @@
         {
             "package_name": "com.netease.wyclx.nearme.gamecenter",
             "app_channel": "oppo",
-            "game_id": "dm0",
+            "game_id": "h42",
             "oppo": "com.netease.wyclx.nearme.gamecenter"
         }
     ],
