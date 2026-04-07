@@ -77,21 +77,10 @@ def resolve_domain_ip(domain: str, use_hardcoded_first: bool = True) -> str | No
         else:
             logger.warning(f"硬编码 IP {hardcoded_ip} 不可访问，尝试 DNS 解析")
 
-    # 2. 通过上游 DNS 解析
-    for dns_server in UPSTREAM_DNS_SERVERS:
-        try:
-            query = _build_dns_query(domain)
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.settimeout(2.0)
-                sock.sendto(query, (dns_server, 53))
-                response, _ = sock.recvfrom(512)
-                ip = _parse_dns_response(response)
-                if ip:
-                    logger.debug(f"DNS 解析成功: {domain} -> {ip} (via {dns_server})")
-                    return ip
-        except Exception as e:
-            logger.debug(f"DNS 解析失败 ({dns_server}): {e}")
-            continue
+    # 2. 并行查询上游 DNS 服务器（取最快响应）
+    ip = _query_upstream_parallel(domain)
+    if ip:
+        return ip
 
     # 3. 回退到硬编码 IP（即使不可访问）
     if domain in HARDCODED_IPS:
@@ -145,6 +134,33 @@ def _parse_dns_response(response: bytes) -> str | None:
 
     except Exception:
         pass
+
+    return None
+
+
+def _query_upstream_parallel(domain: str) -> str | None:
+    """并行查询多个上游 DNS 服务器，返回最快的成功结果。"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    query = _build_dns_query(domain)
+
+    def _query_one(dns_server: str) -> tuple[str, str | None]:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(2.0)
+            sock.sendto(query, (dns_server, 53))
+            response, _ = sock.recvfrom(512)
+            return dns_server, _parse_dns_response(response)
+
+    with ThreadPoolExecutor(max_workers=len(UPSTREAM_DNS_SERVERS)) as executor:
+        futures = [executor.submit(_query_one, srv) for srv in UPSTREAM_DNS_SERVERS]
+        for future in as_completed(futures, timeout=3.0):
+            try:
+                srv, ip = future.result()
+                if ip:
+                    logger.debug(f"DNS 解析成功: {domain} -> {ip} (via {srv})")
+                    return ip
+            except Exception:
+                continue
 
     return None
 

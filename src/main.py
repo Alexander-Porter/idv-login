@@ -1117,18 +1117,28 @@ def _setup_compat_mode(addon):
     # 0. 检测并处理 443 端口占用
     _check_and_handle_port_443()
 
-    # 1. 预解析目标域名的真实 IP（防止 DNS 回环）
+    # 1. 并行预解析目标域名的真实 IP（防止 DNS 回环）
     from mitm_proxy import resolve_domain_ip, add_custom_dns
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     resolved_ips = {}
-    for domain in target_domains:
-        ip = resolve_domain_ip(domain, use_hardcoded_first=True)
-        if ip:
-            resolved_ips[domain] = ip
-            add_custom_dns(domain, 443, ip)
-            logger.debug(f"目标服务器: {domain} -> {ip}")
-        else:
-            logger.warning(f"无法解析 {domain}，兼容模式可能无法正常工作")
+    with ThreadPoolExecutor(max_workers=len(target_domains)) as executor:
+        futures = {
+            executor.submit(resolve_domain_ip, domain, True): domain
+            for domain in target_domains
+        }
+        for future in as_completed(futures, timeout=15):
+            domain = futures[future]
+            try:
+                ip = future.result()
+                if ip:
+                    resolved_ips[domain] = ip
+                    add_custom_dns(domain, 443, ip)
+                    logger.debug(f"目标服务器: {domain} -> {ip}")
+                else:
+                    logger.warning(f"无法解析 {domain}，兼容模式可能无法正常工作")
+            except Exception as e:
+                logger.warning(f"解析 {domain} 失败: {e}")
 
     if not resolved_ips:
         logger.error("所有目标域名解析失败，无法启动兼容模式")
