@@ -962,10 +962,10 @@ class LocalRequestHandler:
         return self._json_response(200, {"success": True, "mode": mode})
 
     def _set_proxy_mode(self, args, body, method):
-        """设置代理模式 (global/process)。"""
+        """设置代理模式 (global/process/compat)。"""
         mode = body.get("mode", "") if body else ""
-        if mode not in ("global", "process"):
-            return self._json_response(400, {"success": False, "error": "无效的模式，应为 global 或 process"})
+        if mode not in ("global", "process", "compat"):
+            return self._json_response(400, {"success": False, "error": "无效的模式，应为 global、process 或 compat"})
         genv.set("proxy_mode", mode, True)
         self.logger.info(f"代理模式已切换为: {mode}")
         return self._json_response(200, {"success": True, "mode": mode})

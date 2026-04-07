@@ -610,6 +610,7 @@
                             <select id="proxyModeSelect" class="form-select w-auto" onchange="setProxyMode(this.value)">
                                 <option value="global">全局模式</option>
                                 <option value="process">进程模式</option>
+                                <option value="compat">兼容模式</option>
                             </select>
                         </div>
                     </div>
@@ -2473,13 +2474,15 @@
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.success) {
-                        var modeText = mode === 'global' ? '全局模式' : '进程模式';
-                        var tipText = mode === 'global' 
-                            ? '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为进程模式。'
-                            : '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。';
+                        var modeNames = { 'global': '全局模式', 'process': '进程模式', 'compat': '兼容模式' };
+                        var modeTips = {
+                            'global': '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为进程模式。',
+                            'process': '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。',
+                            'compat': '通过 DNS 劫持拦截游戏流量，无需设置系统代理。需要管理员权限。'
+                        };
                         swal({
-                            title: "已切换为" + modeText,
-                            text: tipText,
+                            title: "已切换为" + modeNames[mode],
+                            text: modeTips[mode] + "\n\n切换将在下次启动时生效。",
                             icon: "success",
                             button: "确定",
                         });

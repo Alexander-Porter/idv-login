@@ -1019,9 +1019,8 @@ def setup_network_proxy(proxy_port):
                 _dns_server = None
             from mitm_proxy import clear_custom_dns
             clear_custom_dns()
-            # 回退到常规模式
+            # 回退到常规模式（不持久化，下次启动仍尝试兼容模式）
             proxy_mode = "process" if auto_games else "global"
-            genv.set("proxy_mode", proxy_mode, True)
             from mitm_proxy import MitmProxyManager
             proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port, mode="regular")
             proxy_mgr.start()

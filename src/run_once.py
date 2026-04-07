@@ -389,3 +389,25 @@ def run_once():
             genv.set("proxy_mode", "compat", True)
             logger.info("已自动迁移到兼容模式")
         genv.set("compat_mode_migrated", True, True)
+
+    # 清理残留的系统代理环境变量（工具崩溃/异常退出可能遗留）
+    if not genv.get("proxy_env_cleanup_v602_done", False):
+        import sys
+        if sys.platform == "win32":
+            try:
+                import winreg
+                _stale_ports = ("10717", "10718")
+                with winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
+                ) as key:
+                    for var in ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"):
+                        try:
+                            val, _ = winreg.QueryValueEx(key, var)
+                            if any(f":{p}" in val for p in _stale_ports):
+                                winreg.DeleteValue(key, var)
+                                logger.info(f"已清理残留环境变量: {var}={val}")
+                        except FileNotFoundError:
+                            pass
+                genv.set("proxy_env_cleanup_v602_done", True, True)
+            except Exception as e:
+                logger.error(f"清理残留代理环境变量失败: {e}")
