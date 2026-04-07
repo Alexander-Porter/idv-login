@@ -991,7 +991,12 @@ class MitmProxyManager:
 
     def _run_proxy(self):
         """Thread target: create an asyncio event loop and run mitmproxy."""
-        self._loop = asyncio.new_event_loop()
+        # Windows ProactorEventLoop 在多线程环境下 accept() 存在已知 bug
+        # (WinError 10014 / WSAEFAULT)，改用更稳定的 SelectorEventLoop
+        if sys.platform == "win32":
+            self._loop = asyncio.SelectorEventLoop()
+        else:
+            self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
 
         try:

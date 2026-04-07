@@ -321,28 +321,28 @@ def _probe_compat_mode(logger):
     if sys.platform != "win32":
         return
 
-    if genv.get("compat_mode_asked_v603", False):
+    if genv.get("compat_mode_asked_v602", False):
         return
 
     current_mode = genv.get("proxy_mode", "")
     if current_mode == "compat":
-        genv.set("compat_mode_asked_v603", True, True)
+        genv.set("compat_mode_asked_v602", True, True)
         return
 
     if _show_yesno(
-        "兼容模式小调查",
+        "兼容模式推荐",
         "您是否遇到过以下问题？\n\n"
         "1. 阴阳师地图加载不完全\n"
         "2. 关闭工具后无法切换账号\n\n"
-        "如果是，可选开启兼容模式来解决这些问题。\n"
-        "是否开启兼容模式？该模式正在测试中。开启后，如果遇到游戏网络问题，请查阅常见问题解决方案问题33。此弹窗只会出现一次。"
+        "如果是，推荐开启兼容模式来解决这些问题。\n"
+        "是否开启兼容模式？开启后，如果遇到游戏网络问题，请查阅常见问题解决方案问题33。此弹窗只会出现一次。"
     ):
         genv.set("proxy_mode", "compat", True)
         logger.info("用户选择开启兼容模式")
     else:
         logger.info("用户选择不开启兼容模式")
 
-    genv.set("compat_mode_asked_v603", True, True)
+    genv.set("compat_mode_asked_v602", True, True)
 
 
 def run_once():
