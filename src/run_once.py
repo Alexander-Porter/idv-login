@@ -315,6 +315,36 @@ def _probe_proxy_mode(logger):
     genv.set("proxy_mode_asked_0403", True, True)
 
 
+def _probe_compat_mode(logger):
+    """兼容模式引导：询问用户是否遇到特定问题，仅在用户确认时切换"""
+    import sys
+    if sys.platform != "win32":
+        return
+
+    if genv.get("compat_mode_asked_v603", False):
+        return
+
+    current_mode = genv.get("proxy_mode", "")
+    if current_mode == "compat":
+        genv.set("compat_mode_asked_v603", True, True)
+        return
+
+    if _show_yesno(
+        "兼容模式",
+        "您是否遇到过以下问题？\n\n"
+        "1. 阴阳师地图加载不完全\n"
+        "2. 关闭工具后无法切换账号\n\n"
+        "如果是，建议开启兼容模式来解决这些问题。\n"
+        "是否开启兼容模式？开启后，如果遇到游戏网络问题，请查阅常见问题解决方案问题33。"
+    ):
+        genv.set("proxy_mode", "compat", True)
+        logger.info("用户选择开启兼容模式")
+    else:
+        logger.info("用户选择不开启兼容模式")
+
+    genv.set("compat_mode_asked_v603", True, True)
+
+
 def run_once():
     """一次性任务，通过 genv 键控制只执行一次"""
     logger = setup_logger()
@@ -381,6 +411,12 @@ def run_once():
             logger.info("hosts 清理完成")
         except Exception as e:
             logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
+
+    # 兼容模式引导（询问用户是否遇到特定问题）
+    try:
+        _probe_compat_mode(logger)
+    except Exception as e:
+        logger.error(f"兼容模式引导失败: {e}")
 
     # 一次性清理残留的 NRPT 规则和代理环境变量（工具崩溃/异常退出可能遗留）
     if not genv.get("nrpt_env_cleanup_v603_done", False):
