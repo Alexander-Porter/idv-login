@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775559200,
+    "lastModified": 1775559841,
     "version": "v6.0.1-stable",
     "hotfix": [
         {
@@ -131,14 +131,6 @@
             "need_hotfix_version": [
                 "v6.0.0-beta"
             ],
-            "target_module": "mitm_proxy",
-            "target_commit": "7978d66f1e63a793d85670f5b730a9e35166557b",
-            "note": "在进程级代理中添加 NO_PROXY 支持"
-        },
-        {
-            "need_hotfix_version": [
-                "v6.0.0-beta"
-            ],
             "target_module": "channelmgr",
             "target_commit": "25abf230f3ed46d06af82354fb41de8f74a8a686",
             "note": "渠道服支持原生扫码记住账号，与官服同级"
@@ -194,8 +186,8 @@
                 "v6.0.1-stable"
             ],
             "target_module": "gamemgr",
-            "target_commit": "694545175cc6442357bb81eb8d0d608121bad598",
-            "note": "增加全局代理模式开关，支持设置进程级代理快捷方式"
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
         },
         {
             "need_hotfix_version": [
@@ -203,8 +195,8 @@
                 "v6.0.1-stable"
             ],
             "target_module": "local_handler",
-            "target_commit": "694545175cc6442357bb81eb8d0d608121bad598",
-            "note": "增加全局代理模式开关，支持设置进程级代理快捷方式"
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
         },
         {
             "need_hotfix_version": [
@@ -212,8 +204,8 @@
                 "v6.0.1-stable"
             ],
             "target_module": "run_once",
-            "target_commit": "694545175cc6442357bb81eb8d0d608121bad598",
-            "note": "增加全局代理模式开关，支持设置进程级代理快捷方式"
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
         },
         {
             "need_hotfix_version": [
@@ -221,8 +213,8 @@
                 "v6.0.1-stable"
             ],
             "target_module": "uri_scheme",
-            "target_commit": "694545175cc6442357bb81eb8d0d608121bad598",
-            "note": "增加全局代理模式开关，支持设置进程级代理快捷方式"
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
         },
         {
             "need_hotfix_version": [
@@ -230,8 +222,26 @@
                 "v6.0.1-stable"
             ],
             "target_module": "main",
-            "target_commit": "b4662d22314e46ca4ca87513f4fbedb5e0a12660",
-            "note": "临时修复渠道服管理界面白屏的问题，如没有白屏，则此热更新是否更新随意"
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
+        },
+        {
+            "need_hotfix_version": [
+                "v6.0.0-beta",
+                "v6.0.1-stable"
+            ],
+            "target_module": "mitm_proxy",
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
+        },
+        {
+            "need_hotfix_version": [
+                "v6.0.0-beta",
+                "v6.0.1-stable"
+            ],
+            "target_module": "hotfixmgr",
+            "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
+            "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
         }
     ],
     "shortcuts": [
