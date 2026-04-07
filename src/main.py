@@ -556,14 +556,7 @@ def initialize():
         run_once()
     except Exception as e:
         logger.error(f"运行一次性任务失败: {e}")
-    #如果是windows，清空DNS缓存
-    #if sys.platform=='win32':
-    #    subprocess.call(
-    #        "ipconfig /flushdns",
-    #        shell=True,
-    #        stdout=subprocess.DEVNULL,
-    #        stderr=subprocess.DEVNULL,
-    #    )
+
 
 def welcome():
     print(f"[+] 欢迎使用第五人格登陆助手 {genv.get('VERSION')}!")
@@ -994,7 +987,7 @@ def setup_network_proxy(proxy_port):
     auto_games = game_helper.list_auto_start_games()
     proxy_mode = genv.get("proxy_mode", "")
     if not proxy_mode:
-        proxy_mode = "process" if auto_games else "global"
+        proxy_mode = "compat"
         genv.set("proxy_mode", proxy_mode, True)
 
     # 兼容模式特殊处理
