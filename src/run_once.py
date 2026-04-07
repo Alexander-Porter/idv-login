@@ -382,14 +382,6 @@ def run_once():
         except Exception as e:
             logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
 
-    # 一次性迁移到兼容模式
-    if not genv.get("compat_mode_migrated", False):
-        current_mode = genv.get("proxy_mode", "")
-        if current_mode != "compat":
-            genv.set("proxy_mode", "compat", True)
-            logger.info("已自动迁移到兼容模式")
-        genv.set("compat_mode_migrated", True, True)
-
     # 清理残留的系统代理环境变量（工具崩溃/异常退出可能遗留）
     if not genv.get("proxy_env_cleanup_v602_done", False):
         import sys

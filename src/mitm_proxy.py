@@ -190,22 +190,10 @@ def resolve_domain_ip(domain: str, use_hardcoded_first: bool = True) -> str | No
         else:
             logger.warning(f"硬编码 IP {hardcoded_ip} 不可访问，尝试 DNS 解析")
 
-    # 2. 通过上游 DNS 解析
-    for dns_server in UPSTREAM_DNS_SERVERS:
-        try:
-            # 构造 DNS 查询
-            query = _build_dns_query(domain)
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.settimeout(2.0)
-                sock.sendto(query, (dns_server, 53))
-                response, _ = sock.recvfrom(512)
-                ip = _parse_dns_response(response)
-                if ip:
-                    logger.debug(f"DNS 解析成功: {domain} -> {ip} (via {dns_server})")
-                    return ip
-        except Exception as e:
-            logger.debug(f"DNS 解析失败 ({dns_server}): {e}")
-            continue
+    # 2. 并行查询上游 DNS 服务器（取最快响应）
+    ip = _query_upstream_parallel(domain)
+    if ip:
+        return ip
 
     # 3. 回退到硬编码 IP（即使不可访问）
     if domain in HARDCODED_IPS:
@@ -265,6 +253,33 @@ def _parse_dns_response(response: bytes) -> str | None:
 
     except Exception:
         pass
+
+    return None
+
+
+def _query_upstream_parallel(domain: str) -> str | None:
+    """并行查询多个上游 DNS 服务器，返回最快的成功结果。"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    query = _build_dns_query(domain)
+
+    def _query_one(dns_server: str) -> tuple[str, str | None]:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(2.0)
+            sock.sendto(query, (dns_server, 53))
+            response, _ = sock.recvfrom(512)
+            return dns_server, _parse_dns_response(response)
+
+    with ThreadPoolExecutor(max_workers=len(UPSTREAM_DNS_SERVERS)) as executor:
+        futures = [executor.submit(_query_one, srv) for srv in UPSTREAM_DNS_SERVERS]
+        for future in as_completed(futures, timeout=3.0):
+            try:
+                srv, ip = future.result()
+                if ip:
+                    logger.debug(f"DNS 解析成功: {domain} -> {ip} (via {srv})")
+                    return ip
+            except Exception:
+                continue
 
     return None
 
@@ -700,6 +715,77 @@ def flush_dns_cache() -> bool:
         return False
 
 
+def _setup_nrpt_batch(domains: list[str], target_ip: str) -> str:
+    """用单次 PowerShell 调用完成清理旧规则、添加新规则、刷新缓存。
+
+    跳过 Get-Command 检测，直接 try Add-DnsClientNrptRule，失败则回退。
+
+    Returns:
+        "OK" / "FAILED"
+    """
+    if sys.platform != "win32":
+        return "FAILED"
+
+    add_cmds = "\n    ".join(
+        f'Add-DnsClientNrptRule -Namespace ".{d}" '
+        f'-NameServers "{target_ip}" '
+        f'-DisplayName "{_NRPT_RULE_PREFIX}{d.replace(".", "_")}" '
+        f'-ErrorAction Stop'
+        for d in domains
+    )
+
+    ps_script = (
+        f'Get-DnsClientNrptRule | Where-Object {{ $_.DisplayName -like "{_NRPT_RULE_PREFIX}*" }}'
+        f' | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue\n'
+        f'try {{\n    {add_cmds}\n}} catch {{\n'
+        f'    Get-DnsClientNrptRule | Where-Object {{ $_.DisplayName -like "{_NRPT_RULE_PREFIX}*" }}'
+        f' | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue\n'
+        f'    Write-Output "FAILED"; exit 0\n}}\n'
+        f'Clear-DnsClientCache -ErrorAction SilentlyContinue\n'
+        f'Write-Output "OK"'
+    )
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+        output = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+        if output == "OK":
+            return "OK"
+        else:
+            logger.warning(f"NRPT 设置失败: {result.stderr.strip()}")
+            return "FAILED"
+    except Exception as e:
+        logger.error(f"NRPT 批量设置异常: {e}")
+        return "FAILED"
+
+
+def _cleanup_nrpt_batch():
+    """单次 PowerShell 调用完成 NRPT 规则删除 + DNS 缓存刷新。"""
+    if sys.platform != "win32":
+        return
+
+    ps_script = (
+        f'Get-DnsClientNrptRule | Where-Object {{ $_.DisplayName -like "{_NRPT_RULE_PREFIX}*" }}'
+        f' | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue\n'
+        f'Clear-DnsClientCache -ErrorAction SilentlyContinue'
+    )
+
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            capture_output=True,
+            timeout=15,
+            creationflags=_CREATE_NO_WINDOW,
+        )
+    except Exception as e:
+        logger.warning(f"NRPT 批量清理失败: {e}")
+
+
 class DnsPolicyManager:
     """DNS 策略管理器 - 统一管理 NRPT 和 Hosts 方式的 DNS 劫持。
 
@@ -719,7 +805,7 @@ class DnsPolicyManager:
         self._hostmgr = None
 
     def setup(self) -> bool:
-        """设置 DNS 劫持策略。
+        """设置 DNS 劫持策略（单次 PowerShell 调用完成 NRPT 检测+设置+刷新）。
 
         Returns:
             是否成功设置
@@ -728,24 +814,15 @@ class DnsPolicyManager:
             logger.warning("DNS 策略已激活，无需重复设置")
             return True
 
-        # 优先尝试 NRPT
-        if is_nrpt_available():
-            logger.debug("检测到 NRPT 可用，使用 NRPT 方式")
-            success = True
-            for domain in self.domains:
-                if not add_nrpt_rule(domain, self.target_ip):
-                    success = False
-                    break
+        # 单次 PowerShell 调用：旧规则清理、新规则添加、DNS 刷新
+        nrpt_result = _setup_nrpt_batch(self.domains, self.target_ip)
+        if nrpt_result == "OK":
+            self._use_nrpt = True
+            self._active = True
+            logger.debug("DNS 策略已设置 (方式: NRPT)")
+            return True
 
-            if success:
-                flush_dns_cache()
-                self._use_nrpt = True
-                self._active = True
-                return True
-            else:
-                # NRPT 部分失败，回滚并尝试 Hosts 方式
-                logger.warning("NRPT 设置部分失败，回滚并尝试 Hosts 方式")
-                remove_all_nrpt_rules()
+        logger.warning("NRPT 设置失败，尝试 Hosts 方式")
 
         # 回退到 Hosts 文件方式
         logger.debug("使用 Hosts 文件方式进行 DNS 劫持")
@@ -773,9 +850,8 @@ class DnsPolicyManager:
             return
 
         if self._use_nrpt:
-            # 清理 NRPT 规则
-            for domain in self.domains:
-                remove_nrpt_rule(domain)
+            # 单次 PowerShell 调用完成规则删除 + DNS 缓存刷新
+            _cleanup_nrpt_batch()
             logger.debug("已清理 NRPT DNS 策略")
         else:
             # 清理 Hosts 记录
@@ -794,8 +870,8 @@ class DnsPolicyManager:
                             logger.debug(f"已移除 Hosts 记录: {domain}")
                     except Exception as e:
                         logger.warning(f"移除 Hosts 记录失败 ({domain}): {e}")
+            flush_dns_cache()
 
-        flush_dns_cache()
         self._active = False
 
     @property
