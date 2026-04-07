@@ -229,6 +229,34 @@ class DnsPacket:
 
         return header + question + answer
 
+    def build_empty_response(self) -> bytes:
+        """构建无记录的空响应报文（用于阻止非A类查询绕过拦截）。
+
+        Returns:
+            DNS 空响应报文字节
+        """
+        response_flags = 0x8180
+        header = struct.pack(
+            "!HHHHHH",
+            self.id,
+            response_flags,
+            1,  # QDCOUNT
+            0,  # ANCOUNT - 无回答
+            0,  # NSCOUNT
+            0,  # ARCOUNT
+        )
+
+        question_end = 12
+        i = 12
+        while i < len(self.raw):
+            if self.raw[i] == 0:
+                question_end = i + 5
+                break
+            i += 1 + self.raw[i]
+        question = self.raw[12:question_end]
+
+        return header + question
+
 
 class LocalDnsServer:
     """本地 DNS 服务器。
@@ -342,9 +370,14 @@ class LocalDnsServer:
                     should_intercept = True
                     break
 
-            if should_intercept and packet.qtype == 1:  # A 记录
-                response = packet.build_response(self.target_ip)
-                logger.debug(f"DNS 拦截: {packet.qname} -> {self.target_ip}")
+            if should_intercept:
+                if packet.qtype == 1:  # A 记录
+                    response = packet.build_response(self.target_ip)
+                    logger.debug(f"DNS 拦截: {packet.qname} -> {self.target_ip}")
+                else:
+                    # 拦截域名的非A查询（AAAA等）：返回空响应，防止绕过
+                    response = packet.build_empty_response()
+                    logger.debug(f"DNS 拦截 (type={packet.qtype}): {packet.qname} -> 空响应")
             else:
                 response = self._forward_to_upstream(data)
                 if response is None:
