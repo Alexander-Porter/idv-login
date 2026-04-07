@@ -2078,6 +2078,9 @@
                 .then(data => {
                     if (!data.success) return;
                     const settings = data.settings || {};
+                    if (settings.consent_ack) {
+                        _setCloudSyncPolicyAcked(true);
+                    }
                     document.getElementById('cloudSyncMasterKey').value = settings.saved_master_key || '';
                     document.getElementById('cloudSyncRememberLevel').value = settings.remember_level || 'none';
                     document.getElementById('cloudSyncDirection').value = settings.sync_direction || 'bidirectional';
