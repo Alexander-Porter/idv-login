@@ -193,7 +193,7 @@ class ChannelManager:
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
         if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp" and login_info["login_channel"] != "oppo":
-            self.logger.error(f"扫码结果已经保存为“渠道用户”")
+            self.logger.error(f"扫码结果已经保存为“渠道用户”，保存时长为3天，如需长期保存请点击二维码下方的游戏图标进入渠道服管理界面。")
             #import webbrowser
             #webbrowser.open("https://www.yuque.com/keygen/kg2r5k/fey3i1pi6k9fgz86")
             return False
