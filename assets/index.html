@@ -2455,11 +2455,14 @@
         }
 
         // 代理模式相关功能
+        var _currentProxyMode = 'global'; // 前端缓存当前模式
+
         function loadProxyMode() {
             fetch('/_idv-login/proxy-mode')
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.success) {
+                        _currentProxyMode = data.mode;
                         document.getElementById('proxyModeSelect').value = data.mode;
                     }
                 })
@@ -2469,6 +2472,31 @@
         }
 
         function setProxyMode(mode) {
+            // 切换到进程模式时，检查当前游戏是否设置了自启路径
+            if (mode === 'process') {
+                var pathEl = document.getElementById('autoStartPath');
+                var hasPath = pathEl && pathEl.textContent && pathEl.textContent !== '未设置';
+                if (!hasPath) {
+                    swal({
+                        title: "当前游戏未设置自启路径",
+                        text: "进程模式需要通过桌面快捷方式启动游戏，建议先设置游戏路径。\n\n是否仍然切换到进程模式？",
+                        icon: "warning",
+                        buttons: ["取消", "继续切换"],
+                    }).then(function (willSwitch) {
+                        if (willSwitch) {
+                            _doSetProxyMode(mode);
+                        } else {
+                            document.getElementById('proxyModeSelect').value = _currentProxyMode;
+                        }
+                    });
+                    return;
+                }
+            }
+            _doSetProxyMode(mode);
+        }
+
+        function _doSetProxyMode(mode) {
+            var oldMode = _currentProxyMode;
             fetch('/_idv-login/set-proxy-mode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2477,15 +2505,15 @@
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.success) {
+                        _currentProxyMode = mode;
                         var modeNames = { 'global': '全局模式', 'process': '进程模式', 'compat': '兼容模式' };
-                        var modeTips = {
-                            'global': '所有程序的网络连接将通过代理。如出现其他程序无法联网，建议切换为进程模式。',
-                            'process': '仅通过桌面快捷方式启动的游戏走代理，其他程序不受影响。请为游戏创建桌面快捷方式。',
-                            'compat': '通过 DNS 劫持拦截游戏流量，无需设置系统代理。需要管理员权限。'
-                        };
+                        var msg = "切换成功，请先重启工具再重启游戏即可生效！";
+                        if (oldMode === 'global') {
+                            msg += "\n\n提示：您刚从全局模式切换到其他模式，如果您其他软件在重启工具后联网仍存在问题，请重启您的电脑。";
+                        }
                         swal({
                             title: "已切换为" + modeNames[mode],
-                            text: modeTips[mode] + "\n\n切换将在下次启动时生效。",
+                            text: msg,
                             icon: "success",
                             button: "确定",
                         });
