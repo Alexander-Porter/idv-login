@@ -1043,6 +1043,7 @@ class MitmProxyManager:
                 listen_port=self.port,
                 confdir=confdir,
                 ssl_insecure=False,
+                http3=False,  # 禁用 QUIC/HTTP3，避免 UDP 443 端口占用冲突
                 mode=[f"reverse:https://{default_target}/"],
             )
         else:
