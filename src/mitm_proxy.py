@@ -21,6 +21,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 # - 本地 DNS 服务器 -> local_dns_server.py
 # - DNS 回环防止机制 -> 保留在 mitm_proxy.py
 # 参见：https://github.com/KKeygen/idv-login/issues/XXX
+from __future__ import annotations
 
 import asyncio
 import os

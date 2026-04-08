@@ -18,7 +18,7 @@ import sys
 import tempfile
 import threading
 
-_write_locks: dict[str, threading.Lock] = {}
+_write_locks = {}          # type: dict[str, threading.Lock]
 _meta_lock = threading.Lock()
 
 

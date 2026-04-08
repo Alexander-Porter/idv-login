@@ -4,6 +4,7 @@
 当前阶段：WebView 登录 -> 捕获 `loginResp` -> 走 OpenAccount `api/authorize` 并持久化。
 使用阶段：每次实际使用前调用 OpenAccount `api/token/refresh`，将返回的 token 合并回本地状态。
 """
+from __future__ import annotations
 
 import time
 import json
