@@ -55,10 +55,34 @@ python -m json.tool assets/cloudRes.json > /dev/null && echo "JSON valid"
 使用ask_user/ask_questions/query_user.
 
 
-# 提交更改
+# 提交并推送
 git add assets/cloudRes.json
 git commit -m "hotfix: {模块名} - {简短描述}"
 git push origin main
+```
+
+## ⚠️ 关键注意事项
+
+### 不要在 hotfix 编辑前单独 push 源码提交
+远端仓库有 CI/CD（如 `verification.json` 自动更新），每次 push 都可能触发
+远端自动提交。如果你先 push 了源码修复 commit，再编辑 cloudRes.json 并
+commit，此时远端已经领先本地（CI 生成了新 commit），导致 push 被拒绝，
+需要额外 rebase 处理冲突。
+
+**正确做法**：在本地完成所有 commit（源码修复 + hotfix cloudRes.json），
+然后**一次性** push。
+
+```bash
+# ✅ 正确：所有 commit 完成后一次性推送
+git commit -m "fix: ..."        # 源码修复
+git commit -m "hotfix: ..."     # cloudRes.json 热更新
+git push origin main            # 一次性推送
+
+# ❌ 错误：中间多了一次推送
+git commit -m "fix: ..."
+git push origin main            # 触发 CI，远端领先
+git commit -m "hotfix: ..."
+git push origin main            # 被拒绝！需要 rebase
 ```
 
 ## Hotfix 条目结构
