@@ -27,7 +27,6 @@ import shlex
 from typing import Optional, List, Dict, Tuple
 import xxhash
 from envmgr import genv
-import app_state
 from logutil import setup_logger
 from cloudRes import CloudRes
 from channelHandler.channelUtils import getShortGameId, cmp_game_id
@@ -127,13 +126,6 @@ class Game:
             env['COMSPEC'] = os.environ.get('COMSPEC', '%SystemRoot%\\system32\\cmd.exe')
             env['SYSTEMROOT'] = os.environ.get('SYSTEMROOT', '%SystemRoot%')
             
-            # 注入代理环境变量（mitmproxy 代理模式）
-            proxy_mgr = app_state.proxy_mgr
-            if proxy_mgr:
-                proxy_env = proxy_mgr.get_proxy_env()
-                env.update(proxy_env)
-            
-            # 使用 subprocess.Popen 启动游戏（支持代理环境变量注入）
             cmd = [game_path] + (shlex.split(start_args) if start_args else [])
             try:
                 subprocess.Popen(
@@ -148,10 +140,6 @@ class Game:
                 self.logger.exception(f"启动游戏失败: {str(e)}")
         else:
             env = os.environ.copy()
-            proxy_mgr = app_state.proxy_mgr
-            if proxy_mgr:
-                proxy_env = proxy_mgr.get_proxy_env()
-                env.update(proxy_env)
             cmd = [game_path] + (shlex.split(start_args) if start_args else [])
             subprocess.Popen(cmd, env=env, shell=False)
 

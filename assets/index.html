@@ -601,19 +601,6 @@
                             </button>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <strong>代理模式</strong>
-                                <small class="d-block text-muted">选择全局代理或仅游戏进程代理</small>
-                            </div>
-                            <select id="proxyModeSelect" class="form-select w-auto" onchange="setProxyMode(this.value)">
-                                <option value="global">全局模式</option>
-                                <option value="process">进程模式</option>
-                                <option value="compat">兼容模式</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -2261,9 +2248,6 @@
             // 启动工具状态检查
             startStatusCheck();
 
-            // 加载代理模式设置
-            loadProxyMode();
-
             // 首先加载游戏列表
             loadGameList();
 
@@ -2451,80 +2435,6 @@
                 })
                 .catch(function (e) {
                     swal("日志导出失败", String(e), "error");
-                });
-        }
-
-        // 代理模式相关功能
-        var _currentProxyMode = 'global'; // 前端缓存当前模式
-
-        function loadProxyMode() {
-            fetch('/_idv-login/proxy-mode')
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.success) {
-                        _currentProxyMode = data.mode;
-                        document.getElementById('proxyModeSelect').value = data.mode;
-                    }
-                })
-                .catch(function (e) {
-                    console.error('加载代理模式失败:', e);
-                });
-        }
-
-        function setProxyMode(mode) {
-            // 切换到进程模式时，检查当前游戏是否设置了自启路径
-            if (mode === 'process') {
-                var pathEl = document.getElementById('autoStartPath');
-                var hasPath = pathEl && pathEl.textContent && pathEl.textContent !== '未设置';
-                if (!hasPath) {
-                    swal({
-                        title: "当前游戏未设置自启路径",
-                        text: "进程模式需要通过桌面快捷方式启动游戏，建议先设置游戏路径。\n\n是否仍然切换到进程模式？",
-                        icon: "warning",
-                        buttons: ["取消", "继续切换"],
-                    }).then(function (willSwitch) {
-                        if (willSwitch) {
-                            _doSetProxyMode(mode);
-                        } else {
-                            document.getElementById('proxyModeSelect').value = _currentProxyMode;
-                        }
-                    });
-                    return;
-                }
-            }
-            _doSetProxyMode(mode);
-        }
-
-        function _doSetProxyMode(mode) {
-            var oldMode = _currentProxyMode;
-            fetch('/_idv-login/set-proxy-mode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: mode })
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.success) {
-                        _currentProxyMode = mode;
-                        var modeNames = { 'global': '全局模式', 'process': '进程模式', 'compat': '兼容模式' };
-                        var msg = "切换成功，请先重启工具再重启游戏即可生效！";
-                        if (oldMode === 'global') {
-                            msg += "\n\n提示：您刚从全局模式切换到其他模式，如果您其他软件在重启工具后联网仍存在问题，请重启您的电脑。";
-                        }
-                        swal({
-                            title: "已切换为" + modeNames[mode],
-                            text: msg,
-                            icon: "success",
-                            button: "确定",
-                        });
-                    } else {
-                        swal("切换失败", data.error || "未知错误", "error");
-                        loadProxyMode(); // 恢复原值
-                    }
-                })
-                .catch(function (e) {
-                    swal("切换失败", String(e), "error");
-                    loadProxyMode();
                 });
         }
 

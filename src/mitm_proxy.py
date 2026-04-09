@@ -887,34 +887,25 @@ class DnsPolicyManager:
 
 
 class MitmProxyManager:
-    """Manages mitmproxy running in normal (regular) proxy mode.
+    """Manages mitmproxy running in compat (reverse proxy) mode.
 
-    Replaces the old ``proxymgr`` / ``macProxyMgr`` which listened on
-    port 443 and required hosts-file manipulation.  The new approach
-    sets ``HTTP_PROXY`` / ``HTTPS_PROXY`` environment variables for the
-    game subprocess so that all game traffic flows through mitmproxy.
+    Uses DNS hijacking (NRPT/Hosts) to redirect target domains to 127.0.0.1,
+    then runs mitmproxy as a reverse proxy on port 443 to intercept HTTPS traffic.
 
     Certificate generation and system trust-store installation is
     handled by ``generate_certificates_if_needed()`` in ``main.py``
     *before* this manager is started.  The mitmproxy confdir is
     pre-populated with ``mitmproxy-ca.pem`` (key + cert) and
     ``mitmproxy-ca-cert.pem`` (cert only).
-
-    Modes:
-    - "regular" (default): Standard HTTP proxy on configurable port
-    - "compat": Reverse proxy on port 443 for DNS-based traffic interception
     """
 
-    def __init__(self, *, addon, port=DEFAULT_PROXY_PORT, mode="regular"):
+    def __init__(self, *, addon):
         """
         Args:
             addon: The mitmproxy addon to use
-            port: Proxy listen port (used in regular mode)
-            mode: "regular" for HTTP proxy, "compat" for reverse proxy on 443
         """
         self.addon = addon
-        self.port = port
-        self.mode = mode
+        self.port = 443
         self._thread: threading.Thread | None = None
         self._master = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -934,30 +925,11 @@ class MitmProxyManager:
                 return False
 
     def _resolve_port(self):
-        """If the configured port is occupied, pick an available one."""
-        # In compat mode, we must use port 443
-        if self.mode == "compat":
-            if not self._is_port_available(COMPAT_HTTPS_PORT):
-                logger.error(f"兼容模式需要端口 {COMPAT_HTTPS_PORT}，但该端口已被占用")
-                raise RuntimeError(f"Port {COMPAT_HTTPS_PORT} is not available for compat mode")
-            self.port = COMPAT_HTTPS_PORT
-            return
-
-        if self._is_port_available(self.port):
-            return
-        original = self.port
-        # Try a few ports near the original, then pick a random high port
-        for candidate in range(original + 1, original + 20):
-            if self._is_port_available(candidate):
-                self.port = candidate
-                logger.warning(f"端口 {original} 已被占用，改用端口 {self.port}")
-                return
-        # Fallback: let the OS pick a random available port
-        import socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("127.0.0.1", 0))
-            self.port = s.getsockname()[1]
-        logger.warning(f"端口 {original} 及附近端口均被占用，改用随机端口 {self.port}")
+        """Verify port 443 is available."""
+        if not self._is_port_available(COMPAT_HTTPS_PORT):
+            logger.error(f"兼容模式需要端口 {COMPAT_HTTPS_PORT}，但该端口已被占用")
+            raise RuntimeError(f"Port {COMPAT_HTTPS_PORT} is not available for compat mode")
+        self.port = COMPAT_HTTPS_PORT
 
     # ------------------------------------------------------------------
     # Certificate helpers
@@ -987,8 +959,7 @@ class MitmProxyManager:
         )
         self._thread.start()
 
-        mode_desc = "兼容模式 (反向代理)" if self.mode == "compat" else "常规代理模式"
-        logger.info(f"mitmproxy {mode_desc}已启动，监听端口 {self.port}")
+        logger.info(f"mitmproxy 兼容模式（反向代理）已启动，监听端口 {self.port}")
 
     def _run_proxy(self):
         """Thread target: create an asyncio event loop and run mitmproxy."""
@@ -1032,34 +1003,23 @@ class MitmProxyManager:
 
         confdir = self.get_confdir()
 
-        if self.mode == "compat":
-            # 兼容模式：作为反向代理监听 443 端口
-            # 客户端（游戏）的 DNS 被劫持到 127.0.0.1，会直接连接 127.0.0.1:443
-            # 使用 reverse 模式将请求转发到默认目标服务器
-            # _CompatModeAddon 会根据 Host 头将请求路由到正确的服务器
-            default_target = genv.get("DOMAIN_TARGET", "service.mkey.163.com")
-            opts = Options(
-                listen_host="127.0.0.1",
-                listen_port=self.port,
-                confdir=confdir,
-                ssl_insecure=False,
-                http3=False,  # 禁用 QUIC/HTTP3，避免 UDP 443 端口占用冲突
-                mode=[f"reverse:https://{default_target}/"],
-            )
-        else:
-            # 常规代理模式
-            opts = Options(
-                listen_host="127.0.0.1",
-                listen_port=self.port,
-                confdir=confdir,
-                ssl_insecure=False,  # DO verify upstream certs
-            )
+        # 兼容模式：作为反向代理监听 443 端口
+        # 客户端（游戏）的 DNS 被劫持到 127.0.0.1，会直接连接 127.0.0.1:443
+        # 使用 reverse 模式将请求转发到默认目标服务器
+        # _CompatModeAddon 会根据 Host 头将请求路由到正确的服务器
+        default_target = genv.get("DOMAIN_TARGET", "service.mkey.163.com")
+        opts = Options(
+            listen_host="127.0.0.1",
+            listen_port=self.port,
+            confdir=confdir,
+            ssl_insecure=False,
+            http3=False,  # 禁用 QUIC/HTTP3，避免 UDP 443 端口占用冲突
+            mode=[f"reverse:https://{default_target}/"],
+        )
 
         self._master = DumpMaster(opts, with_dumper=False)
         self._master.addons.add(self.addon)
-        if self.mode == "compat":
-            # 兼容模式添加特殊的请求重写 addon
-            self._master.addons.add(_CompatModeAddon())
+        self._master.addons.add(_CompatModeAddon())
         self._master.addons.add(_ResponseLogAddon())
         await self._master.run()
 
@@ -1078,47 +1038,6 @@ class MitmProxyManager:
             except Exception:
                 pass
 
-    # ------------------------------------------------------------------
-    # Game launching
-    # ------------------------------------------------------------------
-
-    def get_proxy_env(self) -> dict:
-        """Return a copy of ``os.environ`` with proxy variables set.
-        
-        在兼容模式下，流量通过 DNS 劫持拦截，不需要代理环境变量。
-        因此兼容模式返回不包含代理变量的环境副本。
-        """
-        env = os.environ.copy()
-        
-        # 兼容模式：不设置代理环境变量，流量通过 DNS 劫持处理
-        if self.mode == "compat":
-            return env
-        
-        # 常规模式 / 进程模式：设置代理环境变量
-        proxy_url = f"http://127.0.0.1:{self.port}"
-        env["HTTP_PROXY"] = proxy_url
-        env["HTTPS_PROXY"] = proxy_url
-        # 设置 NO_PROXY 以绕过特定域名
-        no_proxy_value = self._get_no_proxy_value()
-        if no_proxy_value:
-            env["NO_PROXY"] = no_proxy_value
-        if sys.platform != "win32":
-            # Unix 环境变量区分大小写，需要同时设置小写
-            env["http_proxy"] = proxy_url
-            env["https_proxy"] = proxy_url
-            if no_proxy_value:
-                env["no_proxy"] = no_proxy_value
-        return env
-
-    def _get_no_proxy_value(self) -> str:
-        """从 CloudRes 获取 NO_PROXY 域名列表并拼接为逗号分隔的字符串。"""
-        try:
-            from cloudRes import CloudRes
-            cloudres = CloudRes()
-            domains = cloudres.get_no_proxy_domains()
-            return ",".join(domains) if domains else ""
-        except Exception:
-            return ""
 
 
 class _CompatModeAddon:

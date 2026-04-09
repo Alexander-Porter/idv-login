@@ -51,7 +51,7 @@ sys.path.append(script_dir)
 from envmgr import genv
 import hotfixmgr
 import app_state
-from proxy_env import set_proxy as _set_proxy, unset_proxy as _unset_proxy
+
 
 
 # Global variable declarations
@@ -178,19 +178,6 @@ def handle_exit():
         clear_custom_dns()
     except Exception:
         pass
-
-    # 恢复代理设置（Windows 环境变量 / macOS networksetup / Linux gsettings）
-    try:
-        if logger:
-            logger.info("正在恢复代理设置...")
-        _unset_proxy()
-        if logger:
-            logger.info("代理设置已恢复")
-    except Exception as e:
-        if logger:
-            logger.warning(f"恢复代理设置失败: {e}")
-            import traceback
-            logger.debug(traceback.format_exc())
 
     # 注销 URI Scheme（减少痕迹）
     try:
@@ -471,7 +458,6 @@ def initialize():
     os.environ.pop('LD_LIBRARY_PATH', None)   # Linux/macOS 下动态库搜索路径
     # 移除进程环境中的代理变量，防止 QtWebEngine (Chromium 子进程) 继承后
     # 将 OAuth 登录页面等 HTTPS 流量路由到 mitmproxy 导致加载失败。
-    # 游戏子进程通过 mitm_proxy.get_proxy_env() 获取独立的代理配置。
     for _pvar in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
                   "NO_PROXY", "no_proxy"):
         os.environ.pop(_pvar, None)
@@ -896,15 +882,10 @@ def setup_shortcuts():
     shortcutMgr_instance = ShortcutMgr()
     shortcutMgr_instance.handle_shortcuts()
 
-def setup_network_proxy(proxy_port):
-    """Set up the mitmproxy-based network proxy.
+def setup_network_proxy():
+    """Set up the mitmproxy-based network proxy (compat mode).
 
-    Supports three modes:
-    - "global": Sets system-level HTTP_PROXY/HTTPS_PROXY environment variables
-    - "process": Sets proxy variables only for game subprocess
-    - "compat": Uses DNS hijacking (NRPT/Hosts) + local DNS server + mitmproxy reverse proxy
-
-    In compat mode, the workflow is:
+    Uses DNS hijacking (NRPT/Hosts) + local DNS server + mitmproxy reverse proxy:
     1. Set up DNS policy (NRPT rules or Hosts file) to redirect target domains to 127.0.0.1
     2. Start local DNS server on 127.0.0.1:53 to respond with 127.0.0.1 for target domains
     3. Start mitmproxy in reverse proxy mode on port 443 to handle incoming HTTPS requests
@@ -989,55 +970,30 @@ def setup_network_proxy(proxy_port):
     )
 
     # 获取代理模式
-    uri_action = genv.get("URI_STARTUP_ACTION", "")
-    uri_game_id = genv.get("URI_STARTUP_GAME_ID", "")
     auto_games = game_helper.list_auto_start_games()
-    proxy_mode = genv.get("proxy_mode", "")
-    if not proxy_mode:
-        proxy_mode = "process" if auto_games else "global"
-        genv.set("proxy_mode", proxy_mode, True)
 
-    # 兼容模式特殊处理
-    if proxy_mode == "compat":
-        # 兼容模式不使用代理环境变量，清理上次可能残留的设置
-        try:
-            _unset_proxy()
-        except Exception:
-            pass
-        logger.info("正在启动兼容模式...")
-        try:
-            _setup_compat_mode(addon)
-        except Exception as e:
-            logger.error(f"兼容模式启动失败: {e}，回退到常规代理模式")
-            # 清理可能已部分设置的资源
-            if _dns_policy_mgr:
-                try:
-                    _dns_policy_mgr.cleanup()
-                except Exception:
-                    pass
-                _dns_policy_mgr = None
-            if _dns_server:
-                try:
-                    _dns_server.stop()
-                except Exception:
-                    pass
-                _dns_server = None
-            from mitm_proxy import clear_custom_dns
-            clear_custom_dns()
-            # 回退到常规模式（不持久化，下次启动仍尝试兼容模式）
-            proxy_mode = "process" if auto_games else "global"
-            from mitm_proxy import MitmProxyManager
-            proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port, mode="regular")
-            proxy_mgr.start()
-            m_proxy = proxy_mgr
-            app_state.proxy_mgr = proxy_mgr
-    else:
-        # 常规代理模式（global 或 process）
-        from mitm_proxy import MitmProxyManager
-        proxy_mgr = MitmProxyManager(addon=addon, port=proxy_port, mode="regular")
-        proxy_mgr.start()
-        m_proxy = proxy_mgr
-        app_state.proxy_mgr = proxy_mgr
+    # 启动兼容模式
+    logger.info("正在启动兼容模式...")
+    try:
+        _setup_compat_mode(addon)
+    except Exception as e:
+        logger.error(f"兼容模式启动失败: {e}")
+        # 清理可能已部分设置的资源
+        if _dns_policy_mgr:
+            try:
+                _dns_policy_mgr.cleanup()
+            except Exception:
+                pass
+            _dns_policy_mgr = None
+        if _dns_server:
+            try:
+                _dns_server.stop()
+            except Exception:
+                pass
+            _dns_server = None
+        from mitm_proxy import clear_custom_dns
+        clear_custom_dns()
+        raise
 
     # Register the URI scheme so QR code redirects open our Qt window
     from uri_scheme import register_uri_scheme, start_uri_listener
@@ -1063,53 +1019,13 @@ def setup_network_proxy(proxy_port):
         startup_game_id = genv.get("URI_STARTUP_GAME_ID", "")
         ui_mgr.open_for_game(startup_game_id)
 
-    # 根据模式执行不同的启动逻辑
-    if proxy_mode == "compat":
-        # 兼容模式：无需设置代理环境变量，DNS 劫持会自动生效
-        logger.info("提示：当前使用兼容模式，通过 DNS 劫持拦截游戏流量。")
-        if auto_games:
-            names = ", ".join(g.name for g in auto_games)
-            logger.info(f"同时启动自启游戏: {names}")
-            for g in auto_games:
-                g.start()
-    elif uri_action == "start" and uri_game_id:
-        # 最高优先级：快捷方式启动（进程级代理），仅启动指定游戏
-        game = game_helper.get_game(uri_game_id)
-        if game:
-            logger.info(f"通过快捷方式启动游戏: {game.name or uri_game_id}")
-            game.start()
-        else:
-            logger.warning(f"未找到游戏: {uri_game_id}")
-        # 清理启动参数
-        genv.set("URI_STARTUP_ACTION", "")
-        genv.set("URI_STARTUP_GAME_ID", "")
-    elif proxy_mode == "global":
-        # 次优先级：全局模式 → 设置系统/用户级代理
-        _set_proxy(proxy_port)
-        logger.info("提示：当前使用全局代理模式，会处理本机所有网络连接。")
-        if auto_games:
-            # 全局模式下也启动自启游戏（它们会继承代理环境变量）
-            names = ", ".join(g.name for g in auto_games)
-            logger.info(f"同时启动自启游戏: {names}")
-            for g in auto_games:
-                g.start()
-        else:
-            logger.info("如果出现其他程序无法联网问题，可在管理页面切换为进程代理模式。")
-    elif auto_games:
-        # 第三优先级：进程模式但有自启游戏 → 启动自启游戏（进程级代理）
+    # 启动自启游戏
+    logger.info("兼容模式已就绪！DNS 劫持和反向代理已启动。")
+    if auto_games:
         names = ", ".join(g.name for g in auto_games)
-        logger.info(f"进程代理模式，启动自启游戏: {names}")
+        logger.info(f"同时启动自启游戏: {names}")
         for g in auto_games:
             g.start()
-    else:
-        # 进程代理模式且没有自启游戏
-        logger.info("当前使用进程代理模式，请通过桌面快捷方式启动游戏。")
-        logger.info("如需设置全局代理，可在管理页面切换为全局模式。")
-
-    if proxy_mode == "compat":
-        logger.info("兼容模式已就绪！DNS 劫持和反向代理已启动。")
-    else:
-        logger.info(f"mitmproxy 代理模式已就绪！监听端口: {proxy_port}")
     logger.info("拦截成功，您现在可以打开游戏了。游戏将通过代理自动路由。")
     logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
     logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
@@ -1186,7 +1102,7 @@ def _setup_compat_mode(addon):
 
     # 4. 启动 mitmproxy 反向代理
     from mitm_proxy import MitmProxyManager
-    proxy_mgr = MitmProxyManager(addon=addon, mode="compat")
+    proxy_mgr = MitmProxyManager(addon=addon)
     proxy_mgr.start()
     m_proxy = proxy_mgr
     app_state.proxy_mgr = proxy_mgr
@@ -1450,12 +1366,10 @@ def main(cli_args=None):
         # 证书管理: 生成 CA + 服务器证书并导入系统信任存储
         generate_certificates_if_needed()
 
-        # 网络代理设置 (mitmproxy normal mode)
-        proxy_port = cli_args.proxy_port
-        setup_network_proxy(proxy_port)
+        # 网络代理设置 (compat mode: DNS hijack + reverse proxy on 443)
+        setup_network_proxy()
 
-        # setup_network_proxy → _set_proxy → _broadcast_env_change 可能导致
-        # Qt 重新读取系统代理。必须在此之后再次显式设置 NoProxy。
+        # Qt 代理设置：确保 QtWebEngine 不使用代理
         from PyQt6.QtNetwork import QNetworkProxy
         QNetworkProxy.setApplicationProxy(
             QNetworkProxy(QNetworkProxy.ProxyType.NoProxy)

@@ -144,8 +144,6 @@ class LocalRequestHandler:
             "/_idv-login/index": self._serve_index,
             "/_idv-login/export-logs": self._export_logs,
             "/_idv-login/open-external-url": self._open_external_url,
-            "/_idv-login/proxy-mode": self._get_proxy_mode,
-            "/_idv-login/set-proxy-mode": self._set_proxy_mode,
             "/_idv-login/create-game-shortcut": self._create_game_shortcut,
 
         }
@@ -955,20 +953,6 @@ class LocalRequestHandler:
             webbrowser.open(url)
             return self._json_response(200, {"success": True})
         return self._json_response(400, {"success": False, "error": "invalid url"})
-
-    def _get_proxy_mode(self, args, body, method):
-        """获取当前代理模式 (global/process)。"""
-        mode = genv.get("proxy_mode", "global")
-        return self._json_response(200, {"success": True, "mode": mode})
-
-    def _set_proxy_mode(self, args, body, method):
-        """设置代理模式 (global/process/compat)。"""
-        mode = body.get("mode", "") if body else ""
-        if mode not in ("global", "process", "compat"):
-            return self._json_response(400, {"success": False, "error": "无效的模式，应为 global、process 或 compat"})
-        genv.set("proxy_mode", mode, True)
-        self.logger.info(f"代理模式已切换为: {mode}")
-        return self._json_response(200, {"success": True, "mode": mode})
 
     def _create_game_shortcut(self, args, body, method):
         """为指定游戏创建桌面快捷方式（通过工具启动）。"""
