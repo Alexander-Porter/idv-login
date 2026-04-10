@@ -1,5 +1,5 @@
 {
-    "lastModified": 1775694915,
+    "lastModified": 1775694916,
     "version": "v6.0.2-stable",
     "hotfix": [
         {
@@ -559,7 +559,7 @@
         {
             "game_id": "h55",
             "download_distributions": [
-                73
+                73,134
             ],
             "downloadable": true,
             "convert_to_normal": true,
