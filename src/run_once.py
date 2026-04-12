@@ -315,6 +315,67 @@ def _probe_proxy_mode(logger):
     genv.set("proxy_mode_asked_0403", True, True)
 
 
+def _ensure_pillow(logger):
+    """确保 pillow 可用；缺失时在后台线程通过国内镜像安装"""
+    import sys
+
+    # PyInstaller 不走 pip
+    if getattr(sys, 'frozen', False):
+        return
+
+    # 版本准入：v6.0.1+ 发行包已内置 pillow，无需安装
+    import re
+    version = genv.get("VERSION", "")
+    m = re.match(r'v?(\d+)\.(\d+)\.(\d+)', version)
+    if m and (int(m.group(1)), int(m.group(2)), int(m.group(3))) >= (6, 0, 1):
+        return
+
+    if genv.get("pillow_ensured", False):
+        return
+
+    try:
+        import PIL          # noqa: F401
+        genv.set("pillow_ensured", True, True)
+        return
+    except ImportError:
+        pass
+
+    logger.info("pillow 未安装，将在后台尝试安装...")
+
+    import threading, subprocess, os
+
+    def _install():
+        mirrors = [
+            ("https://pypi.tuna.tsinghua.edu.cn/simple",  "pypi.tuna.tsinghua.edu.cn"),
+            ("https://mirrors.aliyun.com/pypi/simple",     "mirrors.aliyun.com"),
+            ("https://pypi.mirrors.ustc.edu.cn/simple",    "pypi.mirrors.ustc.edu.cn"),
+            ("https://mirror.baidu.com/pypi/simple",       "mirror.baidu.com"),
+        ]
+        # 清除代理环境变量，避免经过本工具的代理
+        env = os.environ.copy()
+        for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+                   "ALL_PROXY", "all_proxy"):
+            env.pop(k, None)
+
+        for url, host in mirrors:
+            try:
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "pillow",
+                     "--quiet", "--index-url", url, "--trusted-host", host],
+                    env=env, timeout=120,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                )
+                genv.set("pillow_ensured", True, True)
+                logger.info(f"pillow 安装成功（源: {host}）")
+                return
+            except Exception as e:
+                logger.warning(f"pillow 从 {host} 安装失败: {e}")
+
+        logger.error("pillow 自动安装失败，所有镜像源均不可用")
+
+    threading.Thread(target=_install, daemon=True, name="pillow-installer").start()
+
+
 def _probe_compat_mode(logger):
     """兼容模式引导：询问用户是否遇到特定问题，仅在用户确认时切换"""
     import sys
@@ -348,6 +409,12 @@ def _probe_compat_mode(logger):
 def run_once():
     """一次性任务，通过 genv 键控制只执行一次"""
     logger = setup_logger()
+
+    # 确保 pillow 可用（后台线程安装）
+    try:
+        _ensure_pillow(logger)
+    except Exception as e:
+        logger.error(f"pillow 安装检查失败: {e}")
 
     # config.json 写入健康检查
     if not genv.get("config_fixed_0403", False):
