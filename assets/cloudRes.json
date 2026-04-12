@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775988040,
+  "lastModified": 1776006667,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -175,15 +175,6 @@
         "v6.0.0-beta",
         "v6.0.1-stable"
       ],
-      "target_module": "run_once",
-      "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
-      "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.0-beta",
-        "v6.0.1-stable"
-      ],
       "target_module": "uri_scheme",
       "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
       "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
@@ -273,6 +264,24 @@
       "target_module": "riskWmUtils",
       "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
       "note": "优化了二维码上的安全信息显示，增加可读性"
+    },
+    {
+      "need_hotfix_version": [
+        "v5.8.3.1-beta",
+        "v5.9.0-beta",
+        "v5.9.1-stable"
+      ],
+      "target_module": "run_once",
+      "target_commit": "38bd07f88e658f191bb7361f3c2155821d4691ff",
+      "note": "对于缺失图片处理库pillow的，进行安装"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta"
+      ],
+      "target_module": "run_once",
+      "target_commit": "b3e4efd9862445b3e4c7037d485584c6615fabcc",
+      "note": "对于缺失图片处理库pillow的，进行安装"
     }
   ],
   "shortcuts": [
