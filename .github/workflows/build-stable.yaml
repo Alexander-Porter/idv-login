@@ -111,7 +111,7 @@ jobs:
   build-macos:
     runs-on: macos-latest
     env:
-      PYTHON_VERSION: "3.8"
+      PYTHON_VERSION: "3.12"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
