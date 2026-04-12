@@ -16,3 +16,4 @@ tools/oppo_*
 .github/workflows/init.instructions.md
 .github/instructions/init.instructions.md
 .github/copilot-instructions.md
+analysis/
