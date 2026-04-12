@@ -7,7 +7,7 @@ def wm(image_bytes,text):
 
     watermark = Image.new("RGBA", image.size, (0, 0, 0, 0))
     
-    font_size = max(20, image.size[0] // 15)
+    font_size = max(25, image.size[0] // 10)
     
     try:
         font = ImageFont.truetype("msyh.ttc", font_size)

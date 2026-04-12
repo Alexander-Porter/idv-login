@@ -273,6 +273,80 @@ def register_mpay_routes(
         else:
             resp = proxy(request)
 
+        # 强制记住账号 + 渠道服显示名称注入
+        if resp.status_code == 200:
+            try:
+                resp_data = resp.get_json()
+                if resp_data:
+                    _modified = False
+                    ext_info = resp_data.get("ext_info", {})
+                    if isinstance(ext_info, dict) and not ext_info.get("is_remember"):
+                        ext_info["is_remember"] = True
+                        resp_data["ext_info"] = ext_info
+                        _modified = True
+                    user = resp_data.get("user", {})
+                    if isinstance(user, dict):
+                        pc_ext = user.get("pc_ext_info", {})
+                        if isinstance(pc_ext, dict) and not pc_ext.get("is_remember"):
+                            pc_ext["is_remember"] = True
+                            user["pc_ext_info"] = pc_ext
+                            _modified = True
+
+                        # 渠道服显示名称注入
+                        if not user.get("client_username"):
+                            import base64
+                            from datetime import datetime, timezone, timedelta
+                            from urllib.parse import unquote
+
+                            channel = user.get("login_channel", "")
+                            uid = user.get("id", "")
+                            short_channel = channel.replace("nearme_", "") if channel.startswith("nearme_") else channel
+                            display_name = f"{short_channel}_{uid[-3:]}" if uid else short_channel
+
+                            expiry_str = ""
+                            try:
+                                eud_raw = ext_info.get("extra_unisdk_data", "")
+                                if eud_raw:
+                                    eud = json.loads(eud_raw)
+                                    sauth_b64 = eud.get("SAUTH_JSON", "")
+                                    if sauth_b64:
+                                        sauth = json.loads(base64.b64decode(unquote(sauth_b64)))
+                                        at_jwt = sauth.get("access_token", "")
+                                        if at_jwt and "." in at_jwt:
+                                            payload_b64 = at_jwt.split(".")[1]
+                                            payload_b64 += "=" * (-len(payload_b64) % 4)
+                                            at_payload = json.loads(base64.b64decode(payload_b64))
+                                            exp_ts = at_payload.get("exp", 0)
+                                            if exp_ts:
+                                                cst = timezone(timedelta(hours=8))
+                                                exp_dt = datetime.fromtimestamp(exp_ts, tz=cst)
+                                                expiry_str = f" ({exp_dt.month}月{exp_dt.day}日后过期)"
+                            except Exception:
+                                pass
+
+                            display_name += expiry_str
+                            user["client_username"] = display_name
+                            resp_data["user"] = user
+
+                            cd_raw = user.get("client_data", "")
+                            try:
+                                cd = json.loads(base64.b64decode(cd_raw)) if cd_raw else {}
+                            except Exception:
+                                cd = {}
+                            cd["display_username"] = display_name
+                            user["client_data"] = base64.b64encode(
+                                json.dumps(cd, ensure_ascii=False).encode()
+                            ).decode()
+
+                            _modified = True
+                            logger.info(f"已确定渠道服显示名称: {display_name}")
+
+                    if _modified:
+                        resp.set_data(json.dumps(resp_data))
+                        logger.info("已强制设置 is_remember=true")
+            except Exception:
+                logger.exception("强制记住账号处理失败")
+
         if is_selected:
             if resp.status_code == 200 and game_helper.get_auto_close_setting(game_id):
                 logger.info("检测到登录已完成请求，即将自动关闭程序...")
