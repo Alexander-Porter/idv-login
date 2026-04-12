@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775987938,
+  "lastModified": 1775988040,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -262,7 +262,7 @@
       ],
       "target_module": "common_mpay_routes",
       "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
-      "note": "强制记住账号+渠道服显示名称注入"
+      "note": "为原生扫码记住账号增加渠道名和过期时间提示，而不是只显示\"渠道用户\" | 【测试】恢复官服扫码记住账号功能"
     },
     {
       "need_hotfix_version": [
@@ -272,7 +272,7 @@
       ],
       "target_module": "riskWmUtils",
       "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
-      "note": "水印字号调整，提升可读性"
+      "note": "优化了二维码上的安全信息显示，增加可读性"
     }
   ],
   "shortcuts": [
