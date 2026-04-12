@@ -1,5 +1,5 @@
 {
-  "lastModified": 1775987010,
+  "lastModified": 1775987938,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -137,16 +137,6 @@
     },
     {
       "need_hotfix_version": [
-        "v5.8.3.1-beta",
-        "v5.9.0-beta",
-        "v5.9.1-stable"
-      ],
-      "target_module": "proxymgr",
-      "target_commit": "c3538b0c13f2e688119290013861492bc2b182cb",
-      "note": "渠道服支持原生扫码记住账号，与官服同级"
-    },
-    {
-      "need_hotfix_version": [
         "v5.9.0-beta",
         "v5.9.1-stable"
       ],
@@ -260,9 +250,19 @@
         "v5.9.0-beta",
         "v5.9.1-stable"
       ],
+      "target_module": "proxymgr",
+      "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
+      "note": "移除create_login中CloudRes渠道修改，配合记住账号功能"
+    },
+    {
+      "need_hotfix_version": [
+        "v5.8.3.1-beta",
+        "v5.9.0-beta",
+        "v5.9.1-stable"
+      ],
       "target_module": "common_mpay_routes",
-      "target_commit": "f3d51cb443daafab64e670df55f9fb0014f400e0",
-      "note": "为原生扫码记住账号增加渠道名和过期时间提示，而不是只显示“渠道用户”\n【测试】恢复官服扫码记住账号功能"
+      "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
+      "note": "强制记住账号+渠道服显示名称注入"
     },
     {
       "need_hotfix_version": [
@@ -271,8 +271,8 @@
         "v5.9.1-stable"
       ],
       "target_module": "riskWmUtils",
-      "target_commit": "f3d51cb443daafab64e670df55f9fb0014f400e0",
-      "note": "优化了二维码上的安全信息显示，增加可读性"
+      "target_commit": "054775464758627d5b317cd00d6a844877688b7d",
+      "note": "水印字号调整，提升可读性"
     }
   ],
   "shortcuts": [
