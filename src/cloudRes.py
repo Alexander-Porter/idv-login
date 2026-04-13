@@ -139,11 +139,16 @@ class CloudRes:
         return False
 
     def get_qrcode_app_channel(self,game_id):
-        if self.is_game_in_qrcode_login_list(game_id):
-            game_list = self.get_netease_qrcode_login_game_list()
-            for item in game_list:
-                if cmp_game_id(item.get('game_id'), game_id):
-                    return item.get('app_channel')
+        config = self.get_qrcode_login_config(game_id)
+        return config.get('app_channel') if config else None
+
+    def get_qrcode_login_config(self, game_id):
+        """返回 netease_qrcode_login_game_list 中指定 game_id 的完整配置字典，
+        包含 app_channel 以及 cv、qrcode_channel_type 等额外参数。"""
+        game_list = self.get_netease_qrcode_login_game_list()
+        for item in game_list:
+            if cmp_game_id(item.get('game_id'), game_id):
+                return item
         return None
 
     def get_announcement(self):

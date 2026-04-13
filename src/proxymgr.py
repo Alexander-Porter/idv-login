@@ -239,7 +239,20 @@ def _qrcode_app_channel_provider(game_id):
 
 
 def _create_login_query_hook(query, game_id):
-    pass
+    config = CloudRes().get_qrcode_login_config(getShortGameId(game_id))
+    if config:
+        # 标准参数
+        query["gv"] = "251881013"
+        query["gvn"] = "2025.0707.1013"
+        query["sv"] = "35"
+        query["app_type"] = "games"
+        query["app_mode"] = "2"
+        query["_cloud_extra_base64"] = "e30="
+        query["sc"] = "1"
+        # 云配置覆盖（cv, app_channel, qrcode_channel_type 等）
+        for k, v in config.items():
+            if k != "game_id":
+                query[k] = v
 
 
 def _exchange_token_request(is_selected, game_id, form_data):
@@ -278,7 +291,7 @@ register_mpay_routes(
     game_helper=game_helper,
     logger=logger,
     app_channel_default="netease.wyzymnqsd_cps_dev",
-    qrcode_app_channel_provider=None,
+    qrcode_app_channel_provider=_qrcode_app_channel_provider,
     create_login_query_hook=_create_login_query_hook,
     use_login_mapping_always=False,
     exchange_token_request=_exchange_token_request,

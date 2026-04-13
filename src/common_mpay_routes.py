@@ -273,25 +273,30 @@ def register_mpay_routes(
         else:
             resp = proxy(request)
 
-        # 强制记住账号 + 渠道服显示名称注入
+        # 强制记住账号（仅限非 netease 渠道）+ 渠道服显示名称注入
         if resp.status_code == 200:
             try:
                 resp_data = resp.get_json()
                 if resp_data:
                     _modified = False
                     ext_info = resp_data.get("ext_info", {})
-                    if isinstance(ext_info, dict) and not ext_info.get("is_remember"):
-                        ext_info["is_remember"] = True
-                        resp_data["ext_info"] = ext_info
-                        _modified = True
                     user = resp_data.get("user", {})
-                    if isinstance(user, dict):
-                        pc_ext = user.get("pc_ext_info", {})
-                        if isinstance(pc_ext, dict) and not pc_ext.get("is_remember"):
-                            pc_ext["is_remember"] = True
-                            user["pc_ext_info"] = pc_ext
-                            _modified = True
+                    login_channel = user.get("login_channel", "") if isinstance(user, dict) else ""
 
+                    # 官服通过 create_login 参数实现记住账号，不在此处注入
+                    if not login_channel.startswith("netease"):
+                        if isinstance(ext_info, dict) and not ext_info.get("is_remember"):
+                            ext_info["is_remember"] = True
+                            resp_data["ext_info"] = ext_info
+                            _modified = True
+                        if isinstance(user, dict):
+                            pc_ext = user.get("pc_ext_info", {})
+                            if isinstance(pc_ext, dict) and not pc_ext.get("is_remember"):
+                                pc_ext["is_remember"] = True
+                                user["pc_ext_info"] = pc_ext
+                                _modified = True
+
+                    if isinstance(user, dict):
                         # 渠道服显示名称注入
                         if not user.get("client_username"):
                             import base64
