@@ -413,21 +413,26 @@ class IDVLoginAddon:
                 resp_data = json.loads(flow.response.content)
                 modified = False
 
-                # 强制记住账号
-                ext_info = resp_data.get("ext_info", {})
-                if not ext_info.get("is_remember"):
-                    ext_info["is_remember"] = True
-                    resp_data["ext_info"] = ext_info
-                    modified = True
+                # 强制记住账号（仅限非 netease 渠道；官服通过 create_login 参数实现）
+                login_channel = resp_data.get("user", {}).get("login_channel", "")
+                if not login_channel.startswith("netease"):
+                    ext_info = resp_data.get("ext_info", {})
+                    if not ext_info.get("is_remember"):
+                        ext_info["is_remember"] = True
+                        resp_data["ext_info"] = ext_info
+                        modified = True
 
-                user = resp_data.get("user", {})
+                    user = resp_data.get("user", {})
 
-                # pc_ext_info.is_remember 强制设为 true
-                pc_ext = user.get("pc_ext_info", {})
-                if isinstance(pc_ext, dict) and not pc_ext.get("is_remember"):
-                    pc_ext["is_remember"] = True
-                    user["pc_ext_info"] = pc_ext
-                    modified = True
+                    # pc_ext_info.is_remember 强制设为 true
+                    pc_ext = user.get("pc_ext_info", {})
+                    if isinstance(pc_ext, dict) and not pc_ext.get("is_remember"):
+                        pc_ext["is_remember"] = True
+                        user["pc_ext_info"] = pc_ext
+                        modified = True
+                else:
+                    ext_info = resp_data.get("ext_info", {})
+                    user = resp_data.get("user", {})
 
 
                 resp_data["user"] = user
