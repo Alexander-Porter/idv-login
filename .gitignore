@@ -17,3 +17,4 @@ tools/oppo_*
 .github/instructions/init.instructions.md
 .github/copilot-instructions.md
 analysis/
+docs/
