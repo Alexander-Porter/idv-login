@@ -138,7 +138,6 @@ def _probe_game_setup(logger):
             if not game_obj or not game_obj.path or not os.path.exists(game_obj.path):
                 continue
             if gid in shortcut_created_ids:
-                logger.info(f"游戏 {gid} 在导入阶段已创建快捷方式，跳过重复创建")
                 continue
             try:
                 game_obj.create_tool_launch_shortcut(game_obj.path)
@@ -200,7 +199,6 @@ def _probe_game_setup(logger):
                     try:
                         final_gid = game_mgr.import_fever_game(fever_match["game_id"])
                         logger.info(f"已从发烧平台导入游戏路径: {game_id}")
-                        # import_fever_game 内部已创建快捷方式，后续策略阶段跳过重复创建
                         _record_game(final_gid, shortcut_created=True)
                     except Exception as e:
                         logger.error(f"导入路径失败 {game_id}: {e}")
