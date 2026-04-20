@@ -978,8 +978,8 @@ def setup_network_proxy(proxy_port):
     auto_games = game_helper.list_auto_start_games()
     proxy_mode = genv.get("proxy_mode", "")
     if not proxy_mode:
-        proxy_mode = "process" if auto_games else "global"
-        genv.set("proxy_mode", proxy_mode, True)
+        proxy_mode = "compat"
+        genv.set("proxy_mode", "compat", True)
 
     # 兼容模式特殊处理
     if proxy_mode == "compat":

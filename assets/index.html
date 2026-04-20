@@ -1316,13 +1316,17 @@
                 });
         }
 
-        // 自动启动相关函数
+        let _hasIndependentPathConfig = false;
+
         function loadAutoStartSettings() {
             const game_id = getQueryVariable("game_id");
             fetch(`/_idv-login/get-game-auto-start?game_id=${game_id}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        if (data.independent_path_config) {
+                            _hasIndependentPathConfig = true;
+                        }
                         updateAutoStartUI(data.enabled, data.path);
                     } else {
                         swal({
@@ -1352,19 +1356,54 @@
                 pathElement.title = '';
             }
 
-            setBtn.disabled = enabled;
-            disableBtn.disabled = !enabled;
+            if (_hasIndependentPathConfig) {
+                // 新逻辑交互：
+                // 无论是否已开启自启，都能重新选择路径
+                setBtn.disabled = false;
+                setBtn.innerHTML = '<i class="bi bi-folder2-open me-1"></i>配置游戏路径';
+                setBtn.onclick = () => setAutoStart(true, "path_only");
+
+                // 根据当前状态切换为“启用”或“禁用”动作，并不再受路径是否设置的强制约束(但如果没路径且开启则服务端也会拒绝或默认失败)
+                if (enabled) {
+                    disableBtn.innerHTML = '<i class="bi bi-dash-circle me-1"></i>禁用自启';
+                    disableBtn.className = 'btn btn-outline-danger';
+                    disableBtn.onclick = () => setAutoStart(false, "status_only");
+                    disableBtn.disabled = false;
+                } else {
+                    disableBtn.innerHTML = '<i class="bi bi-play-circle me-1"></i>启动自启';
+                    disableBtn.className = 'btn btn-outline-success';
+                    disableBtn.onclick = () => {
+                        if (!path) setAutoStart(true, "path_only");
+                        else setAutoStart(true, "status_only");
+                    };
+                    disableBtn.disabled = false;
+                }
+            } else {
+                // 原逻辑保持不变：
+                setBtn.disabled = enabled;
+                disableBtn.disabled = !enabled;
+            }
             startBtn.disabled =  !path;
         }
 
-        function setAutoStart(enabled) {
+        function setAutoStart(enabled, update_mode = "") {
             const game_id = getQueryVariable("game_id");
-            fetch(`/_idv-login/set-game-auto-start?game_id=${game_id}&enabled=${enabled}`)
+            let url = `/_idv-login/set-game-auto-start?game_id=${game_id}&enabled=${enabled}`;
+            if (update_mode) url += `&update_mode=${update_mode}`;
+            
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         updateAutoStartUI(data.enabled, data.path);
-                        if (enabled) {
+                        if (update_mode === "status_only") {
+                            swal({
+                                title: data.enabled ? "已启用自启" : "已禁用自启",
+                                text: "游戏自动启动状态已更新",
+                                icon: "success",
+                                button: "确定",
+                            });
+                        } else if (enabled) {
                             if (data.path) {
                                 swal({
                                     title: "设置成功",

@@ -474,7 +474,11 @@ class LocalRequestHandler:
             gid = args["game_id"]
             info = self.game_helper.get_game_auto_start(gid)
             return self._json_response(200, {
-                "success": True, "enabled": info["enabled"], "path": info["path"], "game_id": gid
+                "success": True, 
+                "enabled": info["enabled"], 
+                "path": info["path"], 
+                "game_id": gid,
+                "independent_path_config": True
             })
         except Exception as e:
             return self._json_response(200, {"success": False, "error": str(e)})
@@ -483,9 +487,20 @@ class LocalRequestHandler:
         try:
             gid = args["game_id"]
             enabled = args.get("enabled") == "true"
+            update_mode = args.get("update_mode", "")
             game_path = ""
 
-            if enabled:
+            game = self.game_helper.get_game(gid)
+            if not game and update_mode:
+                return self._json_response(200, {"success": False, "error": "游戏记录不存在"})
+
+            if update_mode == "status_only":
+                self.game_helper.set_game_auto_start(gid, enabled)
+                return self._json_response(200, {
+                    "success": True, "enabled": enabled, "path": game.path if game else "", "game_id": gid
+                })
+
+            if enabled or update_mode == "path_only":
                 from PyQt6.QtWidgets import QApplication, QFileDialog, QWidget
                 from PyQt6.QtCore import Qt
 
@@ -524,8 +539,11 @@ class LocalRequestHandler:
                     shell = win32com.client.Dispatch("WScript.Shell")
                     shortcut = shell.CreateShortcut(game_path)
                     game_path = shortcut.Targetpath
+                
+                # 如果是仅更新路径或原本是因为开启而调用的选路径，均绑定下发 enabled=True
+                enabled = True
             else:
-                game = self.game_helper.get_game(gid)
+                game_path = ""
                 name = game.name if game else ""
 
             self.game_helper.set_game_auto_start(gid, enabled)

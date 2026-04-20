@@ -1,3 +1,5 @@
+import os
+
 from envmgr import genv
 from logutil import setup_logger
 
@@ -82,8 +84,9 @@ def _select_exe_file(title: str = "选择游戏可执行文件") -> str:
 
 
 def _probe_game_setup(logger):
-    """游戏设置引导：检查自启游戏配置"""
+    """游戏设置引导：检查路径/自启配置并按数量应用策略。"""
     import sys
+    import os
     if sys.platform != "win32":
         return
     
@@ -92,7 +95,7 @@ def _probe_game_setup(logger):
         return
     
     from gamemgr import GameManager
-    from channelHandler.channelUtils import getShortGameId, cmp_game_id
+    from channelHandler.channelUtils import getShortGameId
     game_mgr = GameManager()
     
     all_games = game_mgr.list_games()
@@ -106,10 +109,47 @@ def _probe_game_setup(logger):
         if short_id:
             fever_by_short_id[short_id] = fg
     
+    configured_game_ids = []
+    shortcut_created_ids = set()
+
+    def _record_game(gid, shortcut_created=False):
+        if not gid:
+            return
+        if gid not in configured_game_ids:
+            configured_game_ids.append(gid)
+        if shortcut_created:
+            shortcut_created_ids.add(gid)
+
+    def _apply_startup_strategy():
+        """按本轮配置数量应用策略：1个自启；>=2个走快捷方式且不自启。"""
+        if not configured_game_ids:
+            return
+
+        if len(configured_game_ids) == 1:
+            gid = configured_game_ids[0]
+            if game_mgr.set_game_auto_start(gid, True):
+                logger.info(f"本轮仅配置 1 个游戏，已设为自启: {gid}")
+            return
+
+        # >=2：关闭这些游戏的自启，统一推荐快捷方式启动
+        for gid in configured_game_ids:
+            game_mgr.set_game_auto_start(gid, False)
+            game_obj = game_mgr.get_existing_game(gid)
+            if not game_obj or not game_obj.path or not os.path.exists(game_obj.path):
+                continue
+            if gid in shortcut_created_ids:
+                logger.info(f"游戏 {gid} 在导入阶段已创建快捷方式，跳过重复创建")
+                continue
+            try:
+                game_obj.create_tool_launch_shortcut(game_obj.path)
+                logger.info(f"已为游戏创建快捷方式: {gid}")
+            except Exception as e:
+                logger.error(f"创建快捷方式失败 {gid}: {e}")
+        logger.info("本轮配置 >=2 个游戏，已关闭自启并切换为快捷方式启动")
+
     if not all_games:
         # 情况 1：游戏列表为空 → 建议导入发烧平台游戏
         if fever_games:
-            imported_any = False
             for fg in fever_games:
                 name = fg.get("display_name") or fg.get("game_id", "未知游戏")
                 if _show_yesno(
@@ -119,302 +159,119 @@ def _probe_game_setup(logger):
                     f"是否导入此游戏？"
                 ):
                     try:
-                        game_mgr.import_fever_game(fg["game_id"])
+                        final_gid = game_mgr.import_fever_game(fg["game_id"])
                         logger.info(f"已导入发烧平台游戏: {fg['game_id']}")
-                        imported_any = True
+                        _record_game(final_gid, shortcut_created=True)
                     except Exception as e:
                         logger.error(f"导入游戏失败 {fg['game_id']}: {e}")
-            
-            if imported_any:
-                # 导入完成后，import_fever_game 已自动设置 should_auto_start=True
-                genv.set("game_setup_probe_done_0403", True, True)
-                return
-        
-        # 没有发烧平台游戏或用户全部跳过
-        _show_msgbox(
-            "欢迎使用",
-            "由于没有扫描出任何已有游戏，工具将使用全局代理模式\n"
-            '如果出现网络问题，请参考常见问题解决方案：问题33。',
-        )
+
+        _apply_startup_strategy()
         genv.set("game_setup_probe_done_0403", True, True)
         return
-    
+
     if all_games and not auto_start_games:
-        # 情况 2：有游戏但没有自启游戏 → 建议设置
-        set_any = False
+        # 情况 2：有游戏但没有自启游戏 → 引导配置路径/启动方式
         for g in all_games:
             game_id = g["game_id"]
             game_name = g.get("name") or game_id
+            game_obj = game_mgr.get_existing_game(game_id)
+            has_path = bool(game_obj and game_obj.path and os.path.exists(game_obj.path))
             short_id = getShortGameId(game_id)
-            
+
             # 检查发烧平台是否有对应游戏
             fever_match = fever_by_short_id.get(short_id)
-            
-            if fever_match:
-                # 发烧平台有对应游戏，可以自动获取路径
+
+            if has_path:
                 if _show_yesno(
-                    "设置自启游戏",
-                    f"检测到您尚未设置自启游戏。\n"
-                    f"如果不设置，工具将使用系统级代理，可能导致网络问题，具体请查阅常见问题解决方案问题33。\n\n"
-                    f'是否将"{game_name}"设为自启游戏？\n'
-                    f"（已在发烧平台找到对应路径，无需手动选择）"
+                    "配置启动方式",
+                    f'是否将"{game_name}"纳入启动方案？\n\n'
+                    "单个游戏会设为自启；多个游戏会改为快捷方式启动。"
+                ):
+                    _record_game(game_id, shortcut_created=False)
+                continue
+
+            if fever_match:
+                # 发烧平台有对应游戏，可自动获取路径
+                if _show_yesno(
+                    "设置游戏路径",
+                    f'游戏"{game_name}"尚未设置路径。\n\n'
+                    "已在发烧平台找到对应路径，是否自动导入？"
                 ):
                     try:
-                        # 用 import_fever_game 来设置路径和自启
-                        game_mgr.import_fever_game(fever_match["game_id"])
-                        logger.info(f"已从发烧平台设置自启游戏: {game_id}")
-                        set_any = True
+                        final_gid = game_mgr.import_fever_game(fever_match["game_id"])
+                        logger.info(f"已从发烧平台导入游戏路径: {game_id}")
+                        # import_fever_game 内部已创建快捷方式，后续策略阶段跳过重复创建
+                        _record_game(final_gid, shortcut_created=True)
                     except Exception as e:
-                        logger.error(f"设置自启失败 {game_id}: {e}")
+                        logger.error(f"导入路径失败 {game_id}: {e}")
             else:
                 # 需要用户手动选择 exe 路径
                 if _show_yesno(
-                    "设置自启游戏",
-                    f"检测到您尚未设置自启游戏。\n"
-                    f"如果不设置，工具将使用系统级代理，可能导致网络问题，具体请查阅常见问题解决方案问题33。\n\n"
-                    f'是否将"{game_name}"设为自启游戏？\n'
-                    f"（需要选择游戏可执行文件/快捷方式位置）"
+                    "设置游戏路径",
+                    f'游戏"{game_name}"尚未设置路径。\n\n'
+                    "是否现在选择游戏可执行文件/快捷方式？"
                 ):
                     exe_path = _select_exe_file(f"选择 {game_name} 的可执行文件")
                     if exe_path:
                         try:
                             game_mgr.set_game_path(game_id, exe_path)
-                            game_mgr.set_game_auto_start(game_id, True)
-                            logger.info(f"已设置自启游戏: {game_id}, 路径: {exe_path}")
-                            set_any = True
+                            logger.info(f"已设置游戏路径: {game_id}, 路径: {exe_path}")
+                            _record_game(game_id, shortcut_created=False)
                         except Exception as e:
-                            logger.error(f"设置自启失败 {game_id}: {e}")
+                            logger.error(f"设置路径失败 {game_id}: {e}")
                     else:
                         logger.info(f"用户未选择 {game_id} 的可执行文件，跳过")
-            
-            # 只要设置了一个就够了
-            if set_any:
-                break
+
+        _apply_startup_strategy()
     
     # 情况 3：有游戏且有自启 → 什么都不提醒
     genv.set("game_setup_probe_done_0403", True, True)
 
 
 def _probe_proxy_mode(logger):
-    """代理模式引导：多游戏有账号时询问是否使用全局模式"""
+    """代理模式引导：统一使用兼容模式。"""
     import sys
-    import os
+    import subprocess
     if sys.platform != "win32":
         return
     
     # 已经询问过了
     if genv.get("proxy_mode_asked_0403", False):
-        return
-    
-    from gamemgr import GameManager
-    from channelHandler.channelUtils import getShortGameId
-    
-    game_mgr = GameManager()
-    all_games = game_mgr.list_games()
-    
-    # 统计有账号记录的游戏数量
-    games_with_accounts = []
-    for g in all_games:
-        game_id = g["game_id"]
-        try:
-            from channelmgr import ChannelManager
-            channel_mgr = ChannelManager()
-            channels = channel_mgr.list_channels(game_id)
-            if channels:
-                games_with_accounts.append(g)
-        except Exception:
-            pass
-    
-    if len(games_with_accounts) <= 1:
-        # 只有一个或没有游戏有账号，不需要询问
-        genv.set("proxy_mode_asked_0403", True, True)
-        return
-    
-    # 多个游戏有账号，询问用户
-    msg = (
-        f"检测到您有 {len(games_with_accounts)} 个游戏已保存账号。\n\n"
-        "【全局模式】打开工具后，所有启动的游戏都会通过代理，\n"
-        "适合有多个需要免扫码的游戏，而不想设置快捷方式的用户。\n\n"
-        "【进程模式】仅通过快捷方式启动的游戏走代理，\n"
-        "不影响其他软件，但需要用工具创建的快捷方式启动游戏，或为您主玩的游戏设置自启动，两种选其一。\n\n"
-        '是否使用全局模式？\n'
-        '（选择"否"将使用进程模式）'
-    )
-    if _show_yesno("选择代理模式", msg):
-        # 用户选择全局模式
-        genv.set("proxy_mode", "global", True)
-        logger.info("用户选择全局代理模式")
-    else:
-        # 用户选择进程模式
-        genv.set("proxy_mode", "process", True)
-        logger.info("用户选择进程代理模式")
-        
-        # 为没有设置路径的游戏创建快捷方式
-        fever_games = game_mgr.list_fever_games()
-        fever_by_short_id = {}
-        for fg in fever_games:
-            short_id = getShortGameId(fg.get("game_id", ""))
-            if short_id:
-                fever_by_short_id[short_id] = fg
-        
-        for g in games_with_accounts:
-            game_id = g["game_id"]
-            game_obj = game_mgr.get_existing_game(game_id)
-            if not game_obj:
-                continue
-            
-            game_name = game_obj.name or game_id
-            
-            # 检查是否已有路径
-            if game_obj.path and os.path.exists(game_obj.path):
-                # 已有路径，直接创建快捷方式
-                if _show_yesno(
-                    "创建快捷方式",
-                    f'是否为"{game_name}"创建桌面快捷方式？\n\n'
-                    "使用此快捷方式启动游戏，将自动通过工具代理网络。"
-                ):
-                    game_obj.create_tool_launch_shortcut(game_obj.path)
-                    logger.info(f"为游戏 {game_id} 创建了快捷方式")
-            else:
-                # 没有路径，检查发烧平台
-                short_id = getShortGameId(game_id)
-                fever_match = fever_by_short_id.get(short_id)
-                
-                if fever_match:
-                    # 发烧平台有，自动导入
-                    if _show_yesno(
-                        "创建快捷方式",
-                        f'是否为"{game_name}"创建桌面快捷方式？\n\n'
-                        "（已在发烧平台找到游戏路径）"
-                    ):
-                        try:
-                            game_mgr.import_fever_game(fever_match["game_id"])
-                            # 重新获取游戏对象
-                            game_obj = game_mgr.get_existing_game(game_id)
-                            if game_obj and game_obj.path:
-                                game_obj.create_tool_launch_shortcut(game_obj.path)
-                                logger.info(f"从发烧平台导入并创建快捷方式: {game_id}")
-                        except Exception as e:
-                            logger.error(f"导入发烧游戏失败 {game_id}: {e}")
-                else:
-                    # 需要手动选择路径
-                    if _show_yesno(
-                        "设置游戏路径",
-                        f'游戏"{game_name}"尚未设置启动路径。\n\n'
-                        "是否现在选择游戏可执行文件？\n"
-                        "（选择后将自动创建桌面快捷方式）"
-                    ):
-                        exe_path = _select_exe_file(f"选择 {game_name} 的可执行文件")
-                        if exe_path:
-                            game_mgr.set_game_path(game_id, exe_path)
-                            game_obj = game_mgr.get_existing_game(game_id)
-                            if game_obj:
-                                game_obj.create_tool_launch_shortcut(exe_path)
-                                logger.info(f"设置路径并创建快捷方式: {game_id}, 路径: {exe_path}")
-    
-    genv.set("proxy_mode_asked_0403", True, True)
-
-
-def _ensure_pillow(logger):
-    """确保 pillow 可用；缺失时在后台线程通过国内镜像安装"""
-    import sys
-
-    # PyInstaller 不走 pip
-    if getattr(sys, 'frozen', False):
-        return
-
-    # 版本准入：v6.0.1+ 发行包已内置 pillow，无需安装
-    import re
-    version = genv.get("VERSION", "")
-    m = re.match(r'v?(\d+)\.(\d+)\.(\d+)', version)
-    if m and (int(m.group(1)), int(m.group(2)), int(m.group(3))) >= (6, 0, 1):
-        return
-
-    if genv.get("pillow_ensured", False):
-        return
-
-    try:
-        import PIL          # noqa: F401
-        genv.set("pillow_ensured", True, True)
-        return
-    except ImportError:
-        pass
-
-    logger.info("pillow 未安装，将在后台尝试安装...")
-
-    import threading, subprocess, os
-
-    def _install():
-        mirrors = [
-            ("https://pypi.tuna.tsinghua.edu.cn/simple",  "pypi.tuna.tsinghua.edu.cn"),
-            ("https://mirrors.aliyun.com/pypi/simple",     "mirrors.aliyun.com"),
-            ("https://pypi.mirrors.ustc.edu.cn/simple",    "pypi.mirrors.ustc.edu.cn"),
-            ("https://mirror.baidu.com/pypi/simple",       "mirror.baidu.com"),
-        ]
-        # 清除代理环境变量，避免经过本工具的代理
-        env = os.environ.copy()
-        for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
-                   "ALL_PROXY", "all_proxy"):
-            env.pop(k, None)
-
-        for url, host in mirrors:
-            try:
-                subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", "pillow",
-                     "--quiet", "--index-url", url, "--trusted-host", host],
-                    env=env, timeout=120,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                )
-                genv.set("pillow_ensured", True, True)
-                logger.info(f"pillow 安装成功（源: {host}）")
+        if genv.get("proxy_mode", "") == "global" and not genv.get("proxy_mode_compat_prompted_0420", False):
+            import hotfixmgr
+            if not hotfixmgr.probe_cache_write_once():
                 return
-            except Exception as e:
-                logger.warning(f"pillow 从 {host} 安装失败: {e}")
+            genv.set("proxy_mode", "compat", True)
+            genv.set("proxy_mode_compat_prompted_0420", True, True)
+            logger.info("将已有的全局模式自动变更为兼容模式，即将重启...")
+            try:
+                from main import handle_exit
+                handle_exit()
+            except Exception:
+                pass
 
-        logger.error("pillow 自动安装失败，所有镜像源均不可用")
+            if getattr(sys, 'frozen', False):
+                args = [sys.executable] + sys.argv[1:]
+            else:
+                args = [sys.executable] + sys.argv
 
-    threading.Thread(target=_install, daemon=True, name="pillow-installer").start()
-
-
-def _probe_compat_mode(logger):
-    """兼容模式引导：询问用户是否遇到特定问题，仅在用户确认时切换"""
-    import sys
-    if sys.platform != "win32":
+            try:
+                subprocess.Popen(args, cwd=genv.get("SCRIPT_DIR") or os.getcwd())
+            except Exception:
+                # last resort: try without cwd
+                subprocess.Popen(args)
+            os._exit(0)
         return
 
-    if genv.get("compat_mode_asked_v602", False):
-        return
-
-    current_mode = genv.get("proxy_mode", "")
-    if current_mode == "compat":
-        genv.set("compat_mode_asked_v602", True, True)
-        return
-
-    if _show_yesno(
-        "兼容模式推荐",
-        "您是否遇到过以下问题？\n\n"
-        "1. 阴阳师地图加载不完全\n"
-        "2. 关闭工具后无法切换账号\n\n"
-        "如果是，推荐开启兼容模式来解决这些问题。\n"
-        "是否开启兼容模式？开启后，如果遇到游戏网络问题，请查阅常见问题解决方案问题33。此弹窗只会出现一次。"
-    ):
-        genv.set("proxy_mode", "compat", True)
-        logger.info("用户选择开启兼容模式")
-    else:
-        logger.info("用户选择不开启兼容模式")
-
-    genv.set("compat_mode_asked_v602", True, True)
+    # 首次探测：直接设置为兼容模式，不再承担快捷方式/路径引导。
+    genv.set("proxy_mode", "compat", True)
+    logger.info("首次探测，自动应用兼容模式")
+    genv.set("proxy_mode_asked_0403", True, True)
 
 
 def run_once():
     """一次性任务，通过 genv 键控制只执行一次"""
     logger = setup_logger()
-
-    # 确保 pillow 可用（后台线程安装）
-    try:
-        _ensure_pillow(logger)
-    except Exception as e:
-        logger.error(f"pillow 安装检查失败: {e}")
 
     # config.json 写入健康检查
     if not genv.get("config_fixed_0403", False):
@@ -478,12 +335,6 @@ def run_once():
             logger.info("hosts 清理完成")
         except Exception as e:
             logger.error(f"删除可能存在的旧Hosts记录失败: {e}")
-
-    # 兼容模式引导（询问用户是否遇到特定问题）
-    try:
-        _probe_compat_mode(logger)
-    except Exception as e:
-        logger.error(f"兼容模式引导失败: {e}")
 
     # 一次性清理残留的 NRPT 规则和代理环境变量（工具崩溃/异常退出可能遗留）
     if not genv.get("nrpt_env_cleanup_v603_done", False):

@@ -1008,7 +1008,8 @@ class GameManager:
                 start_args = CloudRes().get_start_argument(getShortGameId(final_game_id)) or ""
 
             game.create_tool_launch_shortcut(game.path or "")
-            game.should_auto_start=True
+            #no more auto start after import, user can enable it manually if needed
+            #game.should_auto_start=True
         except Exception:
             self.logger.exception("导入Fever游戏后创建快捷方式失败")
         self._save_games()

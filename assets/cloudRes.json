@@ -146,6 +146,16 @@
     },
     {
       "need_hotfix_version": [
+        "v5.8.3.1-beta",
+        "v5.9.0-beta",
+        "v5.9.1-stable"
+      ],
+      "target_module": "gamemgr",
+      "target_commit": "e2b683757c9df1013f69b20888b38b217a6ab865",
+      "note": "【重要，请务必更新，如更新后出现问题建议直接升级工具】更新游戏启动方式，避免工具持有游戏句柄。"
+    },
+    {
+      "need_hotfix_version": [
         "v6.0.0-beta",
         "v6.0.1-stable",
         "v6.0.2-stable"
