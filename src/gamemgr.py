@@ -131,65 +131,75 @@ class Game:
             env['SYSTEMROOT'] = os.environ.get('SYSTEMROOT', '%SystemRoot%')
             
             try:
-                import ctypes
-                SEE_MASK_NOCLOSEPROCESS = 0x00000040
-                SEE_MASK_NOASYNC = 0x00000100
+                # 首选方案：使用 cmd.exe /c start 彻底脱离父子进程关系
+                cmd_line = f'cmd.exe /s /c "start "" /d "{game_dir}" "{game_path}"'
+                if start_args:
+                    cmd_line += f" {start_args}"
+                cmd_line += '"'
                 
-                class SHELLEXECUTEINFO(ctypes.Structure):
-                    _fields_ = [
-                        ("cbSize", ctypes.c_uint32),
-                        ("fMask", ctypes.c_ulong),
-                        ("hwnd", ctypes.c_void_p),
-                        ("lpVerb", ctypes.c_wchar_p),
-                        ("lpFile", ctypes.c_wchar_p),
-                        ("lpParameters", ctypes.c_wchar_p),
-                        ("lpDirectory", ctypes.c_wchar_p),
-                        ("nShow", ctypes.c_int),
-                        ("hInstApp", ctypes.c_void_p),
-                        ("lpIDList", ctypes.c_void_p),
-                        ("lpClass", ctypes.c_wchar_p),
-                        ("hkeyClass", ctypes.c_void_p),
-                        ("dwHotKey", ctypes.c_uint32),
-                        ("hIcon", ctypes.c_void_p),
-                        ("hProcess", ctypes.c_void_p)
-                    ]
+                creationflags = 0x00000008 | 0x00000200
+                
+                subprocess.Popen(
+                    cmd_line,
+                    cwd=game_dir,
+                    env=env,
+                    shell=False,
+                    startupinfo=startupinfo,
+                    creationflags=creationflags
+                )
+                self.logger.info(f"成功使用 cmd start 启动游戏: {game_path}")
+            except Exception as e:
+                self.logger.warning(f"cmd start启动失败，尝试使用ShellExecuteEx作为备选方案1: {str(e)}")
+                try:
+                    import ctypes
+                    SEE_MASK_NOCLOSEPROCESS = 0x00000040
+                    SEE_MASK_NOASYNC = 0x00000100
+                    
+                    class SHELLEXECUTEINFO(ctypes.Structure):
+                        _fields_ = [
+                            ("cbSize", ctypes.c_uint32),
+                            ("fMask", ctypes.c_ulong),
+                            ("hwnd", ctypes.c_void_p),
+                            ("lpVerb", ctypes.c_wchar_p),
+                            ("lpFile", ctypes.c_wchar_p),
+                            ("lpParameters", ctypes.c_wchar_p),
+                            ("lpDirectory", ctypes.c_wchar_p),
+                            ("nShow", ctypes.c_int),
+                            ("hInstApp", ctypes.c_void_p),
+                            ("lpIDList", ctypes.c_void_p),
+                            ("lpClass", ctypes.c_wchar_p),
+                            ("hkeyClass", ctypes.c_void_p),
+                            ("dwHotKey", ctypes.c_uint32),
+                            ("hIcon", ctypes.c_void_p),
+                            ("hProcess", ctypes.c_void_p)
+                        ]
 
-                shell_info = SHELLEXECUTEINFO()
-                shell_info.cbSize = ctypes.sizeof(shell_info)
-                shell_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
-                shell_info.lpVerb = "open"
-                shell_info.lpFile = game_path
-                shell_info.lpDirectory = game_dir
-                shell_info.lpParameters = start_args if start_args else None
-                shell_info.nShow = 1  # SW_SHOWNORMAL
-                
-                shell32 = ctypes.WinDLL('shell32.dll')
-                result = shell32.ShellExecuteExW(ctypes.byref(shell_info))
-                
-                if not result:
-                    # 如果ShellExecuteEx失败，回退到使用subprocess
-                    self.logger.warning("ShellExecuteEx启动失败，尝试使用subprocess作为备选方案")
+                    shell_info = SHELLEXECUTEINFO()
+                    shell_info.cbSize = ctypes.sizeof(shell_info)
+                    shell_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
+                    shell_info.lpVerb = "open"
+                    shell_info.lpFile = game_path
+                    shell_info.lpDirectory = game_dir
+                    shell_info.lpParameters = start_args if start_args else None
+                    shell_info.nShow = 1  # SW_SHOWNORMAL
+                    
+                    shell32 = ctypes.WinDLL('shell32.dll')
+                    result = shell32.ShellExecuteExW(ctypes.byref(shell_info))
+                    
+                    if not result:
+                        raise Exception("ShellExecuteExW返回失败")
+                    self.logger.info(f"成功使用ShellExecuteEx启动游戏: {game_path}")
+                except Exception as e2:
+                    self.logger.exception(f"ShellExecuteEx启动失败，使用普通 Popen 备选启动2: {str(e2)}")
                     cmd = [game_path] + (shlex.split(start_args) if start_args else [])
                     subprocess.Popen(
                         cmd,
                         cwd=game_dir,
                         env=env,
                         shell=False,
-                        startupinfo=startupinfo
+                        startupinfo=startupinfo,
+                        creationflags=0x00000008 | 0x00000200
                     )
-                else:
-                    self.logger.info(f"成功使用ShellExecuteEx启动游戏: {game_path}")
-            except Exception as e:
-                self.logger.exception(f"ShellExecuteEx启动失败: {str(e)}")
-                # 回退到原始方法
-                cmd = [game_path] + (shlex.split(start_args) if start_args else [])
-                subprocess.Popen(
-                    cmd,
-                    cwd=game_dir,
-                    env=env,
-                    shell=False,
-                    startupinfo=startupinfo
-                )
         else:
             cmd = [game_path] + (shlex.split(start_args) if start_args else [])
             subprocess.Popen(cmd, shell=False)
