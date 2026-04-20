@@ -133,19 +133,91 @@ class Game:
                 proxy_env = proxy_mgr.get_proxy_env()
                 env.update(proxy_env)
             
-            # 使用 subprocess.Popen 启动游戏（支持代理环境变量注入）
-            cmd = [game_path] + (shlex.split(start_args) if start_args else [])
             try:
+                # 使用 cmd.exe /c start 彻底脱离父子进程关系，同时保留环境变量的独立引入
+                cmd_line = f'cmd.exe /s /c "start "" /d "{game_dir}" "{game_path}"'
+                if start_args:
+                    cmd_line += f" {start_args}"
+                cmd_line += '"' 
+                
+                # 设置创建标志：DETACHED_PROCESS (0x00000008) 和 CREATE_NEW_PROCESS_GROUP (0x00000200)
+                creationflags = 0x00000008 | 0x00000200
+                
                 subprocess.Popen(
-                    cmd,
+                    cmd_line,
                     cwd=game_dir,
                     env=env,
                     shell=False,
-                    startupinfo=startupinfo
+                    startupinfo=startupinfo,
+                    creationflags=creationflags
                 )
-                self.logger.info(f"成功启动游戏: {game_path}")
+                self.logger.info(f"成功使用 cmd start 启动游戏: {game_path}")
             except Exception as e:
-                self.logger.exception(f"启动游戏失败: {str(e)}")
+                self.logger.warning(f"cmd start启动失败，尝试使用ShellExecuteEx作为备选方案1: {str(e)}")
+                try:
+                    # 备用方案1: ShellExecuteExW
+                    proxy_env = proxy_mgr.get_proxy_env() if proxy_mgr else {}
+                    original_env = {}
+                    for k, v in proxy_env.items():
+                        original_env[k] = os.environ.get(k)
+                        os.environ[k] = v
+
+                    import ctypes
+                    SEE_MASK_NOCLOSEPROCESS = 0x00000040
+                    SEE_MASK_NOASYNC = 0x00000100
+                    
+                    class SHELLEXECUTEINFO(ctypes.Structure):
+                        _fields_ = [
+                            ("cbSize", ctypes.c_uint32),
+                            ("fMask", ctypes.c_ulong),
+                            ("hwnd", ctypes.c_void_p),
+                            ("lpVerb", ctypes.c_wchar_p),
+                            ("lpFile", ctypes.c_wchar_p),
+                            ("lpParameters", ctypes.c_wchar_p),
+                            ("lpDirectory", ctypes.c_wchar_p),
+                            ("nShow", ctypes.c_int),
+                            ("hInstApp", ctypes.c_void_p),
+                            ("lpIDList", ctypes.c_void_p),
+                            ("lpClass", ctypes.c_wchar_p),
+                            ("hkeyClass", ctypes.c_void_p),
+                            ("dwHotKey", ctypes.c_uint32),
+                            ("hIcon", ctypes.c_void_p),
+                            ("hProcess", ctypes.c_void_p)
+                        ]
+
+                    shell_info = SHELLEXECUTEINFO()
+                    shell_info.cbSize = ctypes.sizeof(shell_info)
+                    shell_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
+                    shell_info.lpVerb = "open"
+                    shell_info.lpFile = game_path
+                    shell_info.lpDirectory = game_dir
+                    shell_info.lpParameters = start_args if start_args else None
+                    shell_info.nShow = 1  # SW_SHOWNORMAL
+                    
+                    shell32 = ctypes.WinDLL('shell32.dll')
+                    result = shell32.ShellExecuteExW(ctypes.byref(shell_info))
+                    
+                    # 恢复环境变量
+                    for k, v in original_env.items():
+                        if v is None:
+                            del os.environ[k]
+                        else:
+                            os.environ[k] = v
+                    
+                    if not result:
+                        raise Exception("ShellExecuteExW返回失败")
+                    self.logger.info(f"成功使用ShellExecuteEx启动游戏: {game_path}")
+                except Exception as e2:
+                    self.logger.exception(f"ShellExecuteEx启动失败，使用普通 Popen 备选启动2: {str(e2)}")
+                    cmd = [game_path] + (shlex.split(start_args) if start_args else [])
+                    subprocess.Popen(
+                        cmd,
+                        cwd=game_dir,
+                        env=env,
+                        shell=False,
+                        startupinfo=startupinfo,
+                        creationflags=0x00000008 | 0x00000200
+                    )
         else:
             env = os.environ.copy()
             proxy_mgr = app_state.proxy_mgr
