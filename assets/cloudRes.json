@@ -147,11 +147,12 @@
     {
       "need_hotfix_version": [
         "v6.0.0-beta",
-        "v6.0.1-stable"
+        "v6.0.1-stable",
+        "v6.0.2-stable"
       ],
       "target_module": "gamemgr",
-      "target_commit": "d24fb91b0a1a7e0827a948c484fc6ae15e49f389",
-      "note": "一些bug修复+引入兼容模式，避免兼容模式引起网络问题"
+      "target_commit": "4d438cfb3cc4d754e891e5c4bf4c9c8f5198f6eb",
+      "note": "【重要，请务必更新，如更新后出现问题建议直接升级工具】更新游戏启动方式，避免工具持有游戏句柄。"
     },
     {
       "need_hotfix_version": [
