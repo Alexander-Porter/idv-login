@@ -192,10 +192,11 @@ class ChannelManager:
             exchange_info["ext_info"] if "ext_info" in exchange_info.keys() else {},
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
+        import app_state
+        app_state.toast("扫码结果已原生保存，时长为1-3天，如需长期保存请登录时选择“扫码登录”，点击二维码下方的游戏图标进入《渠道服管理界面》登录。", duration=5000)
+
         if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp" and login_info["login_channel"] != "oppo":
-            self.logger.error(f"扫码结果已经保存为“渠道用户”，保存时长为3天，如需长期保存请点击二维码下方的游戏图标进入渠道服管理界面。")
-            #import webbrowser
-            #webbrowser.open("https://www.yuque.com/keygen/kg2r5k/fey3i1pi6k9fgz86")
+            self.logger.error(f"扫码结果已原生保存，时长为1-3天，如需长期保存请点击二维码下方的游戏图标进入渠道服管理界面。")
             return False
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
