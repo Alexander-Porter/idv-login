@@ -123,13 +123,19 @@ def _unset_win():
     from mitm_proxy import DEFAULT_PROXY_PORT
 
     # 判断是否应该直接清除而非恢复：
-    # 如果保存的旧值指向本工具自身的代理端口（上次端口或默认端口），
+    # 如果保存的旧值指向本工具自身的代理端口（上次端口或默认端口及备用范围），
     # 说明旧值是上次工具崩溃残留的，恢复它没有意义，直接清除。
     last_port = genv.get("_LAST_PROXY_PORT")
     should_clear = False
+    
+    # 构建所有可能残留代理的端口合集 (默认 10717 - 10727)
+    ports_to_check = set(range(DEFAULT_PROXY_PORT, DEFAULT_PROXY_PORT + 11))
+    if last_port:
+        ports_to_check.add(last_port)
+
     for var, old_val in saved.items():
         if old_val is not None:
-            for port in (last_port, DEFAULT_PROXY_PORT):
+            for port in ports_to_check:
                 if port and f":{port}" in old_val:
                     should_clear = True
                     break
