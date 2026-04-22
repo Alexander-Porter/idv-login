@@ -1,5 +1,5 @@
 {
-  "lastModified": 1776070653,
+  "lastModified": 1776070654,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -595,7 +595,7 @@
     "package_name": "com.netease.stzb.vivo",
     "app_channel": "nearme_vivo",
     "nearme_vivo": "com.netease.stzb.vivo",
-       "game_id": "g10",
+       "game_id": "g10"
 }
   ],
   "netease_qrcode_login_game_list": [
