@@ -1,5 +1,5 @@
 {
-  "lastModified": 1776070652,
+  "lastModified": 1776070653,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -591,7 +591,12 @@
       "app_channel": "oppo",
       "game_id": "h42",
       "oppo": "com.netease.wyclx.nearme.gamecenter"
-    }
+    },{
+    "package_name": "com.netease.stzb.vivo",
+    "app_channel": "nearme_vivo",
+    "nearme_vivo": "com.netease.stzb.vivo",
+       "game_id": "g10",
+}
   ],
   "netease_qrcode_login_game_list": [
     {
