@@ -193,15 +193,19 @@ class ChannelManager:
             exchange_info["device"] if "device" in exchange_info.keys() else {},
         )
         import app_state
-        app_state.toast("扫码结果已原生保存，时长为1-3天，如需长期保存请登录时选择“扫码登录”，点击二维码下方的游戏图标进入《渠道服管理界面》登录。", duration=5000)
-
+        #app_state.toast("扫码结果已临时保存，时长为1-3天，如需长期保存请登录时选择“扫码登录”，点击二维码下方的游戏图标进入《渠道服管理界面》登录。", duration=5000)
+        toast_text = f"扫码结果已临时保存，时长为1-3天，如需长期保存请登录时选择“扫码登录”，点击二维码下方的游戏图标进入《渠道服管理界面》登录。"
         if login_info["login_channel"] in [i["channel"] for i in manual_login_channels] and login_info["login_channel"] != "myapp" and login_info["login_channel"] != "oppo":
-            self.logger.error(f"扫码结果已原生保存，时长为1-3天，如需长期保存请点击二维码下方的游戏图标进入渠道服管理界面。")
+            self.logger.error(f"扫码结果已临时保存，时长为1-3天，如需长期保存请点击二维码下方的游戏图标进入渠道服管理界面。")
+            app_state.toast(toast_text, duration=5000)
             return False
         if login_info["login_channel"] == "myapp":
             self.logger.warning(f"正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
+            toast_text = f"扫码结果已临时保存，时长为1-3天，如需长期保存请登录时选择“扫码登录”，点击二维码下方的游戏图标进入《渠道服管理界面》登录。\n正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。"
         if login_info["login_channel"] == "oppo":
             self.logger.warning(f"您正在扫码导入OPPO账号，扫码登录有效期在一周到三个月不等，如需长期免扫码登录，请使用手动登录。具体方法请参见教程。")
+            toast_text = f"您正在扫码导入OPPO账号，临时记录时长3日左右，管理界面扫码登录有效期在一周到三个月不等，如需长期免扫码登录，请使用手动登录。具体方法请参见教程。"
+        app_state.toast(toast_text, duration=5000)
         #寻找是否有重复的self.user_info["id"]
         to_be_deleted = []
         try:

@@ -396,6 +396,7 @@ class IDVLoginAddon:
     def _handle_exchange_token_response(self, flow: http.HTTPFlow):
         is_selected = bool(self.genv.get("CHANNEL_ACCOUNT_SELECTED"))
         try:
+            raw_data = flow.response.content
             form_data = {}
             content_type = flow.request.headers.get("content-type", "")
             if "application/x-www-form-urlencoded" in content_type:
@@ -464,7 +465,7 @@ class IDVLoginAddon:
                                     if exp_ts:
                                         cst = timezone(timedelta(hours=8))
                                         exp_dt = datetime.fromtimestamp(exp_ts, tz=cst)
-                                        expiry_str = f" ({exp_dt.month}月{exp_dt.day}日后过期)"
+                                        expiry_str = f" |临时保存|{exp_dt.month}.{exp_dt.day}过期|"
                     except Exception:
                         pass
 
@@ -487,7 +488,7 @@ class IDVLoginAddon:
                     modified = True
                     self.logger.info(f"已确定渠道服显示名称: {display_name}")
 
-                if modified:
+                if modified and not is_selected:
                     flow.response.content = json.dumps(resp_data).encode()
 
             if is_selected:
@@ -497,7 +498,7 @@ class IDVLoginAddon:
                 if flow.response.status_code == 200:
                     pending_login_info = self.stack_mgr.pop_pending_login_info(game_id, process_id)
                     if pending_login_info:
-                        resp_data = json.loads(flow.response.content)
+                        resp_data = json.loads(raw_data)
                         app_state.channels_helper.import_from_scan(
                             pending_login_info, resp_data
                         )

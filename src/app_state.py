@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Callable
 from typing import Callable, List
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QMainWindow, QPushButton
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve, QObject, pyqtSignal
-from PyQt6.QtGui import QFont, QScreen, QGuiApplication, QCursor
+from PyQt6.QtGui import QFont, QScreen, QGuiApplication, QCursor, QPainter, QColor, QPen, QPainterPath
 if TYPE_CHECKING:
     from channelmgr import ChannelManager
     from cloudRes import CloudRes
@@ -90,20 +90,18 @@ class ModernToast(QWidget):
         self.setWindowOpacity(0.0)
         
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.label = QLabel(text)
         
-        # 翡翠绿 (rgba 46,204,113)
-        # 背景设置透明 (100/255)，文字设置全不透明 (255/255)
+        # 文字样式（背景由 paintEvent 绘制）
         self.label.setStyleSheet("""
             QLabel {
-                background-color: rgba(46, 204, 113, 100); 
+                background: transparent;
                 color: rgba(255, 255, 255, 255);
-                border-radius: 28px;            /* 更多圆角 */
-                padding: 15px 40px;             /* 增加内边距 */
+                padding: 15px 40px;
                 font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
                 font-size: 18px;                
-                font-weight: bold;              /* 加粗使高分屏文字更清晰 */
-                border: 1px solid rgba(255, 255, 255, 40); 
+                font-weight: bold;
             }
         """)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -114,6 +112,16 @@ class ModernToast(QWidget):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.hide_toast)
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = self.height() / 2
+        path = QPainterPath()
+        path.addRoundedRect(0.5, 0.5, self.width() - 1, self.height() - 1, r, r)
+        painter.fillPath(path, QColor(46, 204, 113, 100))
+        painter.setPen(QPen(QColor(255, 255, 255, 40), 1))
+        painter.drawPath(path)
+
     def show_toast(self):
         # 动态定位：获取鼠标所在的活动屏幕
         screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
@@ -121,7 +129,6 @@ class ModernToast(QWidget):
         
         self.adjustSize()
         
-        # 计算坐标：屏幕中央偏下 (80% 高度处)
         x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
         y = screen_geometry.y() + int(screen_geometry.height() * 0.8) - (self.height() // 2)
         
