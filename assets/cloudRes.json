@@ -1,5 +1,5 @@
 {
-  "lastModified": 1776070654,
+  "lastModified": 1777001696,
   "version": "v6.0.2-stable",
   "hotfix": [
     {
@@ -161,7 +161,7 @@
         "v6.0.2-stable"
       ],
       "target_module": "gamemgr",
-      "target_commit": "4d438cfb3cc4d754e891e5c4bf4c9c8f5198f6eb",
+      "target_commit": "1c64b652d3f71d211e055e04fbf047a634607215",
       "note": "【重要，请务必更新，如更新后出现问题建议直接升级工具】更新游戏启动方式，避免工具持有游戏句柄。"
     },
     {
@@ -602,12 +602,13 @@
       "app_channel": "oppo",
       "game_id": "h42",
       "oppo": "com.netease.wyclx.nearme.gamecenter"
-    },{
-    "package_name": "com.netease.stzb.vivo",
-    "app_channel": "nearme_vivo",
-    "nearme_vivo": "com.netease.stzb.vivo",
-       "game_id": "g10"
-}
+    },
+    {
+      "package_name": "com.netease.stzb.vivo",
+      "app_channel": "nearme_vivo",
+      "nearme_vivo": "com.netease.stzb.vivo",
+      "game_id": "g10"
+    }
   ],
   "netease_qrcode_login_game_list": [
     {
