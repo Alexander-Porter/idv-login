@@ -15,21 +15,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache pip downloads
+      - name: Cache Python Embedded (with dependencies)
+        id: cache-python
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\pip\Cache
-          key: windows-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            windows-pip-${{ env.PYTHON_VERSION }}-
+          path: python-embed
+          key: windows-python-embed-deps-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}
 
       - name: Download Python Embedded
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ env.PYTHON_VERSION }}/python-${{ env.PYTHON_VERSION }}-embed-amd64.zip -OutFile python-embed.zip
           Expand-Archive python-embed.zip -DestinationPath python-embed
 
           $pthFile = Get-ChildItem -Path python-embed -Filter "python*._pth" | Select-Object -First 1
-          # 读取内容，取消注释 "import site"，或者如果不存在则追加
           $content = Get-Content $pthFile.FullName
           if ($content -match "#\s*import site") {
               $content = $content -replace "#\s*import site", "import site"
@@ -40,6 +39,7 @@ jobs:
         shell: pwsh
 
       - name: Set up Python Embedded
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
@@ -48,13 +48,11 @@ jobs:
         shell: pwsh
 
       - name: Install dependencies
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           .\python-embed\python.exe -m pip install -r requirements.txt
+          .\python-embed\python.exe -m pip install pywin32
         shell: pwsh
-
-      - name: Install pywin32 (Windows)
-        if: runner.os == 'Windows'
-        run: .\python-embed\python.exe -m pip install pywin32
 
       - name: Insert build info
         shell: pwsh

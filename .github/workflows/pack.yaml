@@ -18,21 +18,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache pip downloads
+      - name: Cache Python Embedded (with dependencies)
+        id: cache-python
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\pip\Cache
-          key: windows-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            windows-pip-${{ matrix.python-version }}-
+          path: python-embed
+          key: windows-python-embed-deps-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
 
       - name: Download Python Embedded
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           Invoke-WebRequest -Uri https://www.python.org/ftp/python/${{ matrix.python-version }}/python-${{ matrix.python-version }}-embed-amd64.zip -OutFile python-embed.zip
           Expand-Archive python-embed.zip -DestinationPath python-embed
 
           $pthFile = Get-ChildItem -Path python-embed -Filter "python*._pth" | Select-Object -First 1
-          # 读取内容，取消注释 "import site"，或者如果不存在则追加
           $content = Get-Content $pthFile.FullName
           if ($content -match "#\s*import site") {
               $content = $content -replace "#\s*import site", "import site"
@@ -42,6 +41,7 @@ jobs:
           $content | Set-Content $pthFile.FullName -Encoding UTF8
 
       - name: Set up Python Embedded
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py
           .\python-embed\python.exe get-pip.py
@@ -50,12 +50,10 @@ jobs:
         shell: pwsh
 
       - name: Install dependencies
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           .\python-embed\python.exe -m pip install -r requirements.txt
-      
-      - name: Install pywin32 (Windows)
-        if: runner.os == 'Windows'
-        run: .\python-embed\python.exe -m pip install pywin32
+          .\python-embed\python.exe -m pip install pywin32
 
       - name: Insert build info
         run: |
@@ -68,45 +66,6 @@ jobs:
       - name: Compile Python files to .pyc
         run: |
             .\python-embed\python.exe  -m compileall src
-        shell: pwsh
-
-      - name: Generate verification data
-        run: |
-            .\python-embed\python.exe tools/generate_verification.py `
-              --src-root src `
-              --start-bat tools/点我启动工具.bat `
-              --verification-file ext/verification.json `
-              --commit-sha "${{ github.sha }}"
-        shell: pwsh
-
-      - name: Commit verification data to remote
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ext/verification.json
-          if (git diff --cached --quiet) {
-            echo "No verification changes to commit."
-          } else {
-            git commit -m "chore: update ext/verification.json [skip ci]"
-            $max_retries = 3
-            $retry_count = 0
-            $success = $false
-            while (-not $success -and $retry_count -lt $max_retries) {
-              git pull origin ${{ github.ref_name }} --rebase
-              git push origin HEAD:${{ github.ref_name }}
-              if ($LASTEXITCODE -eq 0) {
-                $success = $true
-              } else {
-                $retry_count++
-                Start-Sleep -Seconds (5 * $retry_count)
-              }
-            }
-            if (-not $success) {
-              Write-Error "Failed to push after $max_retries retries."
-              exit 1
-            }
-          }
         shell: pwsh
 
       - name: Normalize compiled files layout
