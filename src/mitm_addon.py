@@ -171,7 +171,7 @@ class IDVLoginAddon:
             if flow.request.query.get("game_id", "") != "aecglf6ee4aaaarz-g-a50":
                 flow.request.query["cv"] = self.cv
         elif path == "/mpay/api/users/login/qrcode/exchange_token":
-            pass  # handled in response
+            self._modify_exchange_token_request(flow)
         elif path == "/mpay/api/qrcode/query":
             pass  # handled in response
         elif path == "/mpay/api/data/upload":
@@ -179,8 +179,10 @@ class IDVLoginAddon:
         elif path == "/api/games/pc/config":
             pass  # handled in response
         elif not path.startswith("/mpay/api/qrcode/") and not path.startswith("/mpay/api/reverify/"):
-            # Global catch-all: add CV
+            # Global catch-all: add CV to query + POST body, remove arch
             flow.request.query["cv"] = self.cv
+            if flow.request.method == "POST":
+                self._modify_post_body_cv(flow)
 
     def response(self, flow: http.HTTPFlow):
         host = flow.request.pretty_host
@@ -220,12 +222,85 @@ class IDVLoginAddon:
     # Request modification helpers
     # ------------------------------------------------------------------
 
+    def _modify_post_body_cv(self, flow: http.HTTPFlow):
+        """为 POST 请求的 body 注入 cv 并移除 arch（全局 catch-all 用）。"""
+        content_type = flow.request.headers.get("content-type", "")
+        if "application/x-www-form-urlencoded" in content_type:
+            from urllib.parse import parse_qs, urlencode
+            raw = flow.request.content.decode("utf-8", errors="replace")
+            parsed = parse_qs(raw, keep_blank_values=True)
+            parsed["cv"] = [self.cv]
+            parsed.pop("arch", None)
+            flat = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
+            flow.request.content = urlencode(flat).encode()
+        elif "application/json" in content_type:
+            try:
+                body = json.loads(flow.request.content)
+                body["cv"] = self.cv
+                body.pop("arch", None)
+                flow.request.content = json.dumps(body).encode()
+            except Exception:
+                pass
+
     def _modify_create_login_request(self, flow: http.HTTPFlow):
         query = dict(flow.request.query)
         game_id = query.get("game_id", "")
         if self.create_login_query_hook:
             self.create_login_query_hook(query, game_id)
             flow.request.query.update(query)
+
+    _EXCHANGE_TOKEN_OVERRIDE_KEYS = frozenset({
+        "opt_fields", "app_type", "app_mode", "app_channel",
+        "_cloud_extra_base64", "sc", "cv",
+    })
+
+    def _modify_exchange_token_request(self, flow: http.HTTPFlow):
+        """覆写 exchange_token 请求参数（query + body），与 v5.9.1 行为一致。"""
+        game_id = flow.request.query.get("game_id", "")
+        if not game_id:
+            content_type = flow.request.headers.get("content-type", "")
+            if "application/x-www-form-urlencoded" in content_type:
+                from urllib.parse import parse_qs
+                raw = flow.request.content.decode("utf-8", errors="replace")
+                parsed = parse_qs(raw, keep_blank_values=True)
+                game_id = parsed.get("game_id", [""])[0]
+            elif "application/json" in content_type:
+                try:
+                    game_id = json.loads(flow.request.content).get("game_id", "")
+                except Exception:
+                    pass
+
+        config = self.cloud_res().get_qrcode_login_config(game_id)
+        if not config:
+            return
+
+        overrides = {k: str(config[k]) for k in self._EXCHANGE_TOKEN_OVERRIDE_KEYS if k in config}
+        if not overrides:
+            return
+
+        # query: 覆写 cv
+        if "cv" in overrides:
+            flow.request.query["cv"] = overrides["cv"]
+
+        # body: 覆写所有 7 个参数 + 移除 arch
+        content_type = flow.request.headers.get("content-type", "")
+        if "application/x-www-form-urlencoded" in content_type:
+            from urllib.parse import parse_qs, urlencode
+            raw = flow.request.content.decode("utf-8", errors="replace")
+            parsed = parse_qs(raw, keep_blank_values=True)
+            for k, v in overrides.items():
+                parsed[k] = [v]
+            parsed.pop("arch", None)
+            flat = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
+            flow.request.content = urlencode(flat).encode()
+        elif "application/json" in content_type:
+            try:
+                body = json.loads(flow.request.content)
+                body.update(overrides)
+                body.pop("arch", None)
+                flow.request.content = json.dumps(body).encode()
+            except Exception:
+                pass
 
     def _modify_handle_login_request(self, flow: http.HTTPFlow):
         mapping = {
@@ -285,6 +360,8 @@ class IDVLoginAddon:
             pass
 
     def _modify_qrcode_image_response(self, flow: http.HTTPFlow):
+        if not self.genv.get("SCAN_RECORD_ENABLED", True):
+            return
         try:
             wm_text = self.cloud_res().get_risk_wm()
             if wm_text:
@@ -363,9 +440,14 @@ class IDVLoginAddon:
             # Change the QR code redirect URL
             # Use the idvlogin:// URI scheme so the system opens our Qt window
             uri_scheme_url = f"idvlogin://open?game_id={game_id}"
-            data["scanner_guide_text"] = "已开启记住账号，可长期保存账号记录"
-            data["scanner_download_guide_text"]="如果您正在为代肝/共号扫码，请注意保护账号安全，谨防诈骗"
             data["qrcode_scanners"][0]["url"] = uri_scheme_url
+
+            if self.genv.get("SCAN_RECORD_ENABLED", True):
+                if self.genv.get("NATIVE_SAVE_ENABLED", False):
+                    data["scanner_guide_text"] = "已开启记住账号（保存范围：所有渠道，时长3天或更久）"
+                else:
+                    data["scanner_guide_text"] = "已开启记住账号（保存范围：部分渠道，时长1个月或更久）"
+                data["scanner_download_guide_text"] = "如果您正在为代肝/共号扫码，请注意保护账号安全，谨防诈骗"
 
             flow.response.content = json.dumps(data).encode()
         except Exception:
@@ -414,9 +496,9 @@ class IDVLoginAddon:
                 resp_data = json.loads(flow.response.content)
                 modified = False
 
-                # 强制记住账号（仅限非 netease 渠道；官服通过 create_login 参数实现）
+                # 强制记住账号（仅在开关 2 开启时；仅限非 netease 渠道）
                 login_channel = resp_data.get("user", {}).get("login_channel", "")
-                if not login_channel.startswith("netease"):
+                if self.genv.get("NATIVE_SAVE_ENABLED", False) and not login_channel.startswith("netease"):
                     ext_info = resp_data.get("ext_info", {})
                     if not ext_info.get("is_remember"):
                         ext_info["is_remember"] = True
@@ -465,7 +547,7 @@ class IDVLoginAddon:
                                     if exp_ts:
                                         cst = timezone(timedelta(hours=8))
                                         exp_dt = datetime.fromtimestamp(exp_ts, tz=cst)
-                                        expiry_str = f" |临时保存|{exp_dt.month}.{exp_dt.day}过期|"
+                                        expiry_str = f"(临时保存:{exp_dt.month}.{exp_dt.day}过期)"
                     except Exception:
                         pass
 
@@ -495,7 +577,7 @@ class IDVLoginAddon:
                 if flow.response.status_code == 200 and self.game_helper.get_auto_close_setting(game_id):
                     self._trigger_auto_close()
             else:
-                if flow.response.status_code == 200:
+                if flow.response.status_code == 200 and self.genv.get("SCAN_RECORD_ENABLED", True):
                     pending_login_info = self.stack_mgr.pop_pending_login_info(game_id, process_id)
                     if pending_login_info:
                         resp_data = json.loads(raw_data)
