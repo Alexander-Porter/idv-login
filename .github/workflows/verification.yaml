@@ -10,6 +10,7 @@ on:
       - 'src/**'
       - 'tools/点我启动工具.bat'
       - 'tools/generate_verification.py'
+  workflow_dispatch:
 
 jobs:
   update-verification:
