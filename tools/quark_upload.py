@@ -19,7 +19,7 @@ import mimetypes
 import sys
 import base64
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 # 必要 Cookie，从环境变量中读取
@@ -175,7 +175,7 @@ def up_hash(md5_str, sha1_str, task_id):
 def up_part_auth(pre_data, mime_type, part_number):
     """获取分片上传授权"""
     url = "https://drive-pc.quark.cn/1/clouddrive/file/upload/auth"
-    time_str = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+    time_str = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     auth_meta = f"""PUT
 
@@ -240,7 +240,7 @@ def up_part(pre_data, mime_type, part_number, part_data, max_retries=3, retry_ba
 def up_commit_auth(pre_data, content_md5, callback_base64):
     """获取提交授权"""
     url = "https://drive-pc.quark.cn/1/clouddrive/file/upload/auth"
-    time_str = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+    time_str = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     auth_meta = f"""POST
 {content_md5}
