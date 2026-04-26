@@ -447,9 +447,9 @@ class IDVLoginAddon:
 
             if self.genv.get("SCAN_RECORD_ENABLED", True):
                 if self.genv.get("NATIVE_SAVE_ENABLED", False):
-                    data["scanner_guide_text"] = "已开启记住账号（保存范围：所有渠道，时长3天或更久）"
+                    data["scanner_guide_text"] = "已开启记住所有渠道三天或更久，可在管理界面切换"
                 else:
-                    data["scanner_guide_text"] = "已开启记住账号（保存范围：部分渠道，时长1个月或更久）"
+                    data["scanner_guide_text"] = "已开启记住部分渠道一个月或更久，可在管理界面切换"
                 data["scanner_download_guide_text"] = "如果您正在为代肝/共号扫码，请注意保护账号安全，谨防诈骗"
 
             flow.response.content = json.dumps(data).encode()

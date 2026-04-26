@@ -302,11 +302,8 @@ def _probe_proxy_mode(logger):
             genv.set("proxy_mode_compat_prompted_0420", True, True)
             logger.info("将已有的代理模式自动变更为兼容模式，即将重启...")
 
-            _show_msgbox(
-                "idv-login 模式变更",
-                "代理模式已自动变更为兼容模式，应用即将重启。\n\n"
-                "如果重启后遇到网络连接问题，请重启计算机。",
-            )
+
+            logger.warning("代理模式已变更为兼容模式，应用即将重启。如果重启后遇到网络连接问题，请重启计算机一次即可解决。")
 
             try:
                 from main import handle_exit
