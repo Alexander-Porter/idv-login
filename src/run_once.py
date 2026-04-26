@@ -226,6 +226,55 @@ def _probe_game_setup(logger):
     genv.set("game_setup_probe_done_0403", True, True)
 
 
+def _is_compat_port_available() -> bool:
+    """检查兼容模式所需的 443 端口是否可用。"""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 443))
+        return True
+    except socket.error:
+        return False
+
+
+def _cleanup_residual_proxy_registry(logger):
+    """清理注册表中残留的代理环境变量（崩溃恢复）。
+
+    当工具异常退出时，_SAVED_PROXY_ENV（内存态）丢失，
+    handle_exit 无法恢复注册表。此函数直接按端口范围匹配并删除。
+    """
+    try:
+        import winreg
+        from mitm_proxy import DEFAULT_PROXY_PORT
+        ports_to_check = set(range(DEFAULT_PROXY_PORT, DEFAULT_PROXY_PORT + 11))
+        cleaned = False
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
+        ) as key:
+            # HTTP_PROXY / HTTPS_PROXY 格式为 http://127.0.0.1:{port}
+            for var in ("HTTP_PROXY", "HTTPS_PROXY"):
+                try:
+                    val, _ = winreg.QueryValueEx(key, var)
+                    if any(f"127.0.0.1:{p}" in val for p in ports_to_check):
+                        winreg.DeleteValue(key, var)
+                        logger.info(f"已清理残留代理环境变量: {var}={val}")
+                        cleaned = True
+                except FileNotFoundError:
+                    pass
+            # NO_PROXY 是域名列表，只要检测到 HTTP_PROXY 残留就一并清除
+            if cleaned:
+                try:
+                    winreg.DeleteValue(key, "NO_PROXY")
+                    logger.info("已清理残留 NO_PROXY")
+                except FileNotFoundError:
+                    pass
+        if cleaned:
+            from proxy_env import _broadcast_env_change
+            _broadcast_env_change()
+    except Exception as e:
+        logger.error(f"清理残留代理环境变量失败: {e}")
+
+
 def _probe_proxy_mode(logger):
     """代理模式引导：统一使用兼容模式。"""
     import sys
@@ -239,9 +288,25 @@ def _probe_proxy_mode(logger):
             import hotfixmgr
             if not hotfixmgr.probe_cache_write_once():
                 return
+
+            # 检查 443 端口是否可用，不可用则跳过迁移（下次启动会重试）
+            if not _is_compat_port_available():
+                logger.warning("443 端口被占用，暂不迁移到兼容模式")
+                return
+
+            # 清理上次崩溃可能残留的代理注册表项
+            _cleanup_residual_proxy_registry(logger)
+
             genv.set("proxy_mode", "compat", True)
             genv.set("proxy_mode_compat_prompted_0420", True, True)
             logger.info("将已有的代理模式自动变更为兼容模式，即将重启...")
+
+            _show_msgbox(
+                "idv-login 模式变更",
+                "代理模式已自动变更为兼容模式，应用即将重启。\n\n"
+                "如果重启后遇到网络连接问题，请重启计算机。",
+            )
+
             try:
                 from main import handle_exit
                 handle_exit()
@@ -253,11 +318,15 @@ def _probe_proxy_mode(logger):
             else:
                 args = [sys.executable] + sys.argv
 
+            # 清理当前进程的代理环境变量，防止子进程继承
+            _proxy_vars = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+                           "NO_PROXY", "no_proxy")
+            clean_env = {k: v for k, v in os.environ.items() if k not in _proxy_vars}
+
             try:
-                subprocess.Popen(args, cwd=genv.get("SCRIPT_DIR") or os.getcwd())
+                subprocess.Popen(args, cwd=genv.get("SCRIPT_DIR") or os.getcwd(), env=clean_env)
             except Exception:
-                # last resort: try without cwd
-                subprocess.Popen(args)
+                subprocess.Popen(args, env=clean_env)
             os._exit(0)
         return
 
@@ -344,26 +413,5 @@ def run_once():
                 logger.info("已清理残留 NRPT 规则")
             except Exception as e:
                 logger.error(f"清理残留 NRPT 规则失败: {e}")
-            try:
-                from proxy_env import unset_proxy
-                unset_proxy()
-                logger.info("已清理残留代理环境变量")
-            except Exception:
-                pass
-            try:
-                import winreg
-                _stale_ports = ("10717", "10718")
-                with winreg.OpenKey(
-                    winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
-                ) as key:
-                    for var in ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"):
-                        try:
-                            val, _ = winreg.QueryValueEx(key, var)
-                            if any(f":{p}" in val for p in _stale_ports):
-                                winreg.DeleteValue(key, var)
-                                logger.info(f"已清理残留环境变量: {var}={val}")
-                        except FileNotFoundError:
-                            pass
-            except Exception as e:
-                logger.error(f"清理残留代理环境变量失败: {e}")
+            _cleanup_residual_proxy_registry(logger)
             genv.set("nrpt_env_cleanup_v603_done", True, True)
