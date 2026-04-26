@@ -1,5 +1,5 @@
 {
-  "lastModified": 1777179818,
+  "lastModified": 1777188384,
   "version": "v6.0.4-stable",
   "hotfix": [
     {
@@ -305,6 +305,14 @@
       "target_module": "cloudRes",
       "target_commit": "042c5462f50a1534113ef43f9b9808142b86729b",
       "note": "恢复官服扫码记住账号，云端配置已同步更新，如不应用此热更新可能出现非法请求错误"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.4-stable"
+      ],
+      "target_module": "local_handler",
+      "target_commit": "87f9cf2366b4cde43f902224e2e4fa13f3a6e738",
+      "note": "解决了渠道服管理界面偶发的，手动登录或切换账号时，卡在【正在处理】的问题"
     }
   ],
   "shortcuts": [
