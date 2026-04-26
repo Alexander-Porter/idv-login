@@ -637,8 +637,11 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-rocket-takeoff me-2"></i>游戏启动器</span>
+                <button class="btn btn-sm btn-outline-secondary" id="launcherToggleBtn" onclick="toggleLauncherPanel()">
+                    <i class="bi bi-chevron-down me-1"></i>收起
+                </button>
             </div>
-            <div class="card-body launcher-card-body">
+            <div class="card-body launcher-card-body" id="launcherCardBody">
                 <div id="launcherMainImage" class="launcher-bg"></div>
                 <div class="row g-3 align-items-center launcher-content">
                     <div class="col-md-3 text-center">
@@ -784,23 +787,31 @@
         <div class="card mt-4" id="scanRecordCard" style="display:none">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-qr-code-scan me-2"></i>扫码记录设置</span>
+                <button class="btn btn-sm btn-outline-secondary" id="scanRecordToggleBtn" onclick="toggleScanRecordPanel()">
+                    <i class="bi bi-chevron-down me-1"></i>收起
+                </button>
             </div>
-            <div class="card-body">
-                <button id="scanRecordBtn" onclick="toggleScanRecord()"
-                    class="btn btn-outline-primary mb-2 w-100">
-                    <i class="bi bi-save me-1"></i>扫码记录渠道服账号：加载中...
-                </button>
-                <small class="text-muted d-block mb-3">
-                    开启后，扫码登录渠道服时会自动记录账号信息到本地，方便下次一键登录。
-                </small>
-
-                <button id="nativeSaveBtn" onclick="toggleNativeSave()"
-                    class="btn btn-outline-primary mb-2 w-100" disabled>
-                    <i class="bi bi-shield-check me-1"></i>原生渠道服保存：加载中...
-                </button>
-                <small class="text-muted d-block" id="nativeSaveHint">
-                    启用后，所有渠道的账号记录将使用原生保存方式。可能导致原本在渠道服管理界面的非手动登录渠道的记录时间缩短至3天。
-                </small>
+            <div class="card-body" id="scanRecordCardBody">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <button id="scanRecordBtn" onclick="toggleScanRecord()"
+                            class="btn btn-outline-primary mb-2 w-100">
+                            <i class="bi bi-save me-1"></i>扫码记录渠道服账号：加载中...
+                        </button>
+                        <small class="text-muted d-block">
+                            开启后，扫码登录渠道服时会自动记录账号信息到本地，方便下次一键登录。
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <button id="nativeSaveBtn" onclick="toggleNativeSave()"
+                            class="btn btn-outline-primary mb-2 w-100" disabled>
+                            <i class="bi bi-shield-check me-1"></i>原生渠道服保存：加载中...
+                        </button>
+                        <small class="text-muted d-block" id="nativeSaveHint">
+                            启用后，所有渠道的账号记录将使用原生保存方式。可能导致原本在渠道服管理界面的非手动登录渠道的记录时间缩短至3天。
+                        </small>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2072,6 +2083,39 @@
             }, 1000);
         }
 
+        // ── 通用面板折叠 ──
+        function _makePanelCollapsible(storageKey, bodyId, btnId, defaultCollapsed, onApply) {
+            function isCollapsed() {
+                var val = localStorage.getItem(storageKey);
+                if (val === null) return defaultCollapsed;
+                return val === '1';
+            }
+            function setCollapsed(c) {
+                localStorage.setItem(storageKey, c ? '1' : '0');
+            }
+            function apply() {
+                var collapsed = isCollapsed();
+                var bodyEl = document.getElementById(bodyId);
+                var btnEl = document.getElementById(btnId);
+                if (bodyEl) bodyEl.style.display = collapsed ? 'none' : '';
+                if (btnEl) btnEl.innerHTML = collapsed
+                    ? '<i class="bi bi-chevron-right me-1"></i>展开'
+                    : '<i class="bi bi-chevron-down me-1"></i>收起';
+                if (onApply) onApply(collapsed);
+            }
+            function toggle() { setCollapsed(!isCollapsed()); apply(); }
+            return { apply: apply, toggle: toggle };
+        }
+
+        var _launcherPanel = _makePanelCollapsible('launcherCollapsed', 'launcherCardBody', 'launcherToggleBtn', false);
+        var _scanRecordPanel = _makePanelCollapsible('scanRecordCollapsed', 'scanRecordCardBody', 'scanRecordToggleBtn', false);
+        var _cloudSyncPanel = _makePanelCollapsible('cloudSyncPanelCollapsed', 'cloudSyncCardBody', 'cloudSyncToggleBtn', true, function() {
+            applyCloudSyncCardAvailability();
+        });
+
+        function toggleLauncherPanel() { _launcherPanel.toggle(); }
+        function toggleScanRecordPanel() { _scanRecordPanel.toggle(); }
+
         function _getCloudSyncPanelCollapsed() {
             const val = localStorage.getItem('cloudSyncPanelCollapsed');
             if (val === null) {
@@ -2085,24 +2129,11 @@
         }
 
         function applyCloudSyncPanelState() {
-            const collapsed = _getCloudSyncPanelCollapsed();
-            const bodyEl = document.getElementById('cloudSyncCardBody');
-            const btnEl = document.getElementById('cloudSyncToggleBtn');
-            if (bodyEl) {
-                bodyEl.style.display = collapsed ? 'none' : 'block';
-            }
-            if (btnEl) {
-                btnEl.innerHTML = collapsed
-                    ? '<i class="bi bi-chevron-right me-1"></i>展开'
-                    : '<i class="bi bi-chevron-down me-1"></i>收起';
-            }
-            applyCloudSyncCardAvailability();
+            _cloudSyncPanel.apply();
         }
 
         function toggleCloudSyncPanel() {
-            const collapsed = _getCloudSyncPanelCollapsed();
-            _setCloudSyncPanelCollapsed(!collapsed);
-            applyCloudSyncPanelState();
+            _cloudSyncPanel.toggle();
         }
 
         function _evaluateMasterKeyStrength(masterKey) {
@@ -2320,6 +2351,8 @@
                 masterKeyInput.addEventListener('input', updateCloudSyncMasterKeyStrength);
             }
             applyCloudSyncPanelState();
+            _launcherPanel.apply();
+            _scanRecordPanel.apply();
 
             // 启动工具状态检查
             startStatusCheck();
