@@ -335,7 +335,6 @@ class LocalRequestHandler:
         if app and app.property("_main_loop_running"):
             # 异步模式
             import uuid as uuid_mod
-            from PyQt6.QtCore import QTimer
             task_id = str(uuid_mod.uuid4())
             LocalRequestHandler._pending_switch[task_id] = {"status": "pending"}
 
@@ -355,7 +354,7 @@ class LocalRequestHandler:
                         "status": "done", "result": False
                     }
 
-            QTimer.singleShot(0, do_switch)
+            app_state.run_on_main_thread(do_switch)
             return self._json_response(200, {"status": "pending", "task_id": task_id})
         else:
             # 同步模式
@@ -396,7 +395,6 @@ class LocalRequestHandler:
         if app and app.property("_main_loop_running"):
             # 异步模式：不阻塞 scheme handler，立即返回 pending
             import uuid as uuid_mod
-            from PyQt6.QtCore import QTimer
             task_id = str(uuid_mod.uuid4())
             LocalRequestHandler._pending_imports[task_id] = {"status": "pending"}
 
@@ -419,7 +417,7 @@ class LocalRequestHandler:
                         "status": "done", "success": False
                     }
 
-            QTimer.singleShot(0, do_import)
+            app_state.run_on_main_thread(do_import)
             return self._json_response(200, {"status": "pending", "task_id": task_id})
         else:
             # 同步模式（旧 HTTP 路径）
