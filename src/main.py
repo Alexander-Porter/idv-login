@@ -939,7 +939,7 @@ def setup_network_proxy(proxy_port):
 
         qrcode_app_channel_provider = None
     else:
-        cv = "a5.10.0"
+        cv = "i5.10.0"
         login_style = 1
         app_channel_default = "netease.wyzymnqsd_cps_dev"
         use_login_mapping_always = False
