@@ -235,13 +235,13 @@ def _probe_proxy_mode(logger):
     
     # 已经询问过了
     if genv.get("proxy_mode_asked_0403", False):
-        if genv.get("proxy_mode", "") == "global" and not genv.get("proxy_mode_compat_prompted_0420", False):
+        if genv.get("proxy_mode", "") in ("global", "process") and not genv.get("proxy_mode_compat_prompted_0420", False):
             import hotfixmgr
             if not hotfixmgr.probe_cache_write_once():
                 return
             genv.set("proxy_mode", "compat", True)
             genv.set("proxy_mode_compat_prompted_0420", True, True)
-            logger.info("将已有的全局模式自动变更为兼容模式，即将重启...")
+            logger.info("将已有的代理模式自动变更为兼容模式，即将重启...")
             try:
                 from main import handle_exit
                 handle_exit()

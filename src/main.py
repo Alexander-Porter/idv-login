@@ -1051,7 +1051,16 @@ def setup_network_proxy(proxy_port):
     if proxy_mode == "compat":
         # 兼容模式：无需设置代理环境变量，DNS 劫持会自动生效
         logger.info("提示：当前使用兼容模式，通过 DNS 劫持拦截游戏流量。")
-        if auto_games:
+        if uri_action == "start" and uri_game_id:
+            game = game_helper.get_game(uri_game_id)
+            if game:
+                logger.info(f"通过快捷方式启动游戏: {game.name or uri_game_id}")
+                game.start()
+            else:
+                logger.warning(f"未找到游戏: {uri_game_id}")
+            genv.set("URI_STARTUP_ACTION", "")
+            genv.set("URI_STARTUP_GAME_ID", "")
+        elif auto_games:
             names = ", ".join(g.name for g in auto_games)
             logger.info(f"同时启动自启游戏: {names}")
             for g in auto_games:
