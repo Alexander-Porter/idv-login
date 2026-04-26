@@ -28,6 +28,13 @@ _PROXY_ENV_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
 _PROXY_ENV_VARS_WIN = ("HTTP_PROXY", "HTTPS_PROXY")
 _NO_PROXY_ENV_VARS = ("NO_PROXY", "no_proxy")
 _NO_PROXY_ENV_VARS_WIN = ("NO_PROXY",)
+# 本工具使用的代理端口范围（10717~10727）
+_TOOL_PORTS = set(range(10717, 10728))
+
+
+def _is_tool_proxy(val) -> bool:
+    """判断一个注册表代理值是否属于本工具（127.0.0.1:10717~10727）。"""
+    return bool(val) and any(f"127.0.0.1:{p}" in val for p in _TOOL_PORTS)
 
 
 # ==================================================================
@@ -74,29 +81,59 @@ def unset_proxy():
 def _set_win(port: int, no_proxy_domains: list = None):
     import winreg
     proxy_url = f"http://127.0.0.1:{port}"
-    saved: dict = {}
-    # 构建 NO_PROXY 值
     no_proxy_value = ",".join(no_proxy_domains) if no_proxy_domains else ""
+
+    # 如果已存在保存的状态（来自上次崩溃的会话），保留它——里面有用户原始值。
+    # 但需验证注册表中仍有本工具的代理残留；若用户已手动修复，丢弃旧状态。
+    existing_saved = genv.get("_SAVED_PROXY_ENV") or None
+
     try:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
         ) as key:
-            # 保存并设置代理环境变量
-            for var in _PROXY_ENV_VARS_WIN:
-                try:
-                    old_val, _ = winreg.QueryValueEx(key, var)
-                    saved[var] = old_val
-                except FileNotFoundError:
-                    saved[var] = None
-                winreg.SetValueEx(key, var, 0, winreg.REG_SZ, proxy_url)
-            # 保存并设置 NO_PROXY 环境变量
-            if no_proxy_value:
+            if existing_saved:
+                # 验证崩溃残留是否仍存在
+                still_tool_owned = False
+                for var in _PROXY_ENV_VARS_WIN:
+                    try:
+                        val, _ = winreg.QueryValueEx(key, var)
+                        if _is_tool_proxy(val):
+                            still_tool_owned = True
+                            break
+                    except FileNotFoundError:
+                        pass
+                if not still_tool_owned:
+                    # 注册表已无工具代理（用户手动修复），丢弃旧状态
+                    existing_saved = None
+
+            if not existing_saved:
+                # 保存当前注册表值以便退出时恢复
+                saved = {}
+                any_tool_owned = False
+                for var in _PROXY_ENV_VARS_WIN:
+                    try:
+                        old_val, _ = winreg.QueryValueEx(key, var)
+                        if _is_tool_proxy(old_val):
+                            any_tool_owned = True
+                            saved[var] = None
+                        else:
+                            saved[var] = old_val
+                    except FileNotFoundError:
+                        saved[var] = None
                 for var in _NO_PROXY_ENV_VARS_WIN:
                     try:
                         old_val, _ = winreg.QueryValueEx(key, var)
-                        saved[var] = old_val
+                        # 如果代理变量是工具残留，NO_PROXY 也视为工具设置
+                        saved[var] = None if any_tool_owned else old_val
                     except FileNotFoundError:
                         saved[var] = None
+                genv.set("_SAVED_PROXY_ENV", saved, True)
+
+            # 写入代理
+            for var in _PROXY_ENV_VARS_WIN:
+                winreg.SetValueEx(key, var, 0, winreg.REG_SZ, proxy_url)
+            if no_proxy_value:
+                for var in _NO_PROXY_ENV_VARS_WIN:
                     winreg.SetValueEx(key, var, 0, winreg.REG_SZ, no_proxy_value)
     except Exception as e:
         _get_logger().error(f"设置用户代理环境变量失败: {e}")
@@ -110,9 +147,25 @@ def _set_win(port: int, no_proxy_domains: list = None):
         os.environ.pop(var, None)
     for var in _NO_PROXY_ENV_VARS:
         os.environ.pop(var, None)
-    genv.set("_SAVED_PROXY_ENV", saved)
-    genv.set("_LAST_PROXY_PORT", port, True)  # 持久化记录使用的代理端口
     _get_logger().info(f"已设置用户代理环境变量: {proxy_url}")
+
+
+def _is_proxy_reachable(proxy_url: str, timeout: float = 2.0) -> bool:
+    """快速 TCP 检查代理是否可达。"""
+    import socket
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(proxy_url)
+        host = parsed.hostname
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        if not host:
+            return False
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            s.connect((host, port))
+            return True
+    except (socket.error, ValueError, TypeError, OSError):
+        return False
 
 
 def _unset_win():
@@ -120,34 +173,19 @@ def _unset_win():
     if not saved:
         return
     import winreg
-    from mitm_proxy import DEFAULT_PROXY_PORT
-
-    # 判断是否应该直接清除而非恢复：
-    # 如果保存的旧值指向本工具自身的代理端口（上次端口或默认端口及备用范围），
-    # 说明旧值是上次工具崩溃残留的，恢复它没有意义，直接清除。
-    last_port = genv.get("_LAST_PROXY_PORT")
-    should_clear = False
-    
-    # 构建所有可能残留代理的端口合集 (默认 10717 - 10727)
-    ports_to_check = set(range(DEFAULT_PROXY_PORT, DEFAULT_PROXY_PORT + 11))
-    if last_port:
-        ports_to_check.add(last_port)
-
-    for var, old_val in saved.items():
-        if old_val is not None:
-            for port in ports_to_check:
-                if port and f":{port}" in old_val:
-                    should_clear = True
-                    break
-        if should_clear:
-            break
-
     try:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
         ) as key:
             for var, old_val in saved.items():
-                if should_clear or old_val is None:
+                if old_val is None:
+                    try:
+                        winreg.DeleteValue(key, var)
+                    except FileNotFoundError:
+                        pass
+                elif var in _PROXY_ENV_VARS_WIN and not _is_proxy_reachable(old_val):
+                    # 旧代理不可达，恢复它会导致用户无法上网
+                    _get_logger().warning(f"旧代理 {var}={old_val} 不可达，已删除而非恢复")
                     try:
                         winreg.DeleteValue(key, var)
                     except FileNotFoundError:
@@ -160,11 +198,8 @@ def _unset_win():
     # 注册表已修改完成，广播通知可以异步进行——不阻塞退出流程
     import threading
     threading.Thread(target=_broadcast_env_change, daemon=True).start()
-    genv.set("_SAVED_PROXY_ENV", None)
-    if should_clear:
-        _get_logger().info("检测到残留代理（本工具端口），已直接清除用户代理环境变量")
-    else:
-        _get_logger().info("已恢复用户代理环境变量")
+    genv.set("_SAVED_PROXY_ENV", {}, True)  # 用空 dict 清除持久化状态（None 不会被持久化）
+    _get_logger().info("已恢复用户代理环境变量")
 
 
 def _broadcast_env_change():

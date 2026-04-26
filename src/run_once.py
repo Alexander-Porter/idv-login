@@ -238,10 +238,11 @@ def _is_compat_port_available() -> bool:
 
 
 def _cleanup_residual_proxy_registry(logger):
-    """清理注册表中残留的代理环境变量（崩溃恢复）。
+    """清理注册表中残留的代理环境变量（旧版本遗留 / 极端情况）。
 
-    当工具异常退出时，_SAVED_PROXY_ENV（内存态）丢失，
-    handle_exit 无法恢复注册表。此函数直接按端口范围匹配并删除。
+    新版 proxy_env.py 已将 _SAVED_PROXY_ENV 持久化，正常崩溃恢复由其处理。
+    此函数用于旧版本升级时的兼容清理：旧版未持久化 saved state，
+    需要直接按端口范围匹配注册表值并删除。
     """
     try:
         import winreg
