@@ -438,9 +438,12 @@ class IDVLoginAddon:
                 t.start()
 
             # Change the QR code redirect URL
-            # Use the idvlogin:// URI scheme so the system opens our Qt window
-            uri_scheme_url = f"idvlogin://open?game_id={game_id}"
-            data["qrcode_scanners"][0]["url"] = uri_scheme_url
+            is_compat = getattr(getattr(app_state, "proxy_mgr", None), "mode", "") == "compat"
+            if is_compat:
+                qr_url = f"https://localhost/_idv-login/index?game_id={game_id}"
+            else:
+                qr_url = f"idvlogin://open?game_id={game_id}"
+            data["qrcode_scanners"][0]["url"] = qr_url
 
             if self.genv.get("SCAN_RECORD_ENABLED", True):
                 if self.genv.get("NATIVE_SAVE_ENABLED", False):
