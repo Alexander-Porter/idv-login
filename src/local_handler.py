@@ -147,6 +147,8 @@ class LocalRequestHandler:
             "/_idv-login/proxy-mode": self._get_proxy_mode,
             "/_idv-login/set-proxy-mode": self._set_proxy_mode,
             "/_idv-login/create-game-shortcut": self._create_game_shortcut,
+            "/_idv-login/scan-record-setting": self._scan_record_setting,
+            "/_idv-login/native-save-setting": self._native_save_setting,
 
         }
 
@@ -466,6 +468,58 @@ class LocalRequestHandler:
             new_state = not self.game_helper.get_auto_close_setting(gid)
             self.game_helper.set_auto_close_setting(gid, new_state)
             return self._json_response(200, {"success": True, "state": new_state, "game_id": gid})
+        except Exception as e:
+            return self._json_response(200, {"success": False, "error": str(e)})
+
+    def _scan_record_setting(self, args, body, method):
+        """开关 1：是否开启扫码记录渠道服账号功能。"""
+        try:
+            if method == "GET":
+                enabled = genv.get("SCAN_RECORD_ENABLED", True)
+                return self._json_response(200, {"success": True, "enabled": enabled})
+
+            enabled = (body or {}).get("enabled", True)
+            was_enabled = genv.get("SCAN_RECORD_ENABLED", True)
+
+            if enabled and not was_enabled:
+                self.stack_mgr._pending_login_info_stack = {}
+
+            genv.set("SCAN_RECORD_ENABLED", bool(enabled), True)
+
+            if not enabled:
+                genv.set("NATIVE_SAVE_ENABLED", False, True)
+
+            return self._json_response(200, {
+                "success": True,
+                "enabled": bool(enabled),
+                "native_save_enabled": genv.get("NATIVE_SAVE_ENABLED", False),
+            })
+        except Exception as e:
+            return self._json_response(200, {"success": False, "error": str(e)})
+
+    def _native_save_setting(self, args, body, method):
+        """开关 2：是否启用原生渠道服保存（is_remember 注入）。"""
+        try:
+            if method == "GET":
+                enabled = genv.get("NATIVE_SAVE_ENABLED", False)
+                scan_record = genv.get("SCAN_RECORD_ENABLED", True)
+                return self._json_response(200, {
+                    "success": True,
+                    "enabled": enabled,
+                    "scan_record_enabled": scan_record,
+                })
+
+            enabled = (body or {}).get("enabled", False)
+            scan_record = genv.get("SCAN_RECORD_ENABLED", True)
+
+            if enabled and not scan_record:
+                return self._json_response(200, {
+                    "success": False,
+                    "error": "需要先开启扫码记录功能",
+                })
+
+            genv.set("NATIVE_SAVE_ENABLED", bool(enabled), True)
+            return self._json_response(200, {"success": True, "enabled": bool(enabled)})
         except Exception as e:
             return self._json_response(200, {"success": False, "error": str(e)})
 

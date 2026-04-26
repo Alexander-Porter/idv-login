@@ -780,6 +780,30 @@
             </div>
         </div>
 
+        <!-- 扫码记录设置 -->
+        <div class="card mt-4" id="scanRecordCard" style="display:none">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-qr-code-scan me-2"></i>扫码记录设置</span>
+            </div>
+            <div class="card-body">
+                <button id="scanRecordBtn" onclick="toggleScanRecord()"
+                    class="btn btn-outline-primary mb-2 w-100">
+                    <i class="bi bi-save me-1"></i>扫码记录渠道服账号：加载中...
+                </button>
+                <small class="text-muted d-block mb-3">
+                    开启后，扫码登录渠道服时会自动记录账号信息到本地，方便下次一键登录。
+                </small>
+
+                <button id="nativeSaveBtn" onclick="toggleNativeSave()"
+                    class="btn btn-outline-primary mb-2 w-100" disabled>
+                    <i class="bi bi-shield-check me-1"></i>原生渠道服保存：加载中...
+                </button>
+                <small class="text-muted d-block" id="nativeSaveHint">
+                    启用后，所有渠道的账号记录将使用原生保存方式。可能导致原本在渠道服管理界面的非手动登录渠道的记录时间缩短至3天。
+                </small>
+            </div>
+        </div>
+
         <div class="card mt-4" id="cloudSyncCard">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-cloud-arrow-up me-2"></i>渠道服账号云同步</span>
@@ -2431,6 +2455,7 @@
                 loadAutoStartSettings();
                 loadCloudSyncSettings();
                 loadLauncherStatus();
+                loadScanRecordSettings();
                 import_from_fever_now = getQueryVariable("import_from_fever_now");
                 if (import_from_fever_now!="") {
                     // 触发导入操作
@@ -2473,6 +2498,141 @@
                     }
                 });
         }
+
+        // ── 扫码记录设置 ──
+        function loadScanRecordSettings() {
+            fetch('/_idv-login/scan-record-setting')
+                .then(function (r) {
+                    if (r.status === 404) { return null; }
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data) return;
+                    document.getElementById('scanRecordCard').style.display = '';
+                    updateScanRecordButton(data.enabled);
+                    loadNativeSaveSetting(data.enabled);
+                })
+                .catch(function () {});
+        }
+
+        function updateScanRecordButton(enabled) {
+            var btn = document.getElementById('scanRecordBtn');
+            if (enabled) {
+                btn.innerHTML = '<i class="bi bi-save me-1"></i>扫码记录渠道服账号：开启';
+                btn.className = 'btn btn-success mb-2 w-100';
+            } else {
+                btn.innerHTML = '<i class="bi bi-save me-1"></i>扫码记录渠道服账号：关闭';
+                btn.className = 'btn btn-outline-secondary mb-2 w-100';
+            }
+        }
+
+        function toggleScanRecord() {
+            fetch('/_idv-login/scan-record-setting')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var newState = !data.enabled;
+                    return fetch('/_idv-login/scan-record-setting', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: newState })
+                    });
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        updateScanRecordButton(data.enabled);
+                        updateNativeSaveButton(data.native_save_enabled, data.enabled);
+                        swal({
+                            title: data.enabled ? "扫码记录已开启" : "扫码记录已关闭",
+                            text: data.enabled
+                                ? "扫码登录渠道服时将自动记录账号"
+                                : "已关闭扫码记录功能，新扫码不再自动记录账号",
+                            icon: "success",
+                            button: "确定",
+                        });
+                    }
+                });
+        }
+
+        function loadNativeSaveSetting(scanRecordEnabled) {
+            fetch('/_idv-login/native-save-setting')
+                .then(function (r) {
+                    if (r.status === 404) { return null; }
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data) return;
+                    updateNativeSaveButton(data.enabled, scanRecordEnabled);
+                })
+                .catch(function () {});
+        }
+
+        function updateNativeSaveButton(enabled, scanRecordEnabled) {
+            var btn = document.getElementById('nativeSaveBtn');
+            btn.disabled = !scanRecordEnabled;
+            if (!scanRecordEnabled) {
+                btn.innerHTML = '<i class="bi bi-shield-check me-1"></i>原生渠道服保存：需先开启扫码记录';
+                btn.className = 'btn btn-outline-secondary mb-2 w-100';
+                return;
+            }
+            if (enabled) {
+                btn.innerHTML = '<i class="bi bi-shield-check me-1"></i>原生渠道服保存：开启';
+                btn.className = 'btn btn-warning mb-2 w-100';
+            } else {
+                btn.innerHTML = '<i class="bi bi-shield-check me-1"></i>原生渠道服保存：关闭';
+                btn.className = 'btn btn-outline-secondary mb-2 w-100';
+            }
+        }
+
+        function toggleNativeSave() {
+            fetch('/_idv-login/native-save-setting')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var newState = !data.enabled;
+                    if (newState) {
+                        swal({
+                            title: "确认开启原生渠道服保存？",
+                            text: "启用后，可能导致原本在渠道服管理界面的非手动登录渠道的记录时间缩短至3天。",
+                            icon: "warning",
+                            buttons: ["取消", "确认开启"],
+                            dangerMode: true,
+                        }).then(function (confirmed) {
+                            if (confirmed) {
+                                doSetNativeSave(true);
+                            }
+                        });
+                    } else {
+                        doSetNativeSave(false);
+                    }
+                });
+        }
+
+        function doSetNativeSave(enabled) {
+            fetch('/_idv-login/native-save-setting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var scanRecordEnabled = document.getElementById('scanRecordBtn')
+                        .className.indexOf('btn-success') !== -1;
+                    updateNativeSaveButton(data.enabled, scanRecordEnabled);
+                    swal({
+                        title: data.enabled ? "原生保存已开启" : "原生保存已关闭",
+                        text: data.enabled
+                            ? "所有渠道的账号记录将使用原生保存（时长3天或更久）"
+                            : "仅部分渠道使用原生保存（时长1个月或更久）",
+                        icon: "success",
+                        button: "确定",
+                    });
+                } else {
+                    swal("操作失败", data.error || "未知错误", "error");
+                }
+            });
+        }
+
         function exportLogs() {
             fetch('/_idv-login/export-logs')
                 .then(function (r) { return r.json(); })
