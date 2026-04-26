@@ -1,18 +1,27 @@
 name: Sync
 
+permissions:
+  contents: read
+
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: mirror-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sync-jihulab:
     runs-on: ubuntu-latest
 
     steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
           with:
             fetch-depth: 0
         - name: Mirror to JiHuLab
-          uses: yesolutions/mirror-action@master
+          uses: yesolutions/mirror-action@662fce0eced8996f64d7fa264d76cddd84827f33
           with:
             REMOTE: 'https://jihulab.com/KKeygenn/idv-login.git'
             GIT_USERNAME: KKeygenn
@@ -22,12 +31,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
           with:
             fetch-depth: 0
 
         - name: Mirror to Gitee
-          uses: yesolutions/mirror-action@master
+          uses: yesolutions/mirror-action@662fce0eced8996f64d7fa264d76cddd84827f33
           with:
             REMOTE: 'https://gitee.com/opguess/idv-login.git'
             GIT_USERNAME: opguess

@@ -1,5 +1,8 @@
 name: Update JSON Resources
 
+permissions:
+  contents: write
+
 on:
   push:
     paths:
@@ -32,15 +35,13 @@ jobs:
           python-version: 3.12
 
       - name: Install dependencies
-        run: |
-          pip install requests_toolbelt
-          pip install requests
-          pip install markdown
+        run: pip install -q requests==2.33.1 requests_toolbelt==1.0.0 markdown==3.3.7
 
       - name: Update cloudRes.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
+          GITHUB_REPO: ${{ github.repository }}
           CRITICAL_UPDATE: ${{ github.event.inputs.critical_update || 'false' }}
         run: |
           python -c "
@@ -54,15 +55,16 @@ jobs:
           
           # 读取环境变量
           github_token = os.getenv('GITHUB_TOKEN')
+          repo = os.getenv('GITHUB_REPO')
           
           def getLatestRelease():
               headers = {'Authorization': 'token ' + github_token}
-              r = requests.get('https://api.github.com/repos/KKeygen/idv-login/releases/latest', headers=headers)
+              r = requests.get(f'https://api.github.com/repos/{repo}/releases/latest', headers=headers)
               return r.json()
           
           def updateCloudRes():
               # 获取当前 cloudRes.json
-              url = 'https://api.github.com/repos/KKeygen/idv-login/contents/assets/cloudRes.json'
+              url = f'https://api.github.com/repos/{repo}/contents/assets/cloudRes.json'
               headers = {'Authorization': 'token ' + github_token}
               r = requests.get(url, headers=headers)
               fileInfo = r.json()
@@ -117,9 +119,6 @@ jobs:
                       r = requests.get(url, headers=headers)
                       if r.status_code == 200:
                           updateData['sha'] = r.json()['sha']
-          
-          # 禁用SSL警告
-          requests.packages.urllib3.disable_warnings()
           
           # 执行更新
           updateCloudRes()

@@ -1,5 +1,8 @@
 name: Sync Release
 
+permissions:
+  contents: read
+
 on:
   release:
     types:
@@ -86,7 +89,7 @@ jobs:
           QUARK_COOKIES_B64: ${{ secrets.QUARK_COOKIES_B64 }}
           QUARK_PDIR_FID: ${{ secrets.QUARK_PDIR_FID }}
         run: |
-          pip install requests
+          pip install -q requests==2.33.1
           
           cd tmps
           
@@ -107,8 +110,7 @@ jobs:
           GITEE_TOKEN: ${{secrets.GITEE_TOKEN }}
           GITEE_ROPE: ${{ secrets.GITEE_ROPE }}
         run: |
-          pip install requests_toolbelt
-          pip install requests
+          pip install -q requests_toolbelt==1.0.0
           python tools/release_upload.py tmp
 
 

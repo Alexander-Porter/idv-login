@@ -12,6 +12,10 @@ on:
       - 'tools/generate_verification.py'
   workflow_dispatch:
 
+concurrency:
+  group: verification-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   update-verification:
     runs-on: windows-latest

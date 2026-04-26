@@ -1,7 +1,7 @@
 name: Build and Package
 
 permissions:
-  contents: write
+  contents: read
 
 on:
     workflow_dispatch:

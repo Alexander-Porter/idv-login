@@ -1,10 +1,17 @@
 name: Build Stable and Release
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
-      - "v[0-100]+.[0-9]+.[0-1000]-stable"
+      - "v*-stable"
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
   
 jobs:
   build-windows:
