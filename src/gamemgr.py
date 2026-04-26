@@ -1002,14 +1002,9 @@ class GameManager:
             if distribution_id != -1:
                 game.default_distribution = distribution_id
             self.games[final_game_id] = game
-        start_args = ""
         try:
-            if CloudRes().is_convert_to_normal(getShortGameId(final_game_id)):
-                start_args = CloudRes().get_start_argument(getShortGameId(final_game_id)) or ""
-
             game.create_tool_launch_shortcut(game.path or "")
-            #no more auto start after import, user can enable it manually if needed
-            #game.should_auto_start=True
+            app_state.toast(f"成功导入发烧平台游戏，下次启动请使用桌面上的{game.name}(IDV-LOGIN)快捷方式", duration=3000)
         except Exception:
             self.logger.exception("导入Fever游戏后创建快捷方式失败")
         self._save_games()

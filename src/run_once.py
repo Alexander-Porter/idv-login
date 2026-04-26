@@ -155,7 +155,7 @@ def _probe_game_setup(logger):
                     "导入游戏",
                     f"检测到您尚未添加任何游戏。\n\n"
                     f"在发烧平台发现游戏：{name}\n"
-                    f"是否导入此游戏？"
+                    f"是否导入此游戏？（您只需要导入您打算使用免扫码工具的游戏）"
                 ):
                     try:
                         final_gid = game_mgr.import_fever_game(fg["game_id"])
