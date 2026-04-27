@@ -9,6 +9,11 @@ from channelHandler.channelUtils import cmp_game_id
 
 logger = setup_logger()
 
+# fetch_json_from_url 返回状态
+_MODIFIED = "modified"
+_NOT_MODIFIED = "not_modified"
+_ERROR = "error"
+
 class CloudRes:
     # 单例实例
     _instance = None
@@ -31,12 +36,56 @@ class CloudRes:
             self.session.trust_env = False
             self._initialized = True
 
+    def _get_url_meta(self, url):
+        """获取指定 URL 的 HTTP 缓存验证器"""
+        all_meta = genv.get("_cloud_http_meta", {})
+        return all_meta.get(url, {})
+
+    def _set_url_meta(self, url, meta):
+        """保存指定 URL 的 HTTP 缓存验证器"""
+        all_meta = genv.get("_cloud_http_meta", {})
+        all_meta[url] = meta
+        genv.set("_cloud_http_meta", all_meta, True)
+
     def fetch_json_from_url(self):
+        """尝试从云端获取配置，支持 HTTP 条件请求 (ETag/If-Modified-Since)。
+        
+        Returns:
+            tuple: (status, data)
+                - (_MODIFIED, dict): 服务器返回了新数据
+                - (_NOT_MODIFIED, None): 304 未修改
+                - (_ERROR, None): 所有 URL 均失败
+        """
         for url in self.urls:
             try:
-                response = self.session.get(url, timeout=10, verify=should_verify_ssl())
-                response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
-                return response.json()
+                headers = {}
+                url_meta = self._get_url_meta(url)
+                if url_meta.get("etag"):
+                    headers["If-None-Match"] = url_meta["etag"]
+                if url_meta.get("last_modified"):
+                    headers["If-Modified-Since"] = url_meta["last_modified"]
+
+                response = self.session.get(
+                    url, timeout=10, verify=should_verify_ssl(), headers=headers
+                )
+
+                if response.status_code == 304:
+                    logger.info(f"云端配置未变化 (304): {url}")
+                    return (_NOT_MODIFIED, None)
+
+                response.raise_for_status()
+                data = response.json()
+
+                # 更新该 URL 的缓存验证器
+                new_meta = {}
+                if response.headers.get("ETag"):
+                    new_meta["etag"] = response.headers["ETag"]
+                if response.headers.get("Last-Modified"):
+                    new_meta["last_modified"] = response.headers["Last-Modified"]
+                if new_meta:
+                    self._set_url_meta(url, new_meta)
+
+                return (_MODIFIED, data)
             except requests.RequestException as e:
                 logger.error(f"Failed to fetch JSON from URL {url}: {e}")
             except json.JSONDecodeError as e:
@@ -44,7 +93,7 @@ class CloudRes:
             except Exception as e:
                 logger.error(f"Unexpected error while fetching JSON from URL {url}: {e}")
         logger.error("Failed to fetch JSON from all provided URLs.")
-        return None
+        return (_ERROR, None)
 
     def load_local_cache(self):
         try:
@@ -63,19 +112,25 @@ class CloudRes:
             return {}
 
     def update_cache_if_needed(self):
-        cloud_data = self.fetch_json_from_url()
-        if cloud_data:
-            cloud_last_modified = cloud_data.get('lastModified', 0)
-            local_last_modified = self.local_data.get('lastModified', 0)
-            if cloud_last_modified > local_last_modified:
-                self.local_data = cloud_data
-                from secure_write import write_json_restricted
-                write_json_restricted(self.cache_file, cloud_data)
-                logger.info("云端配置有更新，应用成功")
-            else:
-                logger.info("本地配置已是最新")
-        else:
+        status, cloud_data = self.fetch_json_from_url()
+
+        if status == _NOT_MODIFIED:
+            logger.info("本地配置已是最新 (HTTP 304)")
+            return
+
+        if status == _ERROR or cloud_data is None:
             logger.warning("获取云端配置失败，将继续使用本地配置")
+            return
+
+        cloud_last_modified = cloud_data.get('lastModified', 0)
+        local_last_modified = self.local_data.get('lastModified', 0)
+        if cloud_last_modified > local_last_modified:
+            self.local_data = cloud_data
+            from secure_write import write_json_restricted
+            write_json_restricted(self.cache_file, cloud_data)
+            logger.info("云端配置有更新，应用成功")
+        else:
+            logger.info("本地配置已是最新")
 
     def get_channelData(self, channelName,shortGameId):
         data=self.local_data.get('data', [])
