@@ -47,7 +47,25 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KKeygen/idv-login/main/run-m
 
 > ⚠️ 输入密码时屏幕不会显示任何字符，这是正常的，输完后按回车即可。
 
-### 第六步：启动游戏
+### 第六步：配置游戏启动参数
+
+在启动游戏**之前**，需要在 CrossOver 中为第五人格添加启动参数：
+
+1. 打开 **CrossOver**
+2. 找到第五人格的容器（Bottle），**右键点击**第五人格图标
+3. 选择「**修改快捷方式设置**」（或「**Configure Shortcut**」）
+4. 找到「**命令行参数**」（Command Arguments）输入框
+5. 在输入框中填入以下内容（注意两个参数之间有空格）：
+
+```
+--start_from_launcher=1 --is_multi_start
+```
+
+6. 点击「**保存**」或「**确定**」
+
+> ⚠️ 这一步只需设置一次，之后每次启动游戏会自动使用这些参数。
+
+### 第七步：启动游戏
 
 打开 CrossOver 安装的第五人格，享受游戏！
 
