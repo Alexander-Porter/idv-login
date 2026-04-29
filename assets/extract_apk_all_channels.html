@@ -182,8 +182,12 @@
             let game_id = "未知";
             
             if (!dataEntry) {
-                // 如果如 Vivo 这种包连 _data 都没有，尝试去找任意一个类似 _data 的配置文件
-                dataEntry = entries.find(e => e.filename.match(/assets\/.*_data$/));
+                // 优先查找与渠道名匹配的专属数据文件（如 nearme_vivo_data）
+                dataEntry = entries.find(e => e.filename === `assets/${app_channel}_data`);
+            }
+            if (!dataEntry) {
+                // 仍未找到则回退到通用 _data（排除 common/extend 等非渠道文件）
+                dataEntry = entries.find(e => e.filename.match(/assets\/.*_data$/) && e.filename.includes(app_channel));
             }
             
             if (dataEntry) {
@@ -207,6 +211,11 @@
                 }
 
                 log_key = validateData(myData, "JF_LOG_KEY");
+                const dataChannel = validateData(myData, "APP_CHANNEL");
+                if (dataChannel) {
+                    app_channel = dataChannel;
+                    log(`数据文件覆盖渠道标识: [${app_channel}]`);
+                }
                 game_id = validateData(myData, "JF_GAMEID");
                 log(`内核参数解密成功 -> GAME_ID: [${game_id}], LOG_KEY: [已获取]`);
             } else {
