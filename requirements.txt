@@ -17,5 +17,5 @@ loguru==0.7.2
 aiohttp==3.9.5
 aiofiles==23.2.1
 xxhash==3.5.0
-zmq==0.0.0
+pyzmq>=25.0.0
 protobuf==5.29.6

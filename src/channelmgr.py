@@ -74,17 +74,19 @@ class channel:
         )
 
     def get_uniSdk_data(self, game_id: str = ""):
+        if "id" not in self.user_info or "token" not in self.user_info:
+            raise ValueError("渠道登录信息不完整：缺少 user_id 或 token，请重新登录")
         return {
             "user_id": self.user_info["id"],
             "token": self.user_info["token"],
-            "login_channel": self.ext_info["src_app_channel2"],
-            "udid": self.ext_info["src_udid"],
-            "app_channel": self.ext_info["src_app_channel"],
-            "sdk_version": self.ext_info["src_jf_game_id"],
-            "jf_game_id": self.ext_info["src_jf_game_id"],
-            "pay_channel": self.ext_info["src_pay_channel"],
+            "login_channel": self.ext_info.get("src_app_channel2", ""),
+            "udid": self.ext_info.get("src_udid", ""),
+            "app_channel": self.ext_info.get("src_app_channel", ""),
+            "sdk_version": self.ext_info.get("src_jf_game_id", ""),
+            "jf_game_id": self.ext_info.get("src_jf_game_id", ""),
+            "pay_channel": self.ext_info.get("src_pay_channel", ""),
             "extra_data": "",
-            "extra_unisdk_data": self.ext_info["extra_unisdk_data"],
+            "extra_unisdk_data": self.ext_info.get("extra_unisdk_data", ""),
             "gv": "157",
             "gvn": "1.5.80",
             "cv": "a1.5.0",
@@ -234,28 +236,37 @@ class ChannelManager:
             "login_channel": channle_name,
             "src_client_country_code": "CN",
         }
-        if channle_name == "xiaomi_app":
-            from channelHandler.miChannelHandler import miChannel
+        try:
+            if channle_name == "xiaomi_app":
+                from channelHandler.miChannelHandler import miChannel
 
-            tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
-        if channle_name == "huawei":
-            from channelHandler.huaChannelHandler import huaweiChannel
+                tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
+            elif channle_name == "huawei":
+                from channelHandler.huaChannelHandler import huaweiChannel
 
-            tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
-        if channle_name == "nearme_vivo":
-            from channelHandler.vivoChannelHandler import vivoChannel
+                tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
+            elif channle_name == "nearme_vivo":
+                from channelHandler.vivoChannelHandler import vivoChannel
 
-            tmp_channel: vivoChannel = vivoChannel(tmpData,game_id=game_id)
-
-        if channle_name == "myapp":
-            from channelHandler.wechatChannelHandler import wechatChannel
-            tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
-            tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
-
-        if channle_name == "oppo":
-            from channelHandler.oppoChannelHandler import oppoChannel
-            tmp_channel: oppoChannel = oppoChannel(tmpData, game_id=game_id)
-            tmp_channel.uuid=f"phone-{tmp_channel.uuid}"
+                tmp_channel: vivoChannel = vivoChannel(tmpData,game_id=game_id)
+            elif channle_name == "myapp":
+                from channelHandler.wechatChannelHandler import wechatChannel
+                tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
+                tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
+            elif channle_name == "oppo":
+                from channelHandler.oppoChannelHandler import oppoChannel
+                tmp_channel: oppoChannel = oppoChannel(tmpData, game_id=game_id)
+                tmp_channel.uuid=f"phone-{tmp_channel.uuid}"
+            else:
+                self.logger.error(f"不支持的渠道: {channle_name}")
+                if on_complete:
+                    on_complete(False)
+                return
+        except Exception as e:
+            self.logger.error(f"创建渠道登录实例失败 ({channle_name}): {e}")
+            if on_complete:
+                on_complete(False)
+            return
 
         if on_complete is not None:
             # 保持对 tmp_channel 的引用，防止异步登录期间被 GC

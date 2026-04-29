@@ -101,7 +101,7 @@ class wechatChannel(channelmgr.channel):
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
             self.logger.error(f"Failed to get channel config for {self.name}")
-            return False
+            raise Exception(f"游戏{real_game_id}-渠道myapp暂不支持，请参照教程联系开发者发起添加请求。")
 
         self.wx_appid = res.get(self.channel_name).get("wx_appid")
         self.channel = res.get(self.channel_name).get("channel")

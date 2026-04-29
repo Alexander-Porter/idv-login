@@ -57,9 +57,7 @@ class RecordMgr:
     def add_record(self, username, password)->AutoFillRecord:
         record = AutoFillRecord(username=username, password=password)
         hashed_username = hashlib.sha256(username.encode()).hexdigest()
-        for i in self.records:
-            if i.hashed_username == hashed_username:
-                self.records.remove(i)
+        self.records = [r for r in self.records if r.hashed_username != hashed_username]
         self.records.append(record)
         genv.set("autoFillData",[i.to_dict() for i in self.records],True)
         return record
@@ -76,10 +74,10 @@ class RecordMgr:
     
     def remove_record(self, username):
         hashed_username = hashlib.sha256(username.encode()).hexdigest()
-        for i in self.records:
-            if i.hashed_username == hashed_username or i.truncated_username == username:
-                self.records.remove(i)
-                genv.set("autoFillData",[i.to_dict() for i in self.records],True)
+        original_len = len(self.records)
+        self.records = [r for r in self.records if not (r.hashed_username == hashed_username or r.truncated_username == username)]
+        if len(self.records) != original_len:
+            genv.set("autoFillData",[r.to_dict() for r in self.records],True)
 
     def clear_records(self):
         self.records = []

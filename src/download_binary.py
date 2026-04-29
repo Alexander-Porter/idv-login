@@ -178,6 +178,11 @@ def download_file(filename):
     #如果文件名以.zip结尾，原地解压
     if filename.endswith(".zip"):
         with zipfile.ZipFile(filename, 'r') as zip_ref:
+            base_dir = os.path.realpath(".")
+            for member in zip_ref.namelist():
+                member_path = os.path.realpath(os.path.join(".", member))
+                if os.path.commonpath([base_dir, member_path]) != base_dir:
+                    raise Exception(f"Zip path traversal detected: {member}")
             zip_ref.extractall(".")
         #删除压缩包
         os.remove(filename)
