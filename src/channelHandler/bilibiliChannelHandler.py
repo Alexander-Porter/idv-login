@@ -10,6 +10,7 @@ import json
 from typing import Any, Dict, Optional
 
 import channelmgr
+from cloudRes import CloudRes
 from envmgr import genv
 import app_state
 from logutil import setup_logger
@@ -46,7 +47,28 @@ class bilibiliChannel(channelmgr.channel):
         self.crossGames = False
         self.game_id = game_id
         self.loginResp: Optional[Dict[str, Any]] = loginResp
-        self.biliLogin = BilibiliLogin()
+
+        # 从 cloudRes 读取 bilibili 渠道配置
+        short_gid = getShortGameId(game_id)
+        cloudRes = CloudRes()
+        res = cloudRes.get_channelData("bilibili_sdk", short_gid)
+        if res and isinstance(res.get("bilibili_sdk"), dict):
+            bili_cfg = res["bilibili_sdk"]
+            bili_game_id = bili_cfg.get("bili_game_id", "183")
+            bili_app_key = bili_cfg.get("app_key", "h9Ejat5tFh81cq8")
+            bili_sdk_ver = bili_cfg.get("sdk_ver", "5.1.0")
+        else:
+            self.logger.warning(f"cloudRes 中未找到 bilibili_sdk 配置 (game_id={short_gid})，使用默认值")
+            bili_game_id = "183"
+            bili_app_key = "h9Ejat5tFh81cq8"
+            bili_sdk_ver = "5.1.0"
+
+        self.biliLogin = BilibiliLogin(
+            game_id=bili_game_id,
+            app_key=bili_app_key,
+            sdk_ver=bili_sdk_ver,
+            cache_game_id=short_gid,
+        )
 
     # ── 序列化 / 反序列化 ────────────────────────────────────
 
@@ -134,7 +156,13 @@ class bilibiliChannel(channelmgr.channel):
 
     # ── 登录 ──────────────────────────────────────────────────
 
-    def request_user_login(self, on_complete=None):
+    def request_user_login(self, on_complete=None, login_method="qr"):
+        """请求用户登录。
+
+        Args:
+            on_complete: 异步回调，接收 bool。None 时为同步模式。
+            login_method: "qr" 二维码扫码（默认）或 "web" 网页 OTP 登录。
+        """
         genv.set("GLOB_LOGIN_UUID", self.uuid)
 
         def _process_resp(resp):
@@ -149,6 +177,14 @@ class bilibiliChannel(channelmgr.channel):
                     self.name = uname
             return True
 
+        if login_method == "qr":
+            # 二维码登录：阻塞式，需要在工作线程调用
+            if on_complete is not None:
+                self.logger.warning("QR 登录不支持 on_complete 回调，将同步执行")
+            resp = self.biliLogin.qr_login()
+            return _process_resp(resp)
+
+        # 网页 OTP 登录
         if on_complete is not None:
             def _on_done(resp):
                 try:
@@ -196,12 +232,17 @@ class bilibiliChannel(channelmgr.channel):
                                 on_complete(None)
                         else:
                             on_complete(None)
-                    self.request_user_login(on_complete=_on_login_done)
+                    # 异步上下文使用网页登录（QR 会阻塞主线程）
+                    self.request_user_login(on_complete=_on_login_done, login_method="web")
                     return None
                 else:
                     self.request_user_login()
 
-        return self._build_unisdk_result(short_game_id)
+        result = self._build_unisdk_result(short_game_id)
+        if on_complete is not None:
+            on_complete(result)
+            return None
+        return result
 
     def _build_unisdk_result(self, short_game_id: str) -> Optional[Dict[str, Any]]:
         data = self._get_login_data()
@@ -213,12 +254,58 @@ class bilibiliChannel(channelmgr.channel):
         if not uid or not access_key:
             raise RuntimeError(f"bilibili 缺少 uid 或 access_key: uid={uid}")
 
-        sauth_data = buildSAUTH(
+        import base64 as b64mod
+
+        sdk_version = "5.9.6"
+        uniBody = buildSAUTH(
             login_channel="bilibili_sdk",
             app_channel="bilibili_sdk",
             uid=uid,
             session=access_key,
             game_id=short_game_id,
-            sdk_version="6.8.0",
+            sdk_version=sdk_version,
         )
-        return postSignedData(sauth_data, short_game_id)
+        uniData = postSignedData(uniBody, short_game_id, True)
+        uniSDKJSON = json.loads(
+            b64mod.b64decode(uniData["unisdk_login_json"]).decode()
+        )
+
+        fd = app_state.fake_device
+
+        # 构造 extra_unisdk_data（与 vivo/wechat 一致）
+        extra_data = {
+            "realname": json.dumps({"realname_type": 0, "age": 22}),
+        }
+        json_data = {
+            "extra_data": extra_data.get("extra_data"),
+            "get_access_token": "1",
+            "sdk_udid": fd["udid"],
+            "realname": extra_data.get("realname"),
+        }
+        json_data.update(uniBody)
+
+        str_data = json_data.copy()
+        str_data.update({"username": uniSDKJSON["username"]})
+        str_data = "&".join([f"{k}={v}" for k, v in str_data.items()])
+
+        extra_unisdk = json.dumps({
+            "SAUTH_STR": b64mod.b64encode(str_data.encode()).decode(),
+            "SAUTH_JSON": b64mod.b64encode(json.dumps(json_data).encode()).decode(),
+            **extra_data,
+        })
+
+        return {
+            "user_id": uid,
+            "token": b64mod.b64encode(access_key.encode()).decode(),
+            "login_channel": "bilibili_sdk",
+            "udid": fd["udid"],
+            "app_channel": "bilibili_sdk",
+            "sdk_version": sdk_version,
+            "jf_game_id": short_game_id,
+            "pay_channel": "bilibili_sdk",
+            "extra_data": "",
+            "extra_unisdk_data": extra_unisdk,
+            "gv": "157",
+            "gvn": "1.5.80",
+            "cv": "a1.5.0",
+        }

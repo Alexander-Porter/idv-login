@@ -2,6 +2,7 @@ cryptography==42.0.8
 bcrypt==3.2.2
 argon2-cffi==23.1.0
 pillow==11.2.1
+qrcode==8.0
 Faker==18.11.2
 mitmproxy==10.2.4
 urwid>=2.1.0

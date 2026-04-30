@@ -1,13 +1,15 @@
-"""Bilibili Game SDK 网页登录（QWebEngine + XHR 拦截）。
+"""Bilibili Game SDK 登录（二维码 + 网页 OTP/账密）。
 
-打开 sdk.biligame.com/login/ 登录页，通过注入 JS：
-  - 模拟 agreement/config 响应（跳过合规弹窗）
-  - 记录所有 XHR 请求/响应（调试用）
-  - 捕获 otp/login 成功响应，提取 access_key
+登录方式：
+  1. 二维码登录（默认）：调用 biligame API 生成二维码 → 用户扫码 → 轮询获取 token
+  2. 网页登录（备选）：QWebEngine 打开 sdk.biligame.com/login/ → 用户 OTP 或账密登录 → 拦截响应
 """
 
+import base64
 import hashlib
+import io
 import json
+import time
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
@@ -31,7 +33,7 @@ _LOGIN_URL_TEMPLATE = (
 )
 
 # ── 默认参数（第五人格 B站服） ────────────────────────────────
-DEFAULT_GAME_ID = "183"
+DEFAULT_GAME_ID = "301"
 DEFAULT_APP_KEY = "h9Ejat5tFh81cq8"
 DEFAULT_SDK_VER = "5.1.0"
 
@@ -56,6 +58,89 @@ def compute_sign(params: dict, app_key: str = DEFAULT_APP_KEY) -> str:
     )
     plaintext += app_key
     return hashlib.md5(plaintext.encode("utf-8")).hexdigest()
+
+
+# ── 二维码登录 API ────────────────────────────────────────────
+
+_QR_GENERATE_URL = "https://wpg-api.biligame.com/api/pcg/qrcode/login/generate"
+_QR_POLL_URL = "https://wpg-api.biligame.com/api/pcg/qrcode/login/status/poll"
+_QR_POLL_INTERVAL = 2  # 秒
+_QR_POLL_TIMEOUT = 180  # 秒
+
+
+def _generate_qr_ticket(
+    game_id: str = DEFAULT_GAME_ID,
+    app_key: str = DEFAULT_APP_KEY,
+) -> Optional[Dict[str, Any]]:
+    """调用 generate API 获取二维码 ticket。
+
+    成功返回 dict: {ticket, redirect_url, game_base_id, polymer_qrcode_switch, ...}
+    失败返回 None。
+    """
+    params = {
+        "game_id": game_id,
+        "timestamp": str(int(time.time())),
+    }
+    params["sign"] = compute_sign(params, app_key)
+    try:
+        resp = requests.post(
+            _QR_GENERATE_URL, data=params, timeout=10, verify=should_verify_ssl()
+        )
+        result = resp.json()
+        if result.get("code") == 0 and result.get("ticket"):
+            return result
+    except Exception:
+        pass
+    return None
+
+
+def _poll_qr_status(
+    ticket: str,
+    game_id: str = DEFAULT_GAME_ID,
+    app_key: str = DEFAULT_APP_KEY,
+) -> Optional[Dict[str, Any]]:
+    """单次轮询二维码扫码状态。
+
+    已扫码且授权成功 → 返回包含 uid/access_key 的 dict。
+    未扫码或等待中 → 返回 None。
+    出错 → 返回 None。
+    """
+    params = {
+        "game_id": game_id,
+        "is_gov_ver": "1",
+        "merchant_id": "",
+        "ticket": ticket,
+        "timestamp": str(int(time.time())),
+        "zone_id": "",
+    }
+    params["sign"] = compute_sign(params, app_key)
+    try:
+        resp = requests.post(
+            _QR_POLL_URL, data=params, timeout=10, verify=should_verify_ssl()
+        )
+        result = resp.json()
+        if result.get("code") == 0 and result.get("access_key"):
+            return result
+    except Exception:
+        pass
+    return None
+
+
+def _render_qr_base64(content: str) -> str:
+    """将文本渲染为 QR 码 PNG，返回 base64 字符串（不含 data: 前缀）。"""
+    import qrcode
+
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(content)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 # ── auto.login API ────────────────────────────────────────────
@@ -88,7 +173,7 @@ def _build_intercept_js() -> str:
     功能：
     1. /api/agreement/config → 本地模拟响应，不发真实请求
     2. 其他所有 XHR → 正常发送，load 后记录 {url, method, status, requestBody, responseBody}
-    3. /api/pcg/otp/login 且 code===0 → 发射登录成功消息
+    3. /api/pcg/otp/login 或 /api/pcg/login 且 code===0 且含 access_key → 发射登录成功消息
     """
     return r"""(function() {
   var BILI_NET  = "__BILI_NET__::";
@@ -166,12 +251,16 @@ def _build_intercept_js() -> str:
         };
         console.log(BILI_NET + JSON.stringify(entry));
 
-        // 登录成功检测
+        // 登录成功检测（账密 /api/pcg/login + OTP /api/pcg/otp/login）
         var u = self.__bili_url || "";
-        if (u.indexOf("/api/pcg/otp/login") !== -1) {
+        if (u.indexOf("/api/pcg/otp/login") !== -1 || u.indexOf("/api/pcg/login") !== -1) {
           var resp = JSON.parse(self.responseText);
           if (resp && resp.code === 0) {
-            console.log(BILI_LOGIN + self.responseText);
+            // access_key 可能在根级（OTP）或 data 内（密码登录）
+            var ak = resp.access_key || (resp.data && resp.data.access_key);
+            if (ak) {
+              console.log(BILI_LOGIN + self.responseText);
+            }
           }
         }
       } catch (e) {}
@@ -196,6 +285,9 @@ class BilibiliBrowser(WebBrowser):
         self.logger = setup_logger()
         self._captured: Optional[Dict[str, Any]] = None
         self._login_url = _build_login_url(game_id, app_key, sdk_ver)
+
+        # B站登录页固定视口大小
+        self.resize(370, 439)
 
         # 注入 XHR 拦截脚本（在文档创建前）
         self.add_init_script(_build_intercept_js(), name="bili_xhr_intercept")
@@ -230,6 +322,12 @@ class BilibiliBrowser(WebBrowser):
                 self.logger.warning(f"[bili-login] JSON 解析失败: {payload[:200]}")
                 return
 
+            # 密码登录响应可能嵌套在 data 字段下，统一展平到根级
+            if isinstance(data.get("data"), dict) and "access_key" in data["data"]:
+                inner = data.pop("data")
+                inner.update({k: v for k, v in data.items() if k not in inner})
+                data = inner
+
             self._captured = data
             self.result = data
             self.logger.info("已捕获 Bilibili 登录响应，准备退出浏览器")
@@ -241,19 +339,105 @@ class BilibiliBrowser(WebBrowser):
 
 
 class BilibiliLogin:
-    """封装 BilibiliBrowser 的登录流程。"""
+    """封装 Bilibili 登录流程：二维码扫码（主） + 网页 OTP（备选）。"""
 
     def __init__(
         self,
         game_id: str = DEFAULT_GAME_ID,
         app_key: str = DEFAULT_APP_KEY,
         sdk_ver: str = DEFAULT_SDK_VER,
+        cache_game_id: str = "",
     ):
         self.logger = setup_logger()
         self.game_id = game_id
         self.app_key = app_key
         self.sdk_ver = sdk_ver
+        # cache_game_id: 系统 game_id（如 "h55"），用于 QR 缓存 key，与前端一致
+        self._cache_game_id = cache_game_id or game_id
         self._active_browser: Optional[BilibiliBrowser] = None
+        self._qr_cancelled = False
+
+    def cancel_qr(self):
+        """取消正在进行的二维码轮询。"""
+        self._qr_cancelled = True
+
+    # ── 二维码缓存 ────────────────────────────────────────────
+
+    def _update_qrcode_cache(
+        self,
+        status: str,
+        qrcode_base64: str = "",
+        ticket: str = "",
+    ):
+        """更新全局二维码缓存，供前端轮询展示。"""
+        from envmgr import genv
+
+        cache = genv.get("BILIBILI_QRCODE_CACHE", {})
+        if not isinstance(cache, dict):
+            cache = {}
+        cache_key = self._cache_game_id or "_default"
+        cache[cache_key] = {
+            "status": status,
+            "qrcode_base64": qrcode_base64,
+            "ticket": ticket,
+            "timestamp": int(time.time()),
+        }
+        genv.set("BILIBILI_QRCODE_CACHE", cache)
+
+    # ── 二维码登录（阻塞） ────────────────────────────────────
+
+    def qr_login(self) -> Optional[Dict[str, Any]]:
+        """二维码扫码登录（阻塞）。
+
+        生成二维码 → 等待扫码 → 返回登录响应 dict（含 uid/access_key）。
+        超时、失败或被取消返回 None。
+        """
+        self._qr_cancelled = False
+        self._update_qrcode_cache("loading")
+
+        # 1) 生成 ticket
+        gen = _generate_qr_ticket(self.game_id, self.app_key)
+        if not gen:
+            self.logger.error("Bilibili QR generate 失败")
+            self._update_qrcode_cache("failed")
+            return None
+
+        ticket = gen["ticket"]
+        redirect_url = gen.get("redirect_url", "https://game.bilibili.com/sdk/scanH5/")
+        game_base_id = gen.get("game_base_id", "")
+
+        # 2) 构造二维码内容（Web URL，兼容性更好）
+        qr_content = f"{redirect_url}?ticket={ticket}&fromNative=false&id={game_base_id}"
+        qr_b64 = _render_qr_base64(qr_content)
+
+        self.logger.info(f"Bilibili QR 二维码已生成, ticket={ticket[:20]}...")
+        self._update_qrcode_cache("ready", qrcode_base64=qr_b64, ticket=ticket)
+
+        # 3) 轮询扫码状态
+        deadline = time.time() + _QR_POLL_TIMEOUT
+        while time.time() < deadline:
+            if self._qr_cancelled:
+                self.logger.info("Bilibili QR 登录已取消")
+                self._update_qrcode_cache("cancelled")
+                return None
+
+            time.sleep(_QR_POLL_INTERVAL)
+
+            result = _poll_qr_status(ticket, self.game_id, self.app_key)
+            if result is not None:
+                self.logger.info(
+                    f"Bilibili QR 登录成功: uid={result.get('uid')}, "
+                    f"uname={result.get('uname')}"
+                )
+                self._update_qrcode_cache("verified", ticket=ticket)
+                return result
+
+        # 超时
+        self.logger.warning("Bilibili QR 登录超时")
+        self._update_qrcode_cache("expired")
+        return None
+
+    # ── 网页 OTP 登录 ─────────────────────────────────────────
 
     def web_login(self, on_complete=None) -> Optional[Dict[str, Any]]:
         """启动浏览器登录。

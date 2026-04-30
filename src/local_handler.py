@@ -109,7 +109,8 @@ class LocalRequestHandler:
         route_map = {
             "/_idv-login/manualChannels": self._manual_channels,
             "/_idv-login/list": self._list_channels,
-            "/_idv-login/qrcode": self._wechat_qrcode,
+            "/_idv-login/qrcode": self._channel_qrcode,
+            "/_idv-login/cancel-qr": self._cancel_qr,
             "/_idv-login/switch": self._switch_channel,
             "/_idv-login/switch-status": self._switch_status,
             "/_idv-login/del": self._del_channel,
@@ -253,8 +254,14 @@ class LocalRequestHandler:
 
         threading.Thread(target=_push, daemon=True).start()
 
-    def _pick_wechat_qrcode(self, game_id):
-        cache = genv.get("WECHAT_QRCODE_CACHE", {})
+    def _pick_qrcode_data(self, channel, game_id):
+        """从指定渠道的二维码缓存中获取数据。"""
+        cache_key = {
+            "myapp": "WECHAT_QRCODE_CACHE",
+            "bilibili_sdk": "BILIBILI_QRCODE_CACHE",
+        }.get(channel, "WECHAT_QRCODE_CACHE")
+
+        cache = genv.get(cache_key, {})
         if not isinstance(cache, dict) or not cache:
             return None
         if game_id and game_id in cache:
@@ -300,9 +307,11 @@ class LocalRequestHandler:
             result = {"error": str(e)}
         return self._json_response(200, result)
 
-    def _wechat_qrcode(self, args, body, method):
+    def _channel_qrcode(self, args, body, method):
+        """通用二维码状态接口，支持 myapp（微信）和 bilibili_sdk。"""
         game_id = args.get("game_id", "")
-        data = self._pick_wechat_qrcode(game_id)
+        channel = args.get("channel", "myapp")
+        data = self._pick_qrcode_data(channel, game_id)
         if not data:
             return self._json_response(200, {
                 "success": False, "status": "idle", "qrcode_base64": "",
@@ -312,8 +321,20 @@ class LocalRequestHandler:
             "status": data.get("status", "idle"),
             "qrcode_base64": data.get("qrcode_base64", ""),
             "uuid": data.get("uuid", ""),
+            "ticket": data.get("ticket", ""),
             "timestamp": data.get("timestamp", 0),
         })
+
+    def _cancel_qr(self, args, body, method):
+        """取消正在进行的 B站 二维码轮询。"""
+        try:
+            pending = getattr(app_state.channels_helper, "_pending_login_channel", None)
+            if pending and hasattr(pending, "biliLogin"):
+                pending.biliLogin.cancel_qr()
+                return self._json_response(200, {"success": True})
+        except Exception:
+            self.logger.exception("取消 QR 失败")
+        return self._json_response(200, {"success": False})
 
     _pending_switch = {}  # {task_id: {"status": "pending"|"done", "result": any}}
 
@@ -400,6 +421,7 @@ class LocalRequestHandler:
 
             channel = args.get("channel", "")
             game_id = args.get("game_id", "")
+            login_method = args.get("login_method", "")
 
             def do_import():
                 def on_done(success):
@@ -409,7 +431,8 @@ class LocalRequestHandler:
 
                 try:
                     app_state.channels_helper.manual_import(
-                        channel, game_id, on_complete=on_done
+                        channel, game_id, on_complete=on_done,
+                        login_method=login_method,
                     )
                 except Exception:
                     self.logger.exception("异步导入失败")

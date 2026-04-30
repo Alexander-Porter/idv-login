@@ -247,7 +247,7 @@ class ChannelManager:
         self.channels.append(tmp_channel)  
         self.save_records()
 
-    def manual_import(self, channle_name: str, game_id: str, on_complete=None):
+    def manual_import(self, channle_name: str, game_id: str, on_complete=None, login_method: str = ""):
         tmpData = {
             "code": str(random.randint(100000, 999999)),
             "src_client_type": 1,
@@ -329,6 +329,27 @@ class ChannelManager:
                         self.logger.info(f"微信登录：准备调用 _finish_import(success={success})")
                         app_state.run_on_main_thread(lambda: _finish_import(success))
                     threading.Thread(target=_run_sync, daemon=True).start()
+                elif channle_name == "bilibili_sdk":
+                    # B站登录：QR 模式在后台线程阻塞轮询，Web 模式走 Qt 主线程
+                    bili_method = login_method if login_method else "qr"
+                    if bili_method == "qr":
+                        import threading
+                        import app_state
+                        def _run_bili_qr():
+                            try:
+                                self.logger.info("B站登录：开始 QR 扫码登录")
+                                tmp_channel.request_user_login(login_method="qr")
+                                success = tmp_channel.is_token_valid()
+                                self.logger.info(f"B站登录：is_token_valid={success}")
+                            except Exception:
+                                self.logger.exception("B站异步登录失败")
+                                success = False
+                            app_state.run_on_main_thread(lambda: _finish_import(success))
+                        threading.Thread(target=_run_bili_qr, daemon=True).start()
+                    else:
+                        tmp_channel.request_user_login(
+                            on_complete=_finish_import, login_method="web"
+                        )
                 else:
                     tmp_channel.request_user_login(on_complete=_finish_import)
             except Exception:
