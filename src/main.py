@@ -939,19 +939,24 @@ def setup_network_proxy(proxy_port):
 
         qrcode_app_channel_provider = None
     else:
-        cv = "i5.10.0"
+        cv = "a5.10.0"
         login_style = 1
         app_channel_default = "netease.wyzymnqsd_cps_dev"
         use_login_mapping_always = False
 
         qrcode_app_channel_provider = CloudRes().get_qrcode_app_channel
 
+        _CREATE_LOGIN_WHITELIST = frozenset({
+            "app_channel", "qrcode_channel_type", "gv", "gvn", "cv", "sv",
+            "app_type", "app_mode", "_cloud_extra_base64", "sc",
+        })
+
         def _create_login_query_hook(query, game_id):
             config = CloudRes().get_qrcode_login_config(game_id)
             if config:
                 for k, v in config.items():
-                    if k != "game_id":
-                        query[k] = v
+                    if k in _CREATE_LOGIN_WHITELIST:
+                        query[k] = str(v)
 
     # Create the UI manager for the Qt window
     from uimgr import UIManager
