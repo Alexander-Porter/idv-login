@@ -63,6 +63,91 @@
         console.log(msg);
     }
 
+    // resources.arsc 字符串池解析器
+    function readArscStringPool(dv, bytes, offset) {
+        const stringCount = dv.getUint32(offset + 8, true);
+        const flags = dv.getUint32(offset + 16, true);
+        const stringsStart = dv.getUint32(offset + 20, true);
+        const isUtf8 = !!(flags & 0x100);
+        const strings = [];
+        for (let i = 0; i < stringCount; i++) {
+            const strOff = dv.getUint32(offset + 28 + i * 4, true);
+            const abs = offset + stringsStart + strOff;
+            try {
+                if (isUtf8) {
+                    let p = abs;
+                    let cl = bytes[p++]; if (cl & 0x80) p++;
+                    let bl = bytes[p++]; if (bl & 0x80) { bl = ((bl & 0x7f) << 8) | bytes[p++]; }
+                    strings.push(new TextDecoder().decode(bytes.slice(p, p + bl)));
+                } else {
+                    let p = abs, len = dv.getUint16(p, true); p += 2;
+                    if (len & 0x8000) { len = ((len & 0x7fff) << 16) | dv.getUint16(p, true); p += 2; }
+                    let s = ''; for (let j = 0; j < len; j++) s += String.fromCharCode(dv.getUint16(p + j * 2, true));
+                    strings.push(s);
+                }
+            } catch(e) { strings.push(''); }
+        }
+        return strings;
+    }
+
+    // 从 resources.arsc 解析资源 ID 对应的实际值
+    async function resolveResId(zipEntries, resIdStr) {
+        const m = resIdStr.match(/resourceId:0x([0-9a-fA-F]+)/);
+        if (!m) return resIdStr;
+        const resId = parseInt(m[1], 16);
+        const pkgId = (resId >>> 24) & 0xff;
+        const typeId = (resId >>> 16) & 0xff;
+        const entryId = resId & 0xffff;
+
+        const arscEntry = zipEntries.find(e => e.filename === 'resources.arsc');
+        if (!arscEntry) return resIdStr;
+        const blob = await arscEntry.getData(new zip.BlobWriter());
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        const dv = new DataView(buf.buffer);
+
+        // 解析全局字符串池
+        const globalStrings = readArscStringPool(dv, buf, 12);
+        const poolSize = dv.getUint32(16, true);
+        let pos = 12 + poolSize;
+
+        // 遍历 Package 块
+        while (pos < buf.length) {
+            const cType = dv.getUint16(pos, true);
+            const cSize = dv.getUint32(pos + 4, true);
+            if (cType !== 0x0200) { pos += cSize; continue; }
+            if (dv.getUint32(pos + 8, true) !== pkgId) { pos += cSize; continue; }
+
+            const cHdrSize = dv.getUint16(pos + 2, true);
+            let sub = pos + cHdrSize;
+            while (sub < pos + cSize) {
+                const st = dv.getUint16(sub, true);
+                const ss = dv.getUint32(sub + 4, true);
+                if (st === 0x0201 && dv.getUint8(sub + 8) === typeId) {
+                    const entryCount = dv.getUint32(sub + 12, true);
+                    const entriesStart = dv.getUint32(sub + 16, true);
+                    const tHdrSize = dv.getUint16(sub + 2, true);
+                    if (entryId < entryCount) {
+                        const eOff = dv.getUint32(sub + tHdrSize + entryId * 4, true);
+                        if (eOff !== 0xFFFFFFFF) {
+                            const ePos = sub + entriesStart + eOff;
+                            const eSize = dv.getUint16(ePos, true);
+                            const eFlags = dv.getUint16(ePos + 2, true);
+                            if (!(eFlags & 0x0001)) {
+                                const vType = dv.getUint8(ePos + eSize + 3);
+                                const vData = dv.getUint32(ePos + eSize + 4, true);
+                                if (vType === 0x03 && vData < globalStrings.length) return globalStrings[vData];
+                                if (vType === 0x10) return String(vData);
+                            }
+                        }
+                    }
+                }
+                sub += ss;
+            }
+            break;
+        }
+        return resIdStr;
+    }
+
     // 复刻原 Python 端位移异或破解算法
     function validateData(data, key) {
         const s_key = data["UNISDK_SERVER_KEY"];
@@ -151,6 +236,10 @@
                 
                 log(`根据 APK 包名特征判定为【${app_channel}】渠道包。`);
                 channelData = packageName; // 对于 vivo/oppo，只需返回它的专属渠道包名
+            } else if (packageName.includes('.honor') || packageName.includes('hihonor')) {
+                app_channel = 'honor_sdk';
+                requiresCustomConfig = true;
+                log(`根据 APK 包名特征判定为【荣耀 honor_sdk】渠道包。`);
             } else {
                 requiresCustomConfig = true; // 其它如小米/应用宝等需要继续分析 assets 内的参数
             }
@@ -158,7 +247,7 @@
             // --- 3. 对于重度渠道寻找 assets 内核加密数据 ---
             let dataEntry = null;
             if (requiresCustomConfig) {
-                const targetFiles = ['assets/xiaomi_app_data', 'assets/huawei_data', 'assets/myapp_data'];
+                const targetFiles = ['assets/xiaomi_app_data', 'assets/huawei_data', 'assets/myapp_data', 'assets/honor_sdk_data'];
                 
                 for (let obj of entries) {
                     if (targetFiles.includes(obj.filename)) {
@@ -266,6 +355,48 @@
                     }
                     log(`腾讯应用宝专属参数 ysdkconf 加载完毕。`);
                 }
+            }
+
+            else if (app_channel === 'honor_sdk') {
+                channelData = {};
+                // 从 AndroidManifest 提取 appid 和 cpid
+                if (manifestJson && manifestJson.application && Array.isArray(manifestJson.application.metaData)) {
+                    const appIdMeta = manifestJson.application.metaData.find(m =>
+                        m.name === 'com.hihonor.iap.sdk.appid' || m['android:name'] === 'com.hihonor.iap.sdk.appid'
+                    );
+                    const cpIdMeta = manifestJson.application.metaData.find(m =>
+                        m.name === 'com.hihonor.iap.sdk.cpid' || m['android:name'] === 'com.hihonor.iap.sdk.cpid'
+                    );
+                    if (appIdMeta) {
+                        let val = String(appIdMeta.value || appIdMeta['android:value'] || '');
+                        if (val.startsWith('resourceId:')) val = await resolveResId(entries, val);
+                        channelData.app_id = val;
+                        log(`提取荣耀 app_id: ${channelData.app_id}`);
+                    }
+                    if (cpIdMeta) {
+                        let val = String(cpIdMeta.value || cpIdMeta['android:value'] || '');
+                        if (val.startsWith('resourceId:')) val = await resolveResId(entries, val);
+                        channelData.cp_id = val;
+                        log(`提取荣耀 cp_id: ${channelData.cp_id}`);
+                    }
+                }
+                if (!channelData.app_id) {
+                    channelData.app_id = prompt("未能自动提取荣耀 app_id，请手动输入：") || "未知_请修改";
+                }
+                if (!channelData.cp_id) {
+                    channelData.cp_id = prompt("未能自动提取荣耀 cp_id，请手动输入：") || "未知_请修改";
+                }
+                // 从 ReadMe_UniSDK.txt 提取 sdk_ver
+                const readmeEntry = entries.find(e => e.filename === 'ReadMe_UniSDK.txt');
+                if (readmeEntry) {
+                    const readmeText = await readmeEntry.getData(new zip.TextWriter());
+                    const match = readmeText.match(/honor_sdk_\d+\s+([\d.]+)/);
+                    if (match) {
+                        channelData.sdk_ver = match[1];
+                        log(`提取荣耀 SDK 版本: ${channelData.sdk_ver}`);
+                    }
+                }
+                log(`荣耀专属参数提取完毕。`);
             }
 
             // --- 6. 完成装箱：打平属性与组合封包结构 ---

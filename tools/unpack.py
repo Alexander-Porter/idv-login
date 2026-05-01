@@ -89,6 +89,8 @@ def getNeteaseGameInfo(apkPath):
             app_channel = "xiaomi_app"
         elif "com.tencent" in package_name:
             app_channel = "myapp"
+        elif "honor" in package_name or "hihonor" in package_name:
+            app_channel = "honor_sdk"
 
     #get channel data
     with open(f'res/assets/{app_channel}_data', 'r') as f:
@@ -128,6 +130,24 @@ def getNeteaseGameInfo(apkPath):
                         channelData['channel'] = line.split('=')[1]
                 except:
                     pass
+    if app_channel=='honor_sdk':
+        channelData = {}
+        namespaces = {'android': 'http://schemas.android.com/apk/res/android'}
+        app_id_meta = application.find("./meta-data[@android:name='com.hihonor.iap.sdk.appid']", namespaces)
+        cp_id_meta = application.find("./meta-data[@android:name='com.hihonor.iap.sdk.cpid']", namespaces)
+        if app_id_meta is not None:
+            channelData['app_id'] = app_id_meta.attrib['{http://schemas.android.com/apk/res/android}value']
+        if cp_id_meta is not None:
+            channelData['cp_id'] = cp_id_meta.attrib['{http://schemas.android.com/apk/res/android}value']
+        # Extract sdk_ver from ReadMe_UniSDK.txt
+        readme_path = 'res/ReadMe_UniSDK.txt'
+        if os.path.exists(readme_path):
+            with open(readme_path, 'r') as f:
+                for line in f:
+                    m = re.match(r'honor_sdk_\d+\s+([\d.]+)', line.strip())
+                    if m:
+                        channelData['sdk_ver'] = m.group(1)
+                        break
 
     RES={}
     RES["package_name"]=package_name
@@ -137,6 +157,6 @@ def getNeteaseGameInfo(apkPath):
     RES[app_channel]=channelData
     print(RES)
     print(json.dumps(RES))
-    if app_channel in ["xiaomi_app","huawei","myapp"]:
+    if app_channel in ["xiaomi_app","huawei","myapp","honor_sdk"]:
         updateCloudRes(RES)
 getNeteaseGameInfo("app.apk")

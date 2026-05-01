@@ -164,6 +164,9 @@ def register_url_scheme():
     hms_scheme = QWebEngineUrlScheme(b"hms")
     hms_scheme.setDefaultPort(443)  # 设置默认端口以消除警告
     QWebEngineUrlScheme.registerScheme(hms_scheme)
+    honor_scheme = QWebEngineUrlScheme(b"honorid")
+    honor_scheme.setDefaultPort(443)
+    QWebEngineUrlScheme.registerScheme(honor_scheme)
 
 
 class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):

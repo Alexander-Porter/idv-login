@@ -424,6 +424,20 @@
       "name": "华为账号"
     },
     {
+      "package_name": "com.netease.dwrg.honor",
+      "app_channel": "honor_sdk",
+      "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw",
+      "game_id": "h55",
+      "honor_sdk": {
+        "app_id": "104450525",
+        "cp_id": "109999802650",
+        "package_name": "com.netease.dwrg.honor",
+        "sdk_ver": "2.0.14.301"
+      },
+      "channel": "honor_sdk",
+      "name": "荣耀账号"
+    },
+    {
       "package_name": "com.netease.onmyoji",
       "app_channel": "huawei",
       "log_key": "67NZ2Sw4p_QHNoSi1XTm7fJSb0-fpQVf",

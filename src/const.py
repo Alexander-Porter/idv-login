@@ -8,6 +8,7 @@ manual_login_channels = [
     {"name": "应用宝（微信）", "channel": "myapp"},
     {"name": "Oppo账号", "channel": "oppo"},
     {"name": "哔哩哔哩账号", "channel": "bilibili_sdk"},
+    {"name": "荣耀账号", "channel": "honor_sdk"},
 ]
 
 
