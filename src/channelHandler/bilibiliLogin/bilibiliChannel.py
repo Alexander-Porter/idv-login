@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 
 import requests
 from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QPushButton
 
 from channelHandler.WebLoginUtils import WebBrowser
 from logutil import setup_logger
@@ -26,26 +27,25 @@ BILI_NET_PREFIX = "__BILI_NET__::"
 BILI_LOGIN_PREFIX = "__BILI_LOGIN__::"
 
 # ── 登录页 URL 模板 ──────────────────────────────────────────
+# 注意：不传 sdk_ver——B站登录页的 Axios 拦截器会把 URL 里的 sdk_ver
+# 自动加到所有 API 请求参数里参与签名，但服务端对含 sdk_ver 的 sign
+# 验证会报错。去掉 sdk_ver 后 sign 只含 game_id + timestamp，服务端
+# 验证正常通过。
 _LOGIN_URL_TEMPLATE = (
     "https://sdk.biligame.com/login/"
-    "?cef=true&gameId={game_id}&appKey={app_key}"
-    "&sdk_ver={sdk_ver}&is_gov_ver=1"
+    "?cef=true&gameId={game_id}&appKey={app_key}&is_gov_ver=1"
 )
 
 # ── 默认参数（第五人格 B站服） ────────────────────────────────
 DEFAULT_GAME_ID = "301"
 DEFAULT_APP_KEY = "h9Ejat5tFh81cq8"
-DEFAULT_SDK_VER = "5.1.0"
 
 
 def _build_login_url(
     game_id: str = DEFAULT_GAME_ID,
     app_key: str = DEFAULT_APP_KEY,
-    sdk_ver: str = DEFAULT_SDK_VER,
 ) -> str:
-    return _LOGIN_URL_TEMPLATE.format(
-        game_id=game_id, app_key=app_key, sdk_ver=sdk_ver
-    )
+    return _LOGIN_URL_TEMPLATE.format(game_id=game_id, app_key=app_key)
 
 
 # ── Bilibili Sign 算法 ───────────────────────────────────────
@@ -279,18 +279,79 @@ class BilibiliBrowser(WebBrowser):
         self,
         game_id: str = DEFAULT_GAME_ID,
         app_key: str = DEFAULT_APP_KEY,
-        sdk_ver: str = DEFAULT_SDK_VER,
     ):
         super().__init__("bilibili", True)
         self.logger = setup_logger()
         self._captured: Optional[Dict[str, Any]] = None
-        self._login_url = _build_login_url(game_id, app_key, sdk_ver)
+        self._login_url = _build_login_url(game_id, app_key)
 
-        # B站登录页固定视口大小
+        # 无边框窗口：去掉标题栏和系统边框，370×439 即为可视区域
+        from PyQt6.QtCore import Qt
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.clear_cookie_button.hide()
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.resize(370, 439)
+
+        # 右上角关闭按钮（悬浮于 WebView 之上）
+        close_btn = QPushButton("✕", self)
+        close_btn.setFixedSize(28, 28)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: rgba(0, 0, 0, 90);"
+            "  color: white;"
+            "  border: none;"
+            "  border-radius: 14px;"
+            "  font-size: 14px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: rgba(220, 53, 69, 220);"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: rgba(180, 40, 50, 240);"
+            "}"
+        )
+        close_btn.clicked.connect(self.close)
+        close_btn.raise_()
+        self._close_btn = close_btn
+        self._reposition_close_btn()
+
+        # 拖拽支持
+        self._drag_pos = None
 
         # 注入 XHR 拦截脚本（在文档创建前）
         self.add_init_script(_build_intercept_js(), name="bili_xhr_intercept")
+
+    # ── 无边框窗口拖拽 ────────────────────────────────────────
+
+    def _reposition_close_btn(self):
+        if hasattr(self, '_close_btn'):
+            self._close_btn.move(self.width() - self._close_btn.width() - 4, 4)
+
+    def resizeEvent(self, event):
+        self._reposition_close_btn()
+        super().resizeEvent(event)
+
+    def mousePressEvent(self, event):
+        from PyQt6.QtCore import Qt
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        from PyQt6.QtCore import Qt
+        if self._drag_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+
+    # ── 回调 ──────────────────────────────────────────────────
 
     def verify(self, url: str) -> bool:
         # 登录靠 JS console 回调，不靠 URL 跳转
@@ -345,13 +406,11 @@ class BilibiliLogin:
         self,
         game_id: str = DEFAULT_GAME_ID,
         app_key: str = DEFAULT_APP_KEY,
-        sdk_ver: str = DEFAULT_SDK_VER,
         cache_game_id: str = "",
     ):
         self.logger = setup_logger()
         self.game_id = game_id
         self.app_key = app_key
-        self.sdk_ver = sdk_ver
         # cache_game_id: 系统 game_id（如 "h55"），用于 QR 缓存 key，与前端一致
         self._cache_game_id = cache_game_id or game_id
         self._active_browser: Optional[BilibiliBrowser] = None
@@ -448,7 +507,6 @@ class BilibiliLogin:
         browser = BilibiliBrowser(
             game_id=self.game_id,
             app_key=self.app_key,
-            sdk_ver=self.sdk_ver,
         )
         browser.set_url(browser._login_url)
         resp = browser.run()

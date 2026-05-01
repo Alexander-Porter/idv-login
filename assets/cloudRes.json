@@ -656,7 +656,164 @@
       "bilibili_sdk": {
         "bili_game_id": "301",
         "app_key": "h9Ejat5tFh81cq8",
-        "sdk_ver": "5.1.0"
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩",
+      "log_key": "SvShWXDcmogbZJoU3YWe3Su3Ci-mCRcw"
+    },
+    {
+      "package_name": "com.netease.qrzd",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g58",
+      "log_key": "tgzI_qde-CVPfPrngG4dyNSDNwRIvtnD",
+      "bilibili_sdk": {
+        "bili_game_id": "232",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.moba",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g78",
+      "log_key": "CXDS3WlfYNmX4JNdFDzN8kE9-_ZD2yUD",
+      "bilibili_sdk": {
+        "bili_game_id": "321",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.sky",
+      "app_channel": "bilibili_sdk",
+      "game_id": "ma75",
+      "log_key": "lM8jwFDFbrbKABNJr3IAKZHyavfDQfHu",
+      "bilibili_sdk": {
+        "bili_game_id": "833",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.g67",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g67",
+      "log_key": "TN_lvn5bM9nwdH9NSf36EmcycST9B17V",
+      "bilibili_sdk": {
+        "bili_game_id": "1640",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.skzdhlr",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g99",
+      "log_key": "6xcNhsAnVGMwPZgT-qThMTklV2t2QZK_",
+      "bilibili_sdk": {
+        "bili_game_id": "2525",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.harrypotter",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g92",
+      "log_key": "gR9o0JNZge0vIwLS84fcz9iuHaZRg8Wd",
+      "bilibili_sdk": {
+        "bili_game_id": "2707",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.aceracer",
+      "app_channel": "bilibili_sdk",
+      "game_id": "h65",
+      "log_key": "iE_MXAOF3HA0tPZGMeGFMiShe3smSyV1",
+      "bilibili_sdk": {
+        "bili_game_id": "4658",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.lglr",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g86",
+      "log_key": "dkJTnwe5sFVhmK2UquZsd7kp1IXPZRY9",
+      "bilibili_sdk": {
+        "bili_game_id": "6217",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.yhtj",
+      "app_channel": "bilibili_sdk",
+      "game_id": "h75",
+      "log_key": "UjkplhYPj3yH0a9nn3OF56sTmG48hEZR",
+      "bilibili_sdk": {
+        "bili_game_id": "6444",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.l22",
+      "app_channel": "bilibili_sdk",
+      "game_id": "l22",
+      "log_key": "KvVVGe4drWm7w84HByCJivqleET76h2u",
+      "bilibili_sdk": {
+        "bili_game_id": "6941",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.yyslscn",
+      "app_channel": "bilibili_sdk",
+      "game_id": "h72",
+      "log_key": "F3ylEK9qT1xNHZvf_A9k_kA4F1kKVwis",
+      "bilibili_sdk": {
+        "bili_game_id": "8807",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
+      },
+      "channel": "bilibili_sdk",
+      "name": "哔哩哔哩"
+    },
+    {
+      "package_name": "com.netease.sjzw",
+      "app_channel": "bilibili_sdk",
+      "game_id": "g126",
+      "log_key": "RXOiWSsY04XDR_GWLwupcv9nDxKHbtVC",
+      "bilibili_sdk": {
+        "bili_game_id": "9993",
+        "app_key": "h9Ejat5tFh81cq8",
+        "sdk_ver": "5.9.6"
       },
       "channel": "bilibili_sdk",
       "name": "哔哩哔哩"

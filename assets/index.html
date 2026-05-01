@@ -2977,7 +2977,9 @@
                                                 .then(s => {
                                                     if (s.status === 'done') {
                                                         swal.close();
-                                                        if (s.success) {
+                                                        if (s.cancelled) {
+                                                            // 用户取消，静默关闭
+                                                        } else if (s.success) {
                                                             swal("登录成功", "B站账号已导入", "success")
                                                                 .then(() => location.reload());
                                                         } else {
@@ -3065,7 +3067,9 @@
                                     if (status.status === 'done') {
                                         stopQrcodePolling();
                                         swal.close();
-                                        if (status.success) {
+                                        if (status.cancelled) {
+                                            // 用户取消，静默关闭
+                                        } else if (status.success) {
                                             swal({
                                                 title: "执行成功",
                                                 text: "登录操作已完成",

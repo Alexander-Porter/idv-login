@@ -56,17 +56,17 @@ class bilibiliChannel(channelmgr.channel):
             bili_cfg = res["bilibili_sdk"]
             bili_game_id = bili_cfg.get("bili_game_id", "183")
             bili_app_key = bili_cfg.get("app_key", "h9Ejat5tFh81cq8")
-            bili_sdk_ver = bili_cfg.get("sdk_ver", "5.1.0")
+            bili_sdk_ver = bili_cfg.get("sdk_ver", "5.9.6")
         else:
             self.logger.warning(f"cloudRes 中未找到 bilibili_sdk 配置 (game_id={short_gid})，使用默认值")
             bili_game_id = "183"
             bili_app_key = "h9Ejat5tFh81cq8"
-            bili_sdk_ver = "5.1.0"
+            bili_sdk_ver = "5.9.6"
 
+        self.bili_sdk_ver = bili_sdk_ver
         self.biliLogin = BilibiliLogin(
             game_id=bili_game_id,
             app_key=bili_app_key,
-            sdk_ver=bili_sdk_ver,
             cache_game_id=short_gid,
         )
 
@@ -173,7 +173,7 @@ class bilibiliChannel(channelmgr.channel):
             data = self._get_login_data()
             if data:
                 uname = str(data.get("uname") or "")
-                if uname and not self.name:
+                if uname:
                     self.name = uname
             return True
 
@@ -182,11 +182,16 @@ class bilibiliChannel(channelmgr.channel):
             if on_complete is not None:
                 self.logger.warning("QR 登录不支持 on_complete 回调，将同步执行")
             resp = self.biliLogin.qr_login()
+            if resp is None and self.biliLogin._qr_cancelled:
+                return None  # 用户主动取消
             return _process_resp(resp)
 
         # 网页 OTP 登录
         if on_complete is not None:
             def _on_done(resp):
+                if resp is None:
+                    on_complete(None)  # 浏览器关闭 / 用户取消
+                    return
                 try:
                     success = _process_resp(resp)
                 except Exception:
@@ -256,7 +261,7 @@ class bilibiliChannel(channelmgr.channel):
 
         import base64 as b64mod
 
-        sdk_version = "5.9.6"
+        sdk_version = self.bili_sdk_ver
         uniBody = buildSAUTH(
             login_channel="bilibili_sdk",
             app_channel="bilibili_sdk",

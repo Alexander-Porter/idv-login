@@ -425,9 +425,14 @@ class LocalRequestHandler:
 
             def do_import():
                 def on_done(success):
-                    LocalRequestHandler._pending_imports[task_id] = {
-                        "status": "done", "success": success
-                    }
+                    if success is None:
+                        LocalRequestHandler._pending_imports[task_id] = {
+                            "status": "done", "success": False, "cancelled": True
+                        }
+                    else:
+                        LocalRequestHandler._pending_imports[task_id] = {
+                            "status": "done", "success": success
+                        }
 
                 try:
                     app_state.channels_helper.manual_import(

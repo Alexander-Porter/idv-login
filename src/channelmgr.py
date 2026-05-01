@@ -296,9 +296,15 @@ class ChannelManager:
             self._pending_login_channel = tmp_channel
             
             def _finish_import(success):
-                self._pending_login_channel = None  # 登录完成，释放引用
+                # 只在引用仍指向当前 channel 时才清空，避免覆盖后续导入的引用
+                if self._pending_login_channel is tmp_channel:
+                    self._pending_login_channel = None
                 try:
-                    if success and tmp_channel.is_token_valid():
+                    if success is None:
+                        # 用户主动取消，不视为错误
+                        self.logger.info(f"手动导入已取消: {tmp_channel.name}")
+                        on_complete(None)
+                    elif success and tmp_channel.is_token_valid():
                         tmp_channel.last_login_time = int(time.time())
                         self.channels.append(tmp_channel)
                         self.save_records()
@@ -338,8 +344,11 @@ class ChannelManager:
                         def _run_bili_qr():
                             try:
                                 self.logger.info("B站登录：开始 QR 扫码登录")
-                                tmp_channel.request_user_login(login_method="qr")
-                                success = tmp_channel.is_token_valid()
+                                result = tmp_channel.request_user_login(login_method="qr")
+                                if result is None:
+                                    success = None  # 用户取消
+                                else:
+                                    success = tmp_channel.is_token_valid()
                                 self.logger.info(f"B站登录：is_token_valid={success}")
                             except Exception:
                                 self.logger.exception("B站异步登录失败")
