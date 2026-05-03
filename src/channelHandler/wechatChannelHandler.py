@@ -46,6 +46,7 @@ class myappVeriftResp:
             self.retk = rawJson.get("retk")
             self.rtk = rawJson.get("rtk")
             self.visitorLoginData = rawJson.get("visitorLoginData")
+            self.pay_token = rawJson.get("pay_token")
         except Exception as e:
             self.msg = "Failed to parse json"
             print(e)
@@ -64,6 +65,7 @@ class myappVeriftResp:
             "retk": self.retk,
             "rtk": self.rtk,
             "visitorLoginData": self.visitorLoginData,
+            "pay_token": self.pay_token,
         }
 
 

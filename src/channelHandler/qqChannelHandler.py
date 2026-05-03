@@ -1,4 +1,20 @@
 # coding=UTF-8
+"""
+ Copyright (c) 2025 KKeygen & fwilliamhe
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
 import json
 import time
 import base64
@@ -13,6 +29,7 @@ from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.channelUtils import getShortGameId
 from channelHandler.qqLogin.qqChannel import QQLogin
+from channelHandler.wechatChannelHandler import myappVeriftResp
 
 
 class qqChannel(channelmgr.channel):
@@ -27,7 +44,7 @@ class qqChannel(channelmgr.channel):
         last_login_time: int = 0,
         name: str = "",
         game_id: str = "",
-        session: dict = None,
+        session: myappVeriftResp = None,
         uuid: str = "",
     ) -> None:
         super().__init__(
@@ -52,18 +69,15 @@ class qqChannel(channelmgr.channel):
             raise Exception(f"游戏{real_game_id}-渠道myapp暂不支持，请参照教程联系开发者发起添加请求。")
 
         self.qq_appid = res.get(self.channel_name).get("channel")
+        self.wx_appid = res.get(self.channel_name).get("wx_appid")
         self.qqLogin = QQLogin(self.qq_appid, game_id=game_id)
         self.realGameId = real_game_id
         self.uniBody = None
         self.uniData = None
-        self.session = session  # { "access_token": ..., "openid": ... }
+        self.session: myappVeriftResp = myappVeriftResp(session) if session is not None else None
 
     def request_user_login(self, on_complete=None):
-        """请求用户登录，支持异步模式。
-
-        Args:
-            on_complete: 异步回调函数，接收登录结果 (True/False)
-        """
+        """请求用户登录，支持异步模式。"""
         def _do_login():
             if self.session is None:
                 genv.set("GLOB_LOGIN_UUID", self.uuid)
@@ -71,22 +85,30 @@ class qqChannel(channelmgr.channel):
                 if resp is None:
                     self.session = None
                     return False
-                self.session = resp
+                self.session = myappVeriftResp(resp)
                 self._fetch_nickname()
+            else:
+                # QQ token 过期，YSDK 无 QQ refresh 接口，重新登录
+                self.logger.info("QQ token 过期，重新唤起登录")
+                self.session = None
+                return _do_login()
             if self.session is not None:
                 self.last_login_time = int(time.time())
                 return True
             return False
 
         if on_complete is not None:
-            # 异步模式：QQ使用浏览器登录
+            # 异步模式
             genv.set("GLOB_LOGIN_UUID", self.uuid)
+            if self.session is not None:
+                # token 过期，清空后重新登录
+                self.session = None
             def _on_browser_done(resp):
                 try:
                     if resp is None:
                         on_complete(False)
                         return
-                    self.session = resp
+                    self.session = myappVeriftResp(resp)
                     self._fetch_nickname()
                     self.last_login_time = int(time.time())
                     on_complete(True)
@@ -103,9 +125,9 @@ class qqChannel(channelmgr.channel):
         try:
             r = requests.get(
                 f"https://graph.qq.com/user/get_user_info"
-                f"?access_token={self.session['access_token']}"
+                f"?access_token={self.session.atk}"
                 f"&oauth_consumer_key={self.qq_appid}"
-                f"&openid={self.session['openid']}",
+                f"&openid={self.session.openid}",
                 verify=should_verify_ssl()
             )
             r.encoding = "utf-8"
@@ -116,13 +138,12 @@ class qqChannel(channelmgr.channel):
             pass
 
     def is_token_valid(self):
-        if self.session is not None:
-            # QQ access_token 有效期约2小时
-            return self.last_login_time + 7200 > int(time.time())
+        if self.session is not None and self.session.atk_expire:
+            return self.last_login_time + self.session.atk_expire > int(time.time())
         return False
 
     def before_save(self):
-        self.session_json = self.session
+        self.session_json = self.session.__json__()
         return super().before_save()
 
     @classmethod
@@ -143,11 +164,13 @@ class qqChannel(channelmgr.channel):
     def _get_extra_data(self):
         return json.dumps(
                 {
-                    "login_type": 1,
-                    "session_id": "hy_gameid",
+                    "login_type": 2,
+                    "session_id": "openid",
                     "session_type": "kp_actoken",
-                    "openid": self.session["openid"],
-                    "openkey": self.session["access_token"],
+                    "openid": self.session.openid,
+                    "openkey": self.session.atk,
+                    "pf": self.session.pf,
+                    "pfkey": self.session.pfKey,
                     "zoneid": "1",
                 })
 
@@ -182,12 +205,7 @@ class qqChannel(channelmgr.channel):
         return json.dumps(res)
 
     def get_uniSdk_data(self, game_id: str = "", on_complete=None):
-        """获取 UniSDK 登录数据，支持异步模式。
-
-        Args:
-            game_id: 游戏ID
-            on_complete: 异步回调函数，接收登录数据或 None
-        """
+        """获取 UniSDK 登录数据，支持异步模式。"""
         genv.set("GLOB_LOGIN_UUID", self.uuid)
         if game_id == "":
             game_id = self.game_id
@@ -199,8 +217,8 @@ class qqChannel(channelmgr.channel):
             self.uniBody = channelUtils.buildSAUTH(
                 self.channel_name,
                 self.channel_name,
-                self.session["openid"],
-                self.session["access_token"],
+                self.session.openid,
+                self.session.atk,
                 getShortGameId(game_id),
                 "2.2.2",
                 {
@@ -213,12 +231,16 @@ class qqChannel(channelmgr.channel):
                 self.uniBody, getShortGameId(game_id), True
             )
 
+            if "unisdk_login_json" not in self.uniData:
+                self.logger.error(f"SAUTH 失败: {self.uniData}")
+                raise Exception(f"SAUTH 返回错误: {self.uniData.get('error', self.uniData)}")
+
             self.uniSDKJSON = json.loads(
                 base64.b64decode(self.uniData["unisdk_login_json"]).decode()
             )
             res = {
-                "user_id": self.session["openid"],
-                "token": self.session["access_token"],
+                "user_id": self.session.openid,
+                "token": self.session.atk,
                 "login_channel": self.channel_name,
                 "udid": fd["udid"],
                 "app_channel": self.channel_name,
@@ -249,7 +271,6 @@ class qqChannel(channelmgr.channel):
         # 检查 token 是否有效
         if not self.is_token_valid():
             if on_complete is not None:
-                # 异步模式：先完成登录
                 def _on_login_done(success):
                     if success:
                         _on_login_ready()
@@ -258,12 +279,10 @@ class qqChannel(channelmgr.channel):
                 self.request_user_login(on_complete=_on_login_done)
                 return None
             else:
-                # 同步模式
                 self.request_user_login()
                 if not self.is_token_valid():
                     return None
 
-        # 同步模式或 token 有效时直接构建数据
         if on_complete is not None:
             return _on_login_ready()
         return _build_unisdk_data()

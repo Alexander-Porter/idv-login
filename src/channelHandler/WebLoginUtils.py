@@ -236,6 +236,7 @@ class WebBrowser(QWidget):
 
 
     def handle_url_change(self, url):
+        self.logger.debug(f"[WebBrowser] URL changed: {url.toString()[:200]}")
         if self.verify(url.toString()):
             if self.parseReslt(url.toString()):
                 self.cleanup()
