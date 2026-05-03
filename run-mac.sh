@@ -165,25 +165,32 @@ verify_sha256() {
         return 0
     }
 
-    # 从 API 的 digest 字段获取 SHA256 (格式: "sha256:xxxxx")
+    # 尝试从 release body 中提取 SHA256 校验值
     local expected_sha
-    expected_sha=$(echo "$release_info" | grep -A2 '"name":.*mac"' | grep '"digest"' | head -1 | sed 's/.*"sha256://;s/".*//')
-
-    # 兜底：尝试直接从 assets 数组中匹配
-    if [ -z "$expected_sha" ]; then
-        expected_sha=$(echo "$release_info" | python3 -c "
+    expected_sha=$(echo "$release_info" | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
+    # 尝试从 assets 的 digest 字段获取 (格式: 'sha256:xxxxx')
     for asset in data.get('assets', []):
-        if 'mac' in asset.get('name', ''):
+        if 'mac' in asset.get('name', '').lower():
             digest = asset.get('digest', '')
             if digest.startswith('sha256:'):
                 print(digest[7:])
-                break
-except: pass
-" 2>/dev/null)
-    fi
+                sys.exit(0)
+    # 尝试从 release body 中解析 SHA256 (常见格式: 'sha256: xxxx' 或 '文件名 xxxx')
+    body = data.get('body', '')
+    if body:
+        import re
+        for line in body.splitlines():
+            if 'mac' in line.lower() and re.search(r'[0-9a-fA-F]{64}', line):
+                match = re.search(r'([0-9a-fA-F]{64})', line)
+                if match:
+                    print(match.group(1))
+                    sys.exit(0)
+except Exception:
+    pass
+" 2>/dev/null || true)
 
     if [ -z "$expected_sha" ]; then
         warn "无法获取官方校验值，跳过校验"
