@@ -140,6 +140,10 @@ class ChannelManager:
                             elif channel_name == "myapp" and item["uuid"].startswith("wx-"):
                                 tmpChannel:wechatChannel=wechatChannel.from_dict(item)
                                 self.channels.append(tmpChannel)
+                            elif channel_name == "myapp" and item["uuid"].startswith("qq-"):
+                                from channelHandler.qqChannelHandler import qqChannel
+                                tmpChannel: qqChannel = qqChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
                             elif channel_name == "oppo" and item["uuid"].startswith("phone-"):
                                 tmpChannel: oppoChannel = oppoChannel.from_dict(item)
                                 self.channels.append(tmpChannel)
@@ -279,6 +283,11 @@ class ChannelManager:
                 from channelHandler.wechatChannelHandler import wechatChannel
                 tmp_channel: wechatChannel = wechatChannel(tmpData,game_id=game_id)
                 tmp_channel.uuid=f"wx-{tmp_channel.uuid}"
+            elif channle_name == "myapp_qq":
+                from channelHandler.qqChannelHandler import qqChannel
+                tmpData["login_channel"] = "myapp"
+                tmp_channel: qqChannel = qqChannel(tmpData, game_id=game_id)
+                tmp_channel.uuid = f"qq-{tmp_channel.uuid}"
             elif channle_name == "oppo":
                 from channelHandler.oppoChannelHandler import oppoChannel
                 tmp_channel: oppoChannel = oppoChannel(tmpData, game_id=game_id)
