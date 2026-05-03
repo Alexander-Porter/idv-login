@@ -75,6 +75,7 @@ class HonorLogin:
         self.channelConfig = channelConfig
         # unionToken 持久化格式: {"openId": "...", "token": "...", "unionId": "...", "expireTimeout": ...}
         self.unionToken = unionToken
+        self.displayName = ""
         self.code_verifier = None
         self.lastLoginTime = 0
         self.expiredTime = 0
@@ -175,7 +176,6 @@ class HonorLogin:
         try:
             resp = requests.post(url, json=body, headers=headers, verify=should_verify_ssl())
             data = resp.json()
-            self.logger.info(f"荣耀 Game Center login 原始响应: {json.dumps(data, ensure_ascii=False)[:500]}")
             # 响应结构: {"loginData": {"errorCode": 0, "data": {"unionToken": {...}, ...}}}
             login_wrapper = data.get("loginData") or data.get("data") or {}
             if isinstance(login_wrapper, dict) and login_wrapper.get("errorCode") not in (0, None):
@@ -186,9 +186,10 @@ class HonorLogin:
             ut = login_data.get("unionToken")
             if ut and ut.get("openId"):
                 self.unionToken = ut
+                self.displayName = str(login_data.get("displayName", ""))
                 self.lastLoginTime = int(time.time())
                 self.expiredTime = self.lastLoginTime + ut.get("expireTimeout", 3600)
-                self.logger.info(f"荣耀登录成功: openId={ut['openId'][:8]}...")
+                self.logger.info(f"荣耀登录成功: openId={ut['openId'][:8]}..., displayName={self.displayName}")
             else:
                 self.logger.error(f"荣耀 Game Center login 未返回有效 unionToken: {data}")
                 self.unionToken = None
@@ -251,6 +252,9 @@ class HonorLogin:
             ut = login_data.get("unionToken")
             if ut and ut.get("openId"):
                 self.unionToken = ut
+                dn = str(login_data.get("displayName", ""))
+                if dn:
+                    self.displayName = dn
                 self.lastLoginTime = int(time.time())
                 self.expiredTime = self.lastLoginTime + ut.get("expireTimeout", 3600)
                 self.logger.info("荣耀 configLogin 刷新成功")

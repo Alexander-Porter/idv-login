@@ -86,12 +86,14 @@ class honorChannel(channelmgr.channel):
         if on_complete is not None:
             def _on_done(success):
                 self.unionToken = self.honorLogin.unionToken
+                self._update_name()
                 on_complete(self.unionToken is not None)
             self.honorLogin.newOAuthLogin(on_complete=_on_done)
             return
 
         self.honorLogin.newOAuthLogin()
         self.unionToken = self.honorLogin.unionToken
+        self._update_name()
         return self.unionToken is not None
 
     def is_token_valid(self) -> bool:
@@ -107,7 +109,14 @@ class honorChannel(channelmgr.channel):
         success = self.honorLogin.configLogin()
         if success:
             self.unionToken = self.honorLogin.unionToken
+            self._update_name()
         return success
+
+    def _update_name(self):
+        """从 honorLogin.displayName 更新渠道记录名称。"""
+        dn = getattr(self.honorLogin, "displayName", "")
+        if dn:
+            self.name = dn
 
     # ── UniSDK 数据 ──────────────────────────────────────────
 

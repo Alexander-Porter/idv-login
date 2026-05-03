@@ -35,6 +35,7 @@ class ucChannel(channelmgr.channel):
         ucSession: Optional[Dict[str, Any]] = None,
         uuid: str = "",
         refreshToken: str = "",
+        sid_expire_time: int = 0,
     ) -> None:
         super().__init__(
             login_info,
@@ -51,6 +52,7 @@ class ucChannel(channelmgr.channel):
         self.game_id = game_id
         self.ucSession: Optional[Dict[str, Any]] = ucSession
         self.refreshToken: str = refreshToken
+        self.sid_expire_time: int = sid_expire_time
 
         short_gid = getShortGameId(game_id)
         cloudRes = CloudRes()
@@ -98,6 +100,7 @@ class ucChannel(channelmgr.channel):
             ucSession=uc_session,
             uuid=data.get("uuid", ""),
             refreshToken=refresh,
+            sid_expire_time=data.get("sid_expire_time", 0),
         )
 
     def before_save(self):
@@ -130,7 +133,7 @@ class ucChannel(channelmgr.channel):
         return False
 
     def _store_session(self, session_data: Optional[Dict[str, Any]]) -> bool:
-        """保存登录结果并提取 refreshToken。"""
+        """保存登录结果并提取 refreshToken，计算 sid 过期时间。"""
         if not session_data:
             self.ucSession = None
             return False
@@ -139,11 +142,15 @@ class ucChannel(channelmgr.channel):
         rt = session_data.get("refreshToken", "")
         if rt:
             self.refreshToken = rt
+        # 计算 sid 过期时间（timeout 是持续秒数，默认 86400 = 24h）
+        timeout = session_data.get("timeout", 86400)
+        self.sid_expire_time = int(time.time()) + int(timeout)
         data = self._get_session_data()
         if data:
-            nick = str(data.get("nickName") or data.get("userName") or "")
-            if nick:
-                self.name = nick
+            # SMS 登录响应中 mobile 字段为脱敏手机号，优先用作显示名
+            display = str(data.get("mobile") or data.get("nickName") or data.get("userName") or "")
+            if display:
+                self.name = display
         return True
 
     # ── 会话刷新 ──────────────────────────────────────────────
@@ -232,13 +239,19 @@ class ucChannel(channelmgr.channel):
         return result
 
     def _has_valid_sid(self) -> bool:
-        """检查 ucSession 是否有有效的 sid + accountId（不考虑 refreshToken）。"""
+        """检查 ucSession 是否有有效的 sid + accountId，且未过期。"""
         data = self._get_session_data()
         if not data:
             return False
         sid = str(data.get("sid") or "").strip()
         account_id = str(data.get("accountId") or data.get("ucid") or "").strip()
-        return bool(sid and account_id)
+        if not (sid and account_id):
+            return False
+        # 检查 sid 是否已过期
+        if self.sid_expire_time > 0 and int(time.time()) >= self.sid_expire_time:
+            self.logger.info("UC sid 已过期，需要续期")
+            return False
+        return True
 
     def _build_unisdk_result(self, short_game_id: str) -> Optional[Dict[str, Any]]:
         data = self._get_session_data()

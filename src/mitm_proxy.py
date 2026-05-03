@@ -505,7 +505,6 @@ class LocalDnsServer:
         """处理单个 DNS 请求。"""
         try:
             packet = DnsPacket(data)
-            logger.debug(f"DNS 查询: {packet.qname} (type={packet.qtype}) from {addr}")
 
             # 检查是否需要拦截
             should_intercept = False
@@ -517,16 +516,13 @@ class LocalDnsServer:
             if should_intercept:
                 if packet.qtype == 1:  # A 记录
                     response = packet.build_response(self.target_ip)
-                    logger.debug(f"DNS 拦截: {packet.qname} -> {self.target_ip}")
                 else:
                     # 拦截域名的非A查询（AAAA等）：返回空响应，防止绕过
                     response = packet.build_empty_response()
-                    logger.debug(f"DNS 拦截 (type={packet.qtype}): {packet.qname} -> 空响应")
             else:
                 # 转发到上游 DNS
                 response = self._forward_to_upstream(data)
                 if response is None:
-                    logger.warning(f"DNS 转发失败: {packet.qname}")
                     return
 
             self._socket.sendto(response, addr)
@@ -1150,15 +1146,10 @@ class _CompatModeAddon:
             flow.request.host = host
             flow.request.port = 443
             flow.request.scheme = "https"
-            logger.debug(f"[compat] 路由请求: {flow.request.pretty_url} -> {host}:443")
 
 
 class _ResponseLogAddon:
     """仅将非 200/404 的响应以 DEBUG 级别写入日志，不输出到控制台。"""
 
     def response(self, flow):
-        code = flow.response.status_code
-        if code not in (200, 404):
-            logger.debug(
-                f"[mitmproxy] {flow.request.method} {flow.request.pretty_url} -> {code}"
-            )
+        pass
