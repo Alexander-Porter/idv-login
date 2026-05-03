@@ -174,6 +174,28 @@ class LocalRequestHandler:
         return status, headers, body
 
     @staticmethod
+    def _force_dialog_foreground(widget):
+        """Use Win32 API to bring a dialog widget to the foreground."""
+        if sys.platform != "win32" or widget is None:
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            hwnd = int(widget.winId())
+            fg_hwnd = user32.GetForegroundWindow()
+            fg_tid = user32.GetWindowThreadProcessId(fg_hwnd, None)
+            cur_tid = kernel32.GetCurrentThreadId()
+            if fg_tid != cur_tid:
+                user32.AttachThreadInput(fg_tid, cur_tid, True)
+            user32.SetForegroundWindow(hwnd)
+            user32.BringWindowToTop(hwnd)
+            if fg_tid != cur_tid:
+                user32.AttachThreadInput(fg_tid, cur_tid, False)
+        except Exception:
+            pass
+
+    @staticmethod
     def _html_response(status: int, html: str) -> Tuple[int, dict, bytes]:
         body = html.encode("utf-8") if isinstance(html, str) else html
         headers = {"Content-Type": "text/html; charset=utf-8"}
@@ -581,6 +603,70 @@ class LocalRequestHandler:
                 })
 
             if enabled or update_mode == "path_only":
+                try:
+                    from PyQt6.QtWidgets import QApplication
+                    app = QApplication.instance()
+                except Exception:
+                    app = None
+
+                if app and app.property("_main_loop_running"):
+                    import uuid as uuid_mod
+                    task_id = str(uuid_mod.uuid4())
+                    LocalRequestHandler._pending_imports[task_id] = {"status": "pending"}
+
+                    game_helper = self.game_helper
+                    logger = self.logger
+
+                    def do_select():
+                        try:
+                            from PyQt6.QtWidgets import QFileDialog, QWidget
+                            from PyQt6.QtCore import Qt
+                            dummy_parent = QWidget()
+                            dummy_parent.setWindowFlags(Qt.WindowType.Tool)
+                            dummy_parent.show()
+                            dummy_parent.raise_()
+                            dummy_parent.activateWindow()
+                            LocalRequestHandler._force_dialog_foreground(dummy_parent)
+                            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+                            sel_path, _ = QFileDialog.getOpenFileName(
+                                dummy_parent,
+                                "选择游戏启动程序或快捷方式",
+                                desktop_path,
+                                "游戏文件 (*.exe *.lnk);;所有文件 (*.*)",
+                            )
+                            dummy_parent.close()
+
+                            if not sel_path:
+                                LocalRequestHandler._pending_imports[task_id] = {
+                                    "status": "done", "success": False, "cancelled": True,
+                                    "enabled": False, "path": "",
+                                }
+                                return
+
+                            name = os.path.splitext(os.path.basename(sel_path))[0]
+                            if sel_path.lower().endswith(".lnk") and sys.platform == "win32":
+                                import win32com.client
+                                shell = win32com.client.Dispatch("WScript.Shell")
+                                shortcut = shell.CreateShortcut(sel_path)
+                                sel_path = shortcut.Targetpath
+
+                            game_helper.set_game_auto_start(gid, True)
+                            game_helper.set_game_path(gid, sel_path)
+                            game_helper.rename_game(gid, name)
+                            LocalRequestHandler._pending_imports[task_id] = {
+                                "status": "done", "success": True,
+                                "enabled": True, "path": sel_path, "game_id": gid,
+                            }
+                        except Exception as e:
+                            logger.exception("异步选择游戏路径失败")
+                            LocalRequestHandler._pending_imports[task_id] = {
+                                "status": "done", "success": False, "error": str(e)
+                            }
+
+                    app_state.run_on_main_thread(do_select)
+                    return self._json_response(200, {"status": "pending", "task_id": task_id})
+
+                # 同步模式 fallback
                 from PyQt6.QtWidgets import QApplication, QFileDialog, QWidget
                 from PyQt6.QtCore import Qt
 
@@ -591,23 +677,18 @@ class LocalRequestHandler:
                 dummy_parent = QWidget()
                 dummy_parent.setWindowFlags(Qt.WindowType.Tool)
                 dummy_parent.show()
-                dummy_parent.hide()
+                dummy_parent.raise_()
+                dummy_parent.activateWindow()
+                self._force_dialog_foreground(dummy_parent)
 
                 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-
-                file_dialog = QFileDialog(dummy_parent)
-                file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-                file_dialog.setNameFilter("可执行文件 (*.exe);;快捷方式 (*.lnk);;所有文件 (*.*)")
-                file_dialog.setWindowTitle("选择游戏启动程序或快捷方式")
-                file_dialog.setDirectory(desktop_path)
-                file_dialog.show()
-                file_dialog.raise_()
-                file_dialog.activateWindow()
-
-                if file_dialog.exec():
-                    selected = file_dialog.selectedFiles()
-                    if selected:
-                        game_path = selected[0]
+                game_path, _ = QFileDialog.getOpenFileName(
+                    dummy_parent,
+                    "选择游戏启动程序或快捷方式",
+                    desktop_path,
+                    "游戏文件 (*.exe *.lnk);;所有文件 (*.*)",
+                )
+                dummy_parent.close()
 
                 if not game_path:
                     return self._json_response(200, {"success": False, "error": "用户取消选择游戏路径"})
@@ -720,6 +801,69 @@ class LocalRequestHandler:
             if not startup_path:
                 return self._json_response(400, {"success": False, "error": "启动器缺少启动路径"})
 
+            try:
+                from PyQt6.QtWidgets import QApplication
+                app = QApplication.instance()
+            except Exception:
+                app = None
+
+            if app and app.property("_main_loop_running"):
+                import uuid as uuid_mod
+                task_id = str(uuid_mod.uuid4())
+                LocalRequestHandler._pending_imports[task_id] = {"status": "pending"}
+
+                game_helper = self.game_helper
+                logger = self.logger
+                max_conc = int(args.get("concurrent", "4"))
+
+                def do_install():
+                    try:
+                        from PyQt6.QtWidgets import QFileDialog, QWidget
+                        from PyQt6.QtCore import Qt
+                        dummy = QWidget()
+                        dummy.setWindowFlags(Qt.WindowType.Tool)
+                        dummy.show()
+                        dummy.raise_()
+                        dummy.activateWindow()
+                        LocalRequestHandler._force_dialog_foreground(dummy)
+                        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+                        target_dir = QFileDialog.getExistingDirectory(
+                            dummy, "选择安装目录", desktop,
+                            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+                        )
+                        dummy.close()
+                        if not target_dir:
+                            LocalRequestHandler._pending_imports[task_id] = {
+                                "status": "done", "success": False, "cancelled": True,
+                                "error": "用户取消选择安装目录",
+                            }
+                            return
+                        os.makedirs(target_dir, exist_ok=True)
+                        game_path = os.path.join(target_dir, startup_path)
+                        display_name = launcher_data.get("display_name") or launcher_data.get("app_name") or gid
+                        game_helper.rename_game(gid, display_name)
+                        game_helper.set_game_path(gid, game_path)
+                        game_helper.set_game_default_distribution(gid, dist_id)
+                        updated = game.try_update(dist_id, max_conc)
+                        if updated:
+                            sgid = getShortGameId(gid)
+                            if CloudRes().is_convert_to_normal(sgid):
+                                game.create_tool_launch_shortcut(game.path or "")
+                        game_helper._save_games()
+                        LocalRequestHandler._pending_imports[task_id] = {
+                            "status": "done", "success": updated,
+                            "path": game_path, "version": game.get_version(),
+                        }
+                    except Exception as e:
+                        logger.exception("异步安装启动器失败")
+                        LocalRequestHandler._pending_imports[task_id] = {
+                            "status": "done", "success": False, "error": str(e)
+                        }
+
+                app_state.run_on_main_thread(do_install)
+                return self._json_response(200, {"status": "pending", "task_id": task_id})
+
+            # 同步模式 fallback
             from PyQt6.QtWidgets import QApplication, QFileDialog, QWidget
             from PyQt6.QtCore import Qt
             app_inst = QApplication.instance()
@@ -728,12 +872,15 @@ class LocalRequestHandler:
             dummy = QWidget()
             dummy.setWindowFlags(Qt.WindowType.Tool)
             dummy.show()
-            dummy.hide()
+            dummy.raise_()
+            dummy.activateWindow()
+            self._force_dialog_foreground(dummy)
             desktop = os.path.join(os.path.expanduser("~"), "Desktop")
             target_dir = QFileDialog.getExistingDirectory(
                 dummy, "选择安装目录", desktop,
                 QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
             )
+            dummy.close()
             if not target_dir:
                 return self._json_response(400, {"success": False, "error": "用户取消选择安装目录"})
             os.makedirs(target_dir, exist_ok=True)
@@ -747,7 +894,6 @@ class LocalRequestHandler:
             if updated:
                 sgid = getShortGameId(gid)
                 if CloudRes().is_convert_to_normal(sgid):
-                    sa = CloudRes().get_start_argument(sgid)
                     game.create_tool_launch_shortcut(game.path or "")
             self.game_helper._save_games()
             return self._json_response(200, {"success": updated, "path": game_path, "version": game.get_version()})

@@ -1426,49 +1426,70 @@
             let url = `/_idv-login/set-game-auto-start?game_id=${game_id}&enabled=${enabled}`;
             if (update_mode) url += `&update_mode=${update_mode}`;
             
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateAutoStartUI(data.enabled, data.path);
-                        if (update_mode === "status_only") {
+            function handleResult(data) {
+                if (data.success) {
+                    updateAutoStartUI(data.enabled, data.path);
+                    if (update_mode === "status_only") {
+                        swal({
+                            title: data.enabled ? "已启用自启" : "已禁用自启",
+                            text: "游戏自动启动状态已更新",
+                            icon: "success",
+                            button: "确定",
+                        });
+                    } else if (enabled) {
+                        if (data.path) {
                             swal({
-                                title: data.enabled ? "已启用自启" : "已禁用自启",
-                                text: "游戏自动启动状态已更新",
+                                title: "设置成功",
+                                text: "已成功设置游戏自动启动",
                                 icon: "success",
                                 button: "确定",
                             });
-                        } else if (enabled) {
-                            if (data.path) {
-                                swal({
-                                    title: "设置成功",
-                                    text: "已成功设置游戏自动启动",
-                                    icon: "success",
-                                    button: "确定",
-                                });
-                            } else {
-                                swal({
-                                    title: "设置已取消",
-                                    text: "取消了游戏路径选择，未启用自动启动",
-                                    icon: "info",
-                                    button: "确定",
-                                });
-                            }
                         } else {
                             swal({
-                                title: "已禁用",
-                                text: "已禁用游戏自动启动功能",
+                                title: "设置已取消",
+                                text: "取消了游戏路径选择，未启用自动启动",
                                 icon: "info",
                                 button: "确定",
                             });
                         }
                     } else {
                         swal({
-                            title: "设置失败",
-                            text: data.error || '未知错误',
-                            icon: "error",
+                            title: "已禁用",
+                            text: "已禁用游戏自动启动功能",
+                            icon: "info",
                             button: "确定",
                         });
+                    }
+                } else if (data.cancelled) {
+                    // 用户取消文件选择，静默处理
+                } else {
+                    swal({
+                        title: "设置失败",
+                        text: data.error || '未知错误',
+                        icon: "error",
+                        button: "确定",
+                    });
+                }
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'pending' && data.task_id) {
+                        function pollStatus() {
+                            fetch(`/_idv-login/import-status?task_id=${data.task_id}`)
+                                .then(r => r.json())
+                                .then(s => {
+                                    if (s.status === 'done') {
+                                        handleResult(s);
+                                    } else {
+                                        setTimeout(pollStatus, 1000);
+                                    }
+                                }).catch(() => setTimeout(pollStatus, 2000));
+                        }
+                        pollStatus();
+                    } else {
+                        handleResult(data);
                     }
                 });
         }
@@ -1543,6 +1564,24 @@
                     throw err;
                 }
                 return response.json();
+            }).then(data => {
+                if (data.status === 'pending' && data.task_id) {
+                    return new Promise((resolve, reject) => {
+                        function poll() {
+                            fetch(`/_idv-login/import-status?task_id=${data.task_id}`)
+                                .then(r => r.json())
+                                .then(s => {
+                                    if (s.status === 'done') {
+                                        resolve(s);
+                                    } else {
+                                        setTimeout(poll, 1000);
+                                    }
+                                }).catch(() => setTimeout(poll, 2000));
+                        }
+                        poll();
+                    });
+                }
+                return data;
             });
         }
 
