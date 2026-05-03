@@ -167,8 +167,8 @@ class UCSmsLoginDialog(QDialog):
         self._main_layout.addWidget(hint)
 
         self._code_input = QLineEdit()
-        self._code_input.setPlaceholderText("请输入6位验证码")
-        self._code_input.setMaxLength(6)
+        self._code_input.setPlaceholderText("请输入4位验证码")
+        self._code_input.setMaxLength(4)
         self._main_layout.addWidget(self._code_input)
 
         btn_row = QHBoxLayout()
