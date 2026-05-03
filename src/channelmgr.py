@@ -150,6 +150,10 @@ class ChannelManager:
                                 from channelHandler.honorChannelHandler import honorChannel
                                 tmpChannel: honorChannel = honorChannel.from_dict(item)
                                 self.channels.append(tmpChannel)
+                            elif channel_name == "uc_platform" and item["uuid"].startswith("uc-"):
+                                from channelHandler.ucChannelHandler import ucChannel
+                                tmpChannel: ucChannel = ucChannel.from_dict(item)
+                                self.channels.append(tmpChannel)
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
@@ -287,6 +291,10 @@ class ChannelManager:
                 from channelHandler.honorChannelHandler import honorChannel
                 tmp_channel: honorChannel = honorChannel(tmpData, game_id=game_id)
                 tmp_channel.uuid = f"honor-{tmp_channel.uuid}"
+            elif channle_name == "uc_platform":
+                from channelHandler.ucChannelHandler import ucChannel
+                tmp_channel: ucChannel = ucChannel(tmpData, game_id=game_id)
+                tmp_channel.uuid = f"uc-{tmp_channel.uuid}"
             else:
                 self.logger.error(f"不支持的渠道: {channle_name}")
                 if on_complete:
@@ -426,6 +434,7 @@ class ChannelManager:
         - huawei-xxx (华为)
         - nearme_vivo-xxx (vivo)
         - honor-xxx (荣耀)
+        - uc-xxx (九游)
         
         不包括微信 (wx-xxx)，微信使用扫码登录，不产生 profile。
         """
@@ -437,7 +446,8 @@ class ChannelManager:
             uuid.startswith("xiaomi_app-") or 
             uuid.startswith("huawei-") or 
             uuid.startswith("nearme_vivo-") or
-            uuid.startswith("honor-")
+            uuid.startswith("honor-") or
+            uuid.startswith("uc-")
         )
         
         if not is_weblogin:
@@ -480,7 +490,8 @@ class ChannelManager:
             ch.uuid.startswith("xiaomi_app-") or 
             ch.uuid.startswith("huawei-") or 
             ch.uuid.startswith("nearme_vivo-") or
-            ch.uuid.startswith("honor-")
+            ch.uuid.startswith("honor-") or
+            ch.uuid.startswith("uc-")
             for ch in self.channels
         )
         
@@ -507,7 +518,8 @@ class ChannelManager:
                         folder_name.startswith("xiaomi_app-") or 
                         folder_name.startswith("huawei-") or 
                         folder_name.startswith("nearme_vivo-") or
-                        folder_name.startswith("honor-")
+                        folder_name.startswith("honor-") or
+                        folder_name.startswith("uc-")
                     )
                     
                     if is_weblogin_folder and folder_name not in valid_uuids:
@@ -534,7 +546,8 @@ class ChannelManager:
                         folder_name.startswith("xiaomi_app-") or 
                         folder_name.startswith("huawei-") or 
                         folder_name.startswith("nearme_vivo-") or
-                        folder_name.startswith("honor-")
+                        folder_name.startswith("honor-") or
+                        folder_name.startswith("uc-")
                     )
                     
                     if is_weblogin_folder and folder_name not in valid_uuids:

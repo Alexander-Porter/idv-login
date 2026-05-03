@@ -240,6 +240,10 @@
                 app_channel = 'honor_sdk';
                 requiresCustomConfig = true;
                 log(`根据 APK 包名特征判定为【荣耀 honor_sdk】渠道包。`);
+            } else if (packageName.includes('.aligames')) {
+                app_channel = 'uc_platform';
+                requiresCustomConfig = true;
+                log(`根据 APK 包名特征判定为【UC/9Game uc_platform】渠道包。`);
             } else {
                 requiresCustomConfig = true; // 其它如小米/应用宝等需要继续分析 assets 内的参数
             }
@@ -247,7 +251,7 @@
             // --- 3. 对于重度渠道寻找 assets 内核加密数据 ---
             let dataEntry = null;
             if (requiresCustomConfig) {
-                const targetFiles = ['assets/xiaomi_app_data', 'assets/huawei_data', 'assets/myapp_data', 'assets/honor_sdk_data'];
+                const targetFiles = ['assets/xiaomi_app_data', 'assets/huawei_data', 'assets/myapp_data', 'assets/honor_sdk_data', 'assets/uc_platform_data'];
                 
                 for (let obj of entries) {
                     if (targetFiles.includes(obj.filename)) {
@@ -269,6 +273,7 @@
             // 绝大部官方联合发行的渠道包里都会有 {app_channel}_data，如果没有则降临询问
             let log_key = "未知";
             let game_id = "未知";
+            let myData = null;
             
             if (!dataEntry) {
                 // 优先查找与渠道名匹配的专属数据文件（如 nearme_vivo_data）
@@ -283,7 +288,6 @@
                 log(`正在解开 [${dataEntry.filename}] 获取内核通信秘钥...`);
                 const fileText = await dataEntry.getData(new zip.TextWriter());
                 
-                let myData = null;
                 try {
                     // Try parsing as raw JSON first
                     myData = JSON.parse(fileText);
@@ -356,8 +360,7 @@
                     log(`腾讯应用宝专属参数 ysdkconf 加载完毕。`);
                 }
             }
-
-            else if (app_channel === 'honor_sdk') {
+            else if (app_channel === 'honor_sdk') {
                 channelData = {};
                 // 从 AndroidManifest 提取 appid 和 cpid
                 if (manifestJson && manifestJson.application && Array.isArray(manifestJson.application.metaData)) {
@@ -397,6 +400,48 @@
                     }
                 }
                 log(`荣耀专属参数提取完毕。`);
+            }
+
+            else if (app_channel === 'uc_platform') {
+                channelData = {};
+                if (myData) {
+                    channelData.app_id = validateData(myData, "APPID");
+                    channelData.uc_game_id = parseInt(channelData.app_id) || channelData.app_id;
+                    log(`提取 UC APPID (解密后): ${channelData.app_id}`);
+                }
+                channelData.package_name = packageName;
+                // 从 AndroidManifest 提取 versionCode 和 versionName
+                if (manifestJson) {
+                    const vcAttr = manifestJson['android:versionCode'] || manifestJson.versionCode;
+                    const vnAttr = manifestJson['android:versionName'] || manifestJson.versionName;
+                    if (vcAttr) { channelData.version_code = parseInt(vcAttr); log(`提取 UC versionCode: ${channelData.version_code}`); }
+                    if (vnAttr) { channelData.version_name = vnAttr; log(`提取 UC versionName: ${channelData.version_name}`); }
+                }
+                // Read SDK version from channel_infos_data
+                const ciEntry = entries.find(e => e.filename === 'assets/channel_infos_data');
+                if (ciEntry) {
+                    const ciText = await ciEntry.getData(new zip.TextWriter());
+                    try {
+                        const ciData = JSON.parse(ciText);
+                        if (ciData.version) {
+                            channelData.sdk_ver = ciData.version.replace(/^V/i, '');
+                            log(`提取 UC SDK 版本 (channel_infos): ${channelData.sdk_ver}`);
+                        }
+                    } catch(e) { log(`⚠️ channel_infos_data 解析失败`); }
+                }
+                // Fallback: try ucgamesdk/config/sdk_info.txt
+                if (!channelData.sdk_ver) {
+                    const sdkEntry = entries.find(e => e.filename === 'assets/ucgamesdk/config/sdk_info.txt');
+                    if (sdkEntry) {
+                        const sdkText = await sdkEntry.getData(new zip.TextWriter());
+                        const match = sdkText.match(/version=([\d.]+)/);
+                        if (match) {
+                            channelData.sdk_ver = match[1];
+                            log(`提取 UC SDK 版本 (sdk_info): ${channelData.sdk_ver}`);
+                        }
+                    }
+                }
+                log(`UC/9Game 专属参数提取完毕。`);
             }
 
             // --- 6. 完成装箱：打平属性与组合封包结构 ---

@@ -91,6 +91,8 @@ def getNeteaseGameInfo(apkPath):
             app_channel = "myapp"
         elif "honor" in package_name or "hihonor" in package_name:
             app_channel = "honor_sdk"
+        elif "aligames" in package_name:
+            app_channel = "uc_platform"
 
     #get channel data
     with open(f'res/assets/{app_channel}_data', 'r') as f:
@@ -148,6 +150,33 @@ def getNeteaseGameInfo(apkPath):
                     if m:
                         channelData['sdk_ver'] = m.group(1)
                         break
+    if app_channel=='uc_platform':
+        channelData = {}
+        channelData['app_id'] = validate(myData, "APPID")
+        channelData['uc_game_id'] = int(channelData['app_id']) if channelData['app_id'].isdigit() else channelData['app_id']
+        channelData['package_name'] = package_name
+        # 从 AndroidManifest 提取 versionCode 和 versionName
+        namespaces = {'android': 'http://schemas.android.com/apk/res/android'}
+        vc = root.attrib.get('{http://schemas.android.com/apk/res/android}versionCode', '')
+        vn = root.attrib.get('{http://schemas.android.com/apk/res/android}versionName', '')
+        if vc:
+            channelData['version_code'] = int(vc)
+        if vn:
+            channelData['version_name'] = vn
+        channel_infos_path = 'res/assets/channel_infos_data'
+        if os.path.exists(channel_infos_path):
+            with open(channel_infos_path, 'r') as f:
+                ci_data = json.loads(f.read())
+                if 'version' in ci_data:
+                    channelData['sdk_ver'] = ci_data['version'].lstrip('V')
+        sdk_info_path = 'res/assets/ucgamesdk/config/sdk_info.txt'
+        if 'sdk_ver' not in channelData and os.path.exists(sdk_info_path):
+            with open(sdk_info_path, 'r') as f:
+                for line in f:
+                    m = re.match(r'version=([\d.]+)', line.strip())
+                    if m:
+                        channelData['sdk_ver'] = m.group(1)
+                        break
 
     RES={}
     RES["package_name"]=package_name
@@ -157,6 +186,6 @@ def getNeteaseGameInfo(apkPath):
     RES[app_channel]=channelData
     print(RES)
     print(json.dumps(RES))
-    if app_channel in ["xiaomi_app","huawei","myapp","honor_sdk"]:
+    if app_channel in ["xiaomi_app","huawei","myapp","honor_sdk","uc_platform"]:
         updateCloudRes(RES)
 getNeteaseGameInfo("app.apk")
