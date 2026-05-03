@@ -1,7 +1,8 @@
 # coding=UTF-8
-"""UC/九游 (uc_platform) SMS 短信登录渠道。
+"""UC/九游 (uc_platform) 登录渠道。
 
-登录流程：SMS 验证码 → SID + refreshToken → SAUTH 换 token。
+登录方式：SMS 短信验证码 / QQ OAuth。
+登录流程：认证 → SID + refreshToken → SAUTH 换 token。
 会话续期：refreshToken → refreshLogin → 新 SID。
 """
 from __future__ import annotations
@@ -176,27 +177,84 @@ class ucChannel(channelmgr.channel):
     # ── 登录 ──────────────────────────────────────────────────
 
     def request_user_login(self, on_complete=None):
-        """请求用户登录（SMS 短信验证码对话框）。"""
+        """请求用户登录（弹出方式选择：短信 / QQ）。"""
         genv.set("GLOB_LOGIN_UUID", self.uuid)
 
-        if on_complete is not None:
-            def _on_done(session_data):
-                if session_data is None:
+        def _on_done(session_data):
+            if session_data is None:
+                if on_complete is not None:
                     on_complete(None)
                     return
-                try:
-                    success = self._store_session(session_data)
-                except Exception:
-                    self.logger.exception("UC 异步登录处理失败")
-                    success = False
+                return False
+            try:
+                success = self._store_session(session_data)
+            except Exception:
+                self.logger.exception("UC 异步登录处理失败")
+                success = False
+            if on_complete is not None:
                 on_complete(success)
+                return
+            return success
 
-            self.ucLogin.sms_login_dialog(on_complete=_on_done)
+        method = self._choose_login_method()
+        if method is None:
+            # 用户取消
+            if on_complete is not None:
+                on_complete(None)
             return
 
-        # 同步模式
-        session_data = self.ucLogin.sms_login_dialog()
-        return self._store_session(session_data)
+        if method == "qq":
+            if on_complete is not None:
+                self.ucLogin.qq_login_dialog(on_complete=_on_done)
+                return
+            session_data = self.ucLogin.qq_login_dialog()
+            return self._store_session(session_data)
+        else:
+            # 默认 SMS
+            if on_complete is not None:
+                self.ucLogin.sms_login_dialog(on_complete=_on_done)
+                return
+            session_data = self.ucLogin.sms_login_dialog()
+            return self._store_session(session_data)
+
+    @staticmethod
+    def _choose_login_method() -> Optional[str]:
+        """弹出对话框让用户选择登录方式：短信 / QQ。"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel
+        from PyQt6.QtCore import Qt
+
+        chosen = [None]
+
+        dlg = QDialog()
+        dlg.setWindowTitle("九游账号 - 选择登录方式")
+        dlg.setWindowFlags(
+            dlg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint
+        )
+        dlg.setFixedSize(300, 160)
+        dlg.setModal(True)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+
+        title = QLabel("请选择登录方式")
+        title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        sms_btn = QPushButton("📱 短信验证码登录")
+        sms_btn.setFixedHeight(36)
+        sms_btn.clicked.connect(lambda: (chosen.__setitem__(0, "sms"), dlg.accept()))
+        layout.addWidget(sms_btn)
+
+        qq_btn = QPushButton("🐧 QQ登录")
+        qq_btn.setFixedHeight(36)
+        qq_btn.clicked.connect(lambda: (chosen.__setitem__(0, "qq"), dlg.accept()))
+        layout.addWidget(qq_btn)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            return chosen[0]
+        return None
 
     # ── UniSDK 数据 ──────────────────────────────────────────
 

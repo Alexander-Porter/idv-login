@@ -38,8 +38,11 @@ from channelHandler.ucLogin.consts import (
     SVC_GET_SECURITY_KEY,
     SVC_SEND_SMS_CODE,
     SVC_SMS_LOGIN,
+    SVC_QQ_LOGIN,
     SVC_REFRESH_LOGIN,
     SVC_SI_APPLY,
+    UC_QQ_APP_ID,
+    UC_QQ_ACCOUNT_TYPE,
 )
 from channelHandler.ucLogin.crypto import encrypt_request, decrypt_response, update_rsa_key, get_rsa_version
 from logutil import setup_logger
@@ -753,6 +756,119 @@ def refresh_login(sid: str, refresh_token: str, game_data: dict = None) -> Optio
         return None
 
 
+# ============ QQ 登录 ============
+
+class UCQQBrowser:
+    """UC/九游 QQ OAuth 登录浏览器（复用 WebBrowser 基类）。
+
+    流程: 打开 QQ OAuth 页面 → 用户扫码/授权 → 截获 access_token+openid
+    → 调用 ucid.user.qqLogin → 返回 session 数据。
+    """
+
+    def __init__(self):
+        from channelHandler.WebLoginUtils import WebBrowser
+
+        class _QQWebBrowser(WebBrowser):
+            def __init__(self_inner):
+                super().__init__("uc_qq_login", False)
+
+            def verify(self_inner, url: str) -> bool:
+                from urllib.parse import urlparse, parse_qs
+                parsed_url = urlparse(url)
+                if (parsed_url.netloc == "imgcache.qq.com"
+                        and parsed_url.path == "/open/connect/widget/mobile/login/proxy.htm"):
+                    query_dict = parse_qs(parsed_url.fragment)
+                    return "access_token" in query_dict
+                return False
+
+            def parseReslt(self_inner, url: str):
+                from urllib.parse import urlparse, parse_qs
+                parsed_url = urlparse(url)
+                query_dict = parse_qs(parsed_url.fragment)
+                self_inner.result = query_dict
+                return True
+
+        self._browser_cls = _QQWebBrowser
+        self.logger = setup_logger()
+
+    def open(self, on_complete=None) -> Optional[Dict[str, Any]]:
+        """打开 QQ OAuth 页面并等待用户授权。
+
+        Returns:
+            同步模式返回 {"access_token": [...], "openid": [...], ...}；
+            异步模式返回 None（通过 on_complete 回调）。
+        """
+        qq_url = (
+            f"https://openmobile.qq.com/oauth2.0/m_authorize"
+            f"?client_id={UC_QQ_APP_ID}"
+            f"&scope=get_user_info"
+            f"&redirect_uri=auth://tauth.qq.com/"
+            f"&style=qr"
+            f"&response_type=token"
+        )
+        browser = self._browser_cls()
+        browser.set_url(qq_url)
+        result = browser.run()
+
+        if result is None:
+            # 异步模式
+            self._active_browser = browser
+            if on_complete is not None:
+                def _on_async_done(b):
+                    self._active_browser = None
+                    try:
+                        on_complete(b.result if b.result else None)
+                    except Exception:
+                        self.logger.exception("UC QQ 异步登录浏览器回调失败")
+                        on_complete(None)
+                browser._async_completion_callback = _on_async_done
+            return None
+
+        return result
+
+
+def login_by_qq(qq_auth_data: dict, game_data: dict = None) -> Optional[Dict[str, Any]]:
+    """用 QQ OAuth 数据登录 UC。
+
+    Args:
+        qq_auth_data: QQ OAuth 返回的 query dict，包含 access_token、openid 等。
+        game_data: UC 游戏数据。
+
+    Returns:
+        成功返回 session 数据（sid, accountId, refreshToken 等），失败返回 None。
+    """
+    logger = setup_logger()
+    if not _cached_si:
+        init_sdk_config(game_data=game_data)
+
+    access_token = qq_auth_data.get("access_token", [""])[0]
+    openid = qq_auth_data.get("openid", [""])[0]
+    if not access_token or not openid:
+        logger.error("UC QQ 登录缺少 access_token 或 openid")
+        return None
+
+    data = {
+        "accessToken": access_token,
+        "openid": openid,
+        "accountType": UC_QQ_ACCOUNT_TYPE,
+    }
+
+    result = call_uc_api(service=SVC_QQ_LOGIN, data=data, game_data=game_data)
+    state = result.get("state", {})
+    code = state.get("code", -1)
+
+    if code == 1:
+        resp_data = result.get("data", {})
+        logger.info(
+            f"UC QQ 登录成功: sid={resp_data.get('sid', '?')[:20]}..., "
+            f"accountId={resp_data.get('accountId', '?')}"
+        )
+        return resp_data
+
+    logger.warning(f"UC QQ 登录失败: code={code}, msg={state.get('msg')}")
+    return None
+
+
 class UCLogin:
     """UC/九游登录管理器。"""
 
@@ -801,3 +917,46 @@ class UCLogin:
 
         # 同步模式 — 必须在主线程
         return _show_dialog()
+
+    def qq_login_dialog(self, on_complete=None) -> Optional[Dict[str, Any]]:
+        """QQ OAuth 登录。
+
+        打开 QQ 扫码页面 → 获取 access_token → 调用 ucid.user.qqLogin → 返回 session。
+
+        Args:
+            on_complete: 异步回调 (session_data | None)。为 None 时同步阻塞。
+
+        Returns:
+            同步模式返回 session_data dict 或 None；异步模式始终返回 None。
+        """
+        import app_state
+
+        browser = UCQQBrowser()
+
+        def _do_qq_login(qq_auth_data):
+            if not qq_auth_data:
+                return None
+            return login_by_qq(qq_auth_data, game_data=self._game_data)
+
+        if on_complete is not None:
+            def _on_browser_done(qq_auth_data):
+                try:
+                    session_data = _do_qq_login(qq_auth_data)
+                    on_complete(session_data)
+                except Exception:
+                    self.logger.exception("UC QQ 登录处理失败")
+                    on_complete(None)
+
+            import threading as _th
+            if _th.current_thread() is _th.main_thread():
+                browser.open(on_complete=_on_browser_done)
+            else:
+                app_state.run_on_main_thread(
+                    lambda: browser.open(on_complete=_on_browser_done)
+                )
+            self._active_qq_browser = browser
+            return None
+
+        # 同步模式
+        qq_auth_data = browser.open()
+        return _do_qq_login(qq_auth_data)
