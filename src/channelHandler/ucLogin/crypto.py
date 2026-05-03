@@ -14,6 +14,7 @@ UC SDK 的所有网络请求都使用 AES+RSA 混合加密：
 import base64
 import json
 import os
+import threading
 
 from cryptography.hazmat.primitives import serialization, padding as sym_padding
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
@@ -29,6 +30,7 @@ def _load_rsa_pubkey_from_b64(b64: str):
 
 
 # 当前使用的 RSA 公钥（运行时可被 getSecurityKey 更新）
+_rsa_lock = threading.Lock()
 _rsa_pubkey = None
 _rsa_pubkey_version = UC_RSA_PUBKEY_VERSION
 _rsa_pubkey_b64 = UC_RSA_PUBKEY_B64
@@ -36,14 +38,16 @@ _rsa_pubkey_b64 = UC_RSA_PUBKEY_B64
 
 def _get_rsa_pubkey():
     global _rsa_pubkey
-    if _rsa_pubkey is None:
-        _rsa_pubkey = _load_rsa_pubkey_from_b64(_rsa_pubkey_b64)
-    return _rsa_pubkey
+    with _rsa_lock:
+        if _rsa_pubkey is None:
+            _rsa_pubkey = _load_rsa_pubkey_from_b64(_rsa_pubkey_b64)
+        return _rsa_pubkey
 
 
 def get_rsa_version() -> int:
     """获取当前 RSA 公钥版本号。"""
-    return _rsa_pubkey_version
+    with _rsa_lock:
+        return _rsa_pubkey_version
 
 
 def update_rsa_key(security_key: str) -> bool:
@@ -66,9 +70,10 @@ def update_rsa_key(security_key: str) -> bool:
         ver = int(parts[0])
         b64 = parts[1]
         pubkey = _load_rsa_pubkey_from_b64(b64)
-        _rsa_pubkey = pubkey
-        _rsa_pubkey_version = ver
-        _rsa_pubkey_b64 = b64
+        with _rsa_lock:
+            _rsa_pubkey = pubkey
+            _rsa_pubkey_version = ver
+            _rsa_pubkey_b64 = b64
         return True
     except Exception:
         return False

@@ -187,7 +187,7 @@ class HonorLogin:
             if ut and ut.get("openId"):
                 self.unionToken = ut
                 self.lastLoginTime = int(time.time())
-                self.expiredTime = ut.get("expireTimeout", self.lastLoginTime + 3600)
+                self.expiredTime = self.lastLoginTime + ut.get("expireTimeout", 3600)
                 self.logger.info(f"荣耀登录成功: openId={ut['openId'][:8]}...")
             else:
                 self.logger.error(f"荣耀 Game Center login 未返回有效 unionToken: {data}")
@@ -252,7 +252,7 @@ class HonorLogin:
             if ut and ut.get("openId"):
                 self.unionToken = ut
                 self.lastLoginTime = int(time.time())
-                self.expiredTime = ut.get("expireTimeout", self.lastLoginTime + 3600)
+                self.expiredTime = self.lastLoginTime + ut.get("expireTimeout", 3600)
                 self.logger.info("荣耀 configLogin 刷新成功")
                 return True
             else:
