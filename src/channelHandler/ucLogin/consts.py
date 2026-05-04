@@ -30,7 +30,6 @@ UC_HOST_MAP = {
     "auth.captcha.sendSmsCode": "sdk.9game.cn",
     "auth.captcha.getCommonCaptcha": "sdk.9game.cn",
     "guest.login": "sdk.9game.cn",
-    "ucid.user.qqLogin": "sdk.9game.cn",
     # sdk-account.9game.cn: 统一账号（新版 SMS 登录）
     "unifiedAccount.sendSmsCode": "sdk-account.9game.cn",
     "unifiedAccount.loginBySmsCode": "sdk-account.9game.cn",
@@ -56,14 +55,8 @@ SVC_SI_APPLY = "si.apply"
 # 新版统一账号登录（从 Frida 捕获确认 SDK 9.8.x 使用这些）
 SVC_SEND_SMS_CODE = "unifiedAccount.sendSmsCode"
 SVC_SMS_LOGIN = "unifiedAccount.loginBySmsCode"
-# QQ 登录
-SVC_QQ_LOGIN = "ucid.user.qqLogin"
 # 会话管理
 SVC_REFRESH_LOGIN = "ucid.user.refreshLogin"
-
-# ============ QQ OAuth ============
-UC_QQ_APP_ID = "100468196"
-UC_QQ_ACCOUNT_TYPE = 301
 
 # ============ SDK 版本 ============
 UC_SDK_VERSION = "9.8.1.4"
