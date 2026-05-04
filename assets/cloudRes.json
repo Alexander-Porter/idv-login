@@ -1,5 +1,5 @@
 {
-  "lastModified": 1777878955,
+  "lastModified": 1777880963,
   "version": "v6.0.5-beta",
   "hotfix": [
     {
@@ -351,7 +351,7 @@
         "v6.0.5-beta"
       ],
       "target_module": "channelHandler.oppoGameSdk.gamesdk_latest_role_pb2",
-      "target_commit": "69e9311ed50898c6b1a378c984e3ddea991837df",
+      "target_commit": "02f7d67a19555e58b14e1a4e2bb558cf18302c9d",
       "note": "修复protobuf gencode/runtime版本不匹配导致OPPO渠道服崩溃"
     },
     {
@@ -359,7 +359,7 @@
         "v6.0.5-beta"
       ],
       "target_module": "channelHandler.oppoGameSdk.gamesdk_login_pb2",
-      "target_commit": "69e9311ed50898c6b1a378c984e3ddea991837df",
+      "target_commit": "02f7d67a19555e58b14e1a4e2bb558cf18302c9d",
       "note": "修复protobuf gencode/runtime版本不匹配导致OPPO渠道服崩溃"
     }
   ],
