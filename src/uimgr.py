@@ -167,6 +167,9 @@ def register_url_scheme():
     honor_scheme = QWebEngineUrlScheme(b"honorid")
     honor_scheme.setDefaultPort(443)
     QWebEngineUrlScheme.registerScheme(honor_scheme)
+    auth_scheme = QWebEngineUrlScheme(b"auth")
+    auth_scheme.setDefaultPort(443)
+    QWebEngineUrlScheme.registerScheme(auth_scheme)
 
 
 class IDVLoginSchemeHandler(QWebEngineUrlSchemeHandler):
