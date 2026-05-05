@@ -1,8 +1,5 @@
 # coding=UTF-8
-"""UC/九游 SDK 常量。
-
-基于 jadx 反编译 + Frida hook 捕获 + HAR 抓包确认。
-"""
+"""UC/九游 SDK 常量。"""
 
 # RSA 公钥（从 APK assets/config/uc_key.txt 提取，格式 "version|base64_der_pubkey"）
 # 注意：此为启动密钥，运行时由 getSecurityKey 返回新密钥（通常 version=5）替换。
@@ -14,7 +11,7 @@ UC_RSA_PUBKEY_B64 = (
 )
 
 # SDK API 端点 — 不同服务路由到不同 host
-# 从 HAR 抓包确认：URL 格式 http://{host}/ng/client/{service}?ver=0&df=adat&os=android
+# URL 格式 http://{host}/ng/client/{service}?ver=0&df=adat&os=android
 # 注意：必须使用 HTTP，HTTPS 连接会被 reset
 UC_HOST_MAP = {
     # sdk.9game.cn: 初始化、认证、旧版登录
@@ -52,7 +49,7 @@ UC_DEFAULT_HOST = "sdk.9game.cn"
 # 初始化
 SVC_GET_SECURITY_KEY = "system.getSecurityKey"
 SVC_SI_APPLY = "si.apply"
-# 新版统一账号登录（从 Frida 捕获确认 SDK 9.8.x 使用这些）
+# 新版统一账号登录（SDK 9.8.x）
 SVC_SEND_SMS_CODE = "unifiedAccount.sendSmsCode"
 SVC_SMS_LOGIN = "unifiedAccount.loginBySmsCode"
 # 会话管理

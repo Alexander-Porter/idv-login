@@ -6,12 +6,6 @@ SMS 短信验证码登录：sendSmsCode → loginBySmsCode → SID
 会话管理：
 - refreshToken 可续期 session（ucid.user.refreshLogin）
 - session 有效期 86400 秒（24 小时）
-
-技术细节（来自 jadx 反编译 + Frida hook + HAR 抓包）：
-- 请求体为 AES+RSA 混合加密的 JSON，Content-Type 虽标为 form-urlencoded 但实际是 raw JSON
-- URL 格式: http://{host}/ng/client/{service}?ver=0&df=adat&os=android
-- 指纹字段: mikasa=MD5(MAC), sola=MD5(IMEI), ackerman=MD5(AndroidID),
-            kaisa=MD5(CSID), uya=MD5(UTDID), werewolf=服务器下发
 """
 
 import json
@@ -420,15 +414,7 @@ def _get_device_ids():
 
 
 def _build_client_data(game_data: dict = None) -> dict:
-    """构建 UC SDK 请求的 client 字段。
-
-    基于 jadx 反编译 ClientData.java / ClientExtraInfo.java / DeviceHashParam.java:
-    - ex 字段格式: key:value|key:value|...
-    - 指纹哈希: MD5(原值).upper()，空值默认 MD5("ffffffffffffffff").upper()
-    - ci = MD5(UUID + "-" + firstInstallTime)，生成后缓存
-    - si = 服务器通过 system.config.check 下发
-    - werewolf = 服务器通过 getSecurityKey 下发的 CRC code
-    """
+    """构建 UC SDK 请求的 client 字段。"""
     import hashlib
     android_id, utdid, csid = _get_device_ids()
 
@@ -670,7 +656,7 @@ def login_by_sms_code(
 ) -> Optional[Dict[str, Any]]:
     """用短信验证码登录。
 
-    流程 (从 Frida 捕获):
+    流程:
     1. 首次调用 → 可能返回 code=214 "请选择游戏账号" + accountList
     2. 带 serviceTicket + accountId 再次调用 → code=1 登录成功
 

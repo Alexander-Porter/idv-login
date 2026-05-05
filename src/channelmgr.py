@@ -219,7 +219,7 @@ class ChannelManager:
         else:
             toast_text = "扫码结果已保存在渠道服管理界面，有效期一个月及以上。"
 
-        if login_channel in [i["channel"] for i in manual_login_channels] and login_channel != "myapp" and login_channel != "oppo":
+        if login_channel in [i["channel"] for i in manual_login_channels] and login_channel not in ("myapp", "oppo", "bilibili_sdk", "myapp_qq"):
             if native_save:
                 self.logger.info("扫码结果已临时保存在游戏账号列表中，有效期约3天。如需长期保存请进入渠道服管理界面手动登录。")
                 toast_text = "扫码结果已临时保存，时长约3天。如需长期保存请进入渠道服管理界面手动登录。"
@@ -228,9 +228,12 @@ class ChannelManager:
                 toast_text = "该渠道需要通过渠道服管理界面手动登录来长期保存。"
             app_state.toast(toast_text, duration=5000)
             return False
-        if login_channel == "myapp":
-            self.logger.warning("正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。")
-            toast_text += "\n正在导入应用宝账号，请使用手动导入功能导入微信渠道服！如果您使用的是QQ渠道服，请忽略此信息。"
+        if login_channel == "myapp" or login_channel == "myapp_qq":
+            self.logger.info("正在导入应用宝账号，保存时间为三天左右，长期保存请前往渠道服管理界面。")
+            toast_text += "\n正在导入应用宝账号，保存时间为三天左右，长期保存请前往渠道服管理界面。"
+        if login_channel == "bilibili_sdk":
+            self.logger.info("正在导入Bilibili账号。也可以在渠道服管理界面使用Bilibili扫码登录。")
+            toast_text += "\n正在导入Bilibili账号。也可以在渠道服管理界面使用Bilibili扫码登录。"
         if login_channel == "oppo":
             self.logger.warning("您正在扫码导入OPPO账号，扫码登录有效期在一周到三个月不等，如需长期免扫码登录，请使用手动登录。具体方法请参见教程。")
             if native_save:
