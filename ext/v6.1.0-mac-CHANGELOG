@@ -1,0 +1,10 @@
+# idv-login登录助手 v6.1.0-mac 更新日志
+
+本版本为 macOS 专用维护版本。
+
+## v6.1.0-mac 问题修复
+[·] macOS 扫码登录请求参数覆写策略与 Windows 对齐，改为按云端配置为指定 game_id 覆写参数。
+[·] 支持 macOS PyInstaller 打包版本应用现有云端 hotfix 条目。
+[·] macOS 热更新改为外置模块覆盖加载，不再尝试修改 PyInstaller 包内文件。
+[·] 热更新状态继续沿用本地配置记录，兼容现有回滚、跳过和验证流程。
+[·] 优化热更新重启流程，适配 run-mac.sh 使用 sudo 运行 macOS 二进制的方式。
