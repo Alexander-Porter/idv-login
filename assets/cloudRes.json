@@ -1,5 +1,5 @@
 {
-  "lastModified": 1777997214,
+  "lastModified": 1778472294,
   "version": "v6.1.0-stable",
   "hotfix": [
     {
@@ -627,11 +627,11 @@
       "name": "华为账号"
     },
     {
-    "package_name": "com.netease.sky.vivo",
-    "app_channel": "nearme_vivo",
-    "log_key": "lM8jwFDFbrbKABNJr3IAKZHyavfDQfHu",
-    "game_id": "ma75",
-    "nearme_vivo": "com.netease.sky.vivo"
+      "package_name": "com.netease.sky.vivo",
+      "app_channel": "nearme_vivo",
+      "log_key": "lM8jwFDFbrbKABNJr3IAKZHyavfDQfHu",
+      "game_id": "ma75",
+      "nearme_vivo": "com.netease.sky.vivo"
     },
     {
       "package_name": "com.netease.sky.huawei",
