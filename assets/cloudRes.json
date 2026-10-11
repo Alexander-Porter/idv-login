@@ -1,5 +1,5 @@
 {
-  "lastModified": 1791732017,
+  "lastModified": 1791734904,
   "version": "v6.3.2-stable",
   "hotfix": [
     {
@@ -762,10 +762,21 @@
     },
     {
       "need_hotfix_version": [
+        "v6.2.2-stable",
+        "v6.2.3-stable",
+        "v6.3.0-stable",
+        "v6.3.1-beta"
+      ],
+      "target_module": "channelHandler.huaLogin.huaChannel",
+      "target_commit": "41c46454aa58d78c704372f98504b3b61c0a6af3",
+      "note": "修复华为扫码登录提示设备类型不受支持、无法获取登录凭证的问题"
+    },
+    {
+      "need_hotfix_version": [
         "v6.3.2-stable"
       ],
       "target_module": "channelHandler.huaLogin.huaChannel",
-      "target_commit": "6bb7f5daee75d35af92ab4c6aa07041125a5bd23",
+      "target_commit": "b6d263ee0b83bb6e844181e863f287007c3988db",
       "note": "修复华为扫码登录提示设备类型不受支持、无法获取登录凭证的问题"
     }
   ],
