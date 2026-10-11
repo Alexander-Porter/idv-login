@@ -1,5 +1,5 @@
 {
-  "lastModified": 1791390368,
+  "lastModified": 1791732017,
   "version": "v6.3.2-stable",
   "hotfix": [
     {
@@ -759,6 +759,14 @@
       "target_module": "hotfixmgr",
       "target_commit": "fda128450b39751e5838445f78e9eb14373314b6",
       "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.2-stable"
+      ],
+      "target_module": "channelHandler.huaLogin.huaChannel",
+      "target_commit": "6bb7f5daee75d35af92ab4c6aa07041125a5bd23",
+      "note": "修复华为扫码登录提示设备类型不受支持、无法获取登录凭证的问题"
     }
   ],
   "shortcuts": [
