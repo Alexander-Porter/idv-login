@@ -109,7 +109,7 @@ class HwQrSession:
         """
         url = (
             f"{QR_HOST}/DimensionalCode/getqrInfo?Version={VER}"
-            f"&cVersion=1&blackScreen=0&appBrand=HUAWEI"
+            f"&cVersion=HwID_5.3.0.312&blackScreen=0&appBrand=HUAWEI"
         )
         body = (
             "version=53000&appID=com.huawei.hwid&loginChannel=7000700"
@@ -132,7 +132,7 @@ class HwQrSession:
         """
         url = (
             f"{QR_HOST}/DimensionalCode/async?Version={VER}"
-            f"&cVersion=1&blackScreen=0&appBrand=HUAWEI"
+            f"&cVersion=HwID_5.3.0.312&blackScreen=0&appBrand=HUAWEI"
         )
         st, content = self.post(url, f"qrToken={qr_token}", "application/x-www-form-urlencoded; charset=UTF-8")
         if st != 200:
@@ -188,7 +188,7 @@ class HwQrSession:
         )
         url = (
             f"{AS_HOST}/AccountServer/IDM/loginByQrCode?Version={VER}"
-            f"&cVersion=1&blackScreen=0&appBrand=HUAWEI"
+            f"&cVersion=HwID_5.3.0.312&blackScreen=0&appBrand=HUAWEI"
         )
         st, content = self.post(url, xml, "text/html; charset=UTF-8")
         if st != 200:
