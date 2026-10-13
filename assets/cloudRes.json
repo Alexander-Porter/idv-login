@@ -1,5 +1,5 @@
 {
-  "lastModified": 1791900239,
+  "lastModified": 1791900446,
   "version": "v6.3.2-stable",
   "hotfix": [
     {
@@ -251,16 +251,6 @@
     },
     {
       "need_hotfix_version": [
-        "v5.8.3.1-beta",
-        "v5.9.0-beta",
-        "v5.9.1-stable"
-      ],
-      "target_module": "cloudRes",
-      "target_commit": "042c5462f50a1534113ef43f9b9808142b86729b",
-      "note": "恢复官服扫码记住账号，云端配置已同步更新，如不应用此热更新可能出现非法请求错误"
-    },
-    {
-      "need_hotfix_version": [
         "v6.0.4-stable"
       ],
       "target_module": "local_handler",
@@ -282,17 +272,6 @@
       "target_module": "channelHandler.oppoGameSdk.gamesdk_login_pb2",
       "target_commit": "02f7d67a19555e58b14e1a4e2bb558cf18302c9d",
       "note": "修复protobuf gencode/runtime版本不匹配导致OPPO渠道服崩溃"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.4-stable",
-        "v6.0.5-beta",
-        "v6.1.0-mac",
-        "v6.1.0-stable"
-      ],
-      "target_module": "cloudRes",
-      "target_commit": "d004668959b077b66f213389a91216bff0ed983f",
-      "note": "适配第五人格6.18日客户端更新"
     },
     {
       "need_hotfix_version": [
@@ -374,15 +353,6 @@
       "target_module": "local_handler",
       "target_commit": "d1986dc377f8ebc3c095998450e5515be15c2b5c",
       "note": "修复平台托管启动方式的默认判断和设置范围。"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.2.0-beta",
-        "v6.2.1-stable"
-      ],
-      "target_module": "cloudRes",
-      "target_commit": "76471588c55c6680719a4dec0304e603230e3eb7",
-      "note": "修复了蛋仔派对等游戏无法正常启动的问题"
     },
     {
       "need_hotfix_version": [
@@ -572,16 +542,6 @@
         "v6.0.1-stable",
         "v6.0.2-stable"
       ],
-      "target_module": "cloudRes",
-      "target_commit": "f9f301966507f334b5be41d00ffda5b2ebba4037",
-      "note": "减少获取云配置时爆红字的概率"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.0.0-beta",
-        "v6.0.1-stable",
-        "v6.0.2-stable"
-      ],
       "target_module": "mitm_addon",
       "target_commit": "f9f301966507f334b5be41d00ffda5b2ebba4037",
       "note": "减少获取云配置时爆红字的概率"
@@ -708,14 +668,6 @@
       "need_hotfix_version": [
         "v6.3.0-stable"
       ],
-      "target_module": "cloudRes",
-      "target_commit": "23361e6fbfc45d4afe3fa411087bd30dfe32832d",
-      "note": "减少获取云配置时爆红字的概率"
-    },
-    {
-      "need_hotfix_version": [
-        "v6.3.0-stable"
-      ],
       "target_module": "gamecatalog",
       "target_commit": "23361e6fbfc45d4afe3fa411087bd30dfe32832d",
       "note": "减少获取云配置时爆红字的概率"
@@ -812,6 +764,65 @@
       "target_module": "channelHandler.qihooLogin.qihooChannel",
       "target_commit": "70bf5ded9a07cd640c6b1429bb9a7b0c2b7ed643",
       "note": "修复360渠道网页登录验证失败的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v5.8.3.1-beta",
+        "v5.9.0-beta",
+        "v5.9.1-stable"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "05de9136f754e4b98a197faece55ab0b077bda31",
+      "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.0-beta",
+        "v6.0.1-stable",
+        "v6.0.2-stable"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "6599b8a72be6ea623cebed8b8c21cdfe4c2db975",
+      "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.0.4-stable",
+        "v6.0.5-beta",
+        "v6.1.0-mac",
+        "v6.1.0-stable"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "a0746fff851a20d02384b9e0287ba1b0a110d1e4",
+      "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.2.0-beta",
+        "v6.2.1-stable",
+        "v6.2.2-stable",
+        "v6.2.3-stable"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "4bebc0003e0e74a43855707f29caca82ba267eb8",
+      "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.0-stable",
+        "v6.3.1-beta"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "e5e53b5d1bda3e4257a106aa27cdd2a337828f76",
+      "note": "减少获取云配置时爆红字的概率"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.2-stable"
+      ],
+      "target_module": "cloudRes",
+      "target_commit": "420cd3f4b2570dbbd4ec242199e2075f0363eb69",
+      "note": "减少获取云配置时爆红字的概率"
     }
   ],
   "shortcuts": [
