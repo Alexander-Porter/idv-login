@@ -48,8 +48,7 @@ DEFAULT_OS_VERSION = "12"
 class QihooBrowser(WebBrowser):
     """360 网页登录。
 
-    成功判定：URL 跳到 destUrl（i.360.cn 首页）即登录成功；
-    旧版 /index/wap 判定页仍兼容。
+    成功判定：URL 跳到 destUrl（i.360.cn 首页），并取得 Q/T cookie。
     """
 
     def __init__(self):
@@ -72,15 +71,12 @@ class QihooBrowser(WebBrowser):
 
     @staticmethod
     def _is_success_url(text: str) -> bool:
-        """新登录页跳回 i.360.cn 即判定成功；旧 /index/wap 仍兼容。
+        """新登录页跳回 i.360.cn 首页。
 
         destUrl 为 https://i.360.cn/，登录成功后可能落在：
           https://i.360.cn/        （path 为空或 /）
           https://i.360.cn/index   （桌面版首页）
-          旧版 https://i.360.cn/index/wap（手机版首页，兼容保留）
         """
-        if text.startswith(C.SUCCESS_URL_PREFIX) or "i.360.cn/index/wap" in text:
-            return True
         try:
             parsed = urllib.parse.urlparse(text)
             target = urllib.parse.urlparse(C.SUCCESS_URL_TARGET)

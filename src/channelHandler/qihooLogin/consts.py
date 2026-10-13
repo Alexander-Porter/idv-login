@@ -43,8 +43,6 @@ LOGIN_METHOD_PASSWORD = 2
 LOGIN_URL = "https://i.360.cn/login?destUrl=https%3A%2F%2Fi.360.cn%2F"
 # 新登录页登录成功后的跳转目标（destUrl 解码值）
 SUCCESS_URL_TARGET = "https://i.360.cn/"
-# 旧登录页（/login/wap）的登录成功判定页，保留兼容
-SUCCESS_URL_PREFIX = "https://i.360.cn/index/wap"
 
 # 渠道名（= assets/360_assistant_data 的文件名前缀）
 CHANNEL_NAME = "360_assistant"
