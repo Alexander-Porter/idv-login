@@ -2,9 +2,7 @@ import os
 import json
 import re
 import requests
-from datetime import datetime
 from envmgr import genv
-from const import manual_login_channels
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 from channelHandler.channelUtils import cmp_game_id
@@ -71,8 +69,8 @@ class CloudRes:
             local_last_modified = self.local_data.get('lastModified', 0)
             if cloud_last_modified > local_last_modified:
                 self.local_data = cloud_data
-                with open(self.cache_file, 'w', encoding='utf-8') as f:
-                    json.dump(cloud_data, f, ensure_ascii=False, indent=4)
+                from secure_write import write_json_restricted
+                write_json_restricted(self.cache_file, cloud_data)
                 logger.info("云端配置有更新，应用成功")
             else:
                 logger.info("本地配置已是最新")
@@ -144,7 +142,7 @@ class CloudRes:
 
     def get_qrcode_login_config(self, game_id):
         """返回 netease_qrcode_login_game_list 中指定 game_id 的完整配置字典，
-        包含 app_channel 以及 cv、qrcode_channel_type 等额外参数。"""
+        包含 app_channel 以及 qrcode_channel_type、dst_jf_game_id、is_remember 等额外参数。"""
         game_list = self.get_netease_qrcode_login_game_list()
         for item in game_list:
             if cmp_game_id(item.get('game_id'), game_id):
@@ -214,3 +212,15 @@ class CloudRes:
         if not isinstance(hotfixes, list):
             return []
         return hotfixes
+
+    def get_no_proxy_domains(self):
+        """返回云端下发的 NO_PROXY 域名列表。
+
+        每个域名应以 '.' 开头以支持子域名匹配。
+        例如：['.gameyw.netease.com', '.ps.netease.com']
+        """
+        data = self.local_data or {}
+        domains = data.get("no_proxy_domains") or []
+        if not isinstance(domains, list):
+            return []
+        return domains
