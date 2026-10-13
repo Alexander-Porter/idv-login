@@ -89,11 +89,11 @@ class CloudRes:
 
                 return (_MODIFIED, data)
             except requests.RequestException as e:
-                logger.error(f"Failed to fetch JSON from URL {url}: {e}")
+                logger.debug(f"Failed to fetch JSON from URL {url}: {e}")
             except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON received from URL {url}: {e}")
+                logger.debug(f"Invalid JSON received from URL {url}: {e}")
             except Exception as e:
-                logger.error(f"Unexpected error while fetching JSON from URL {url}: {e}")
+                logger.debug(f"Unexpected error while fetching JSON from URL {url}: {e}")
         logger.error("Failed to fetch JSON from all provided URLs.")
         return (_ERROR, None)
 
