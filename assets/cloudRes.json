@@ -1,5 +1,5 @@
 {
-  "lastModified": 1791734904,
+  "lastModified": 1791900239,
   "version": "v6.3.2-stable",
   "hotfix": [
     {
@@ -778,6 +778,40 @@
       "target_module": "channelHandler.huaLogin.huaChannel",
       "target_commit": "b6d263ee0b83bb6e844181e863f287007c3988db",
       "note": "修复华为扫码登录提示设备类型不受支持、无法获取登录凭证的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.0-stable",
+        "v6.3.1-beta"
+      ],
+      "target_module": "channelHandler.qihooLogin.consts",
+      "target_commit": "3a50ca3081dce4d931c5b958c72fd37f15a5d73f",
+      "note": "修复360渠道网页登录验证失败的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.0-stable",
+        "v6.3.1-beta"
+      ],
+      "target_module": "channelHandler.qihooLogin.qihooChannel",
+      "target_commit": "3a50ca3081dce4d931c5b958c72fd37f15a5d73f",
+      "note": "修复360渠道网页登录验证失败的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.2-stable"
+      ],
+      "target_module": "channelHandler.qihooLogin.consts",
+      "target_commit": "70bf5ded9a07cd640c6b1429bb9a7b0c2b7ed643",
+      "note": "修复360渠道网页登录验证失败的问题"
+    },
+    {
+      "need_hotfix_version": [
+        "v6.3.2-stable"
+      ],
+      "target_module": "channelHandler.qihooLogin.qihooChannel",
+      "target_commit": "70bf5ded9a07cd640c6b1429bb9a7b0c2b7ed643",
+      "note": "修复360渠道网页登录验证失败的问题"
     }
   ],
   "shortcuts": [
