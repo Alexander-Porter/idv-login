@@ -8,20 +8,26 @@ import os
 from pathlib import Path
 import sys
 
+print("Qt smoke: interpreter started", flush=True)
 os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"  # same as main.py
 
 from PyQt6 import QtCore, QtGui, QtNetwork, QtPrintSupport, QtWebChannel, QtWidgets
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 
+print("Qt smoke: bindings imported", flush=True)
 app = QtWidgets.QApplication([])
+print("Qt smoke: QApplication created", flush=True)
 icon = QtGui.QIcon(str(Path(sys.argv[1]).resolve()))
 if icon.pixmap(32, 32).isNull():
     raise RuntimeError("Packaged ICO image plugin did not load")
+print("Qt smoke: ICO decoded", flush=True)
 if not QtNetwork.QSslSocket.supportsSsl():
     raise RuntimeError("Packaged Windows TLS backend did not load")
 print(f"Qt {QtCore.QT_VERSION_STR}, platform={app.platformName()}, style={app.style().objectName()}")
+print("Qt smoke: Schannel loaded", flush=True)
 view = QWebEngineView()
+print("Qt smoke: WebEngine view created", flush=True)
 view.resize(320, 200)
 view.show()
 result = 1

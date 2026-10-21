@@ -17,7 +17,7 @@ Windows 实际链路不是 README 中的单文件 PyInstaller 示例，而是：
 
 原流程在整个工作区递归改名/移动 pyc、删除 py，会同时修改依赖缓存和构建脚本。
 现在用 `compileall -b src` 直接生成应用相邻 pyc，仅在 dist 中删除应用 py 和缓存目录。
-第三方包保留标准源码布局，不再把其所有 pyc 跨目录搬动。完整依赖缓存不被瘦身步骤修改。
+第三方包保留标准源码布局，不再把其所有 pyc 跨目录搬动。完整依赖缓存不被瘦身步骤修改。缓存 key 升至 `deps-v2`，避免复用旧流程已经删掉源码的缓存。
 `verification.yaml` 和 `generate_verification.py` 仍使用原 `src` 编译与规范化 marshal 校验，
 应用代码、启动 bat、校验格式均未改变。
 

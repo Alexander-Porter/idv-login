@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: python-embed
-          key: windows-python-embed-deps-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+          key: windows-python-embed-deps-v2-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
 
       - name: Download Python Embedded
         if: steps.cache-python.outputs.cache-hit != 'true'
@@ -97,8 +97,10 @@ jobs:
 
       - name: Check staged Windows Qt runtime
         run: |
-          .\dist\python-embed\python.exe tools/smoke_windows_qt.py assets/icon.ico
-          if ($LASTEXITCODE -ne 0) { throw "Qt packaging smoke check failed" }
+          .\python-embed\python.exe -u -X faulthandler tools/smoke_windows_qt.py assets/icon.ico
+          Write-Host "Complete Qt runtime smoke exit code: $LASTEXITCODE"
+          .\dist\python-embed\python.exe -u -X faulthandler tools/smoke_windows_qt.py assets/icon.ico
+          if ($LASTEXITCODE -ne 0) { throw "Qt packaging smoke check failed ($LASTEXITCODE)" }
         shell: pwsh
 
       - name: Archive Qt size report
