@@ -3,7 +3,6 @@ import time
 
 import requests
 
-from PyQt6.QtWebEngineCore import QWebEngineUrlSchemeHandler
 from channelHandler.WebLoginUtils import WebBrowser
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
@@ -17,55 +16,39 @@ def sig_helper(magicValue="5C2F##3[6$^(68#%#D3E96;]35q#FB46", ts="1"):
 class QQBrowser(WebBrowser):
     """QQ OAuth 浏览器，拦截 auth:// scheme 获取 code/token。"""
 
-    class AuthSchemeHandler(QWebEngineUrlSchemeHandler):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.parent = parent
-
-        def requestStarted(self, info):
-            url = info.requestUrl().toString()
-            if url.startswith("auth://"):
-                self.parent._on_auth_redirect(info.requestUrl())
+    callback_schemes = ("auth",)
 
     def __init__(self, qq_appid):
-        super().__init__("myapp_qq", False, frameless=True)
+        super().__init__("myapp_qq", False)
         self.qq_appid = qq_appid
-        self._scheme_handler = self.AuthSchemeHandler(self)
-        self.profile.removeAllUrlSchemeHandlers()
-        self.profile.installUrlSchemeHandler(b"auth", self._scheme_handler)
-
-    def _on_auth_redirect(self, url):
-        """auth:// scheme 拦截回调"""
-        url_str = url.toString()
-        if self.verify(url_str):
-            if self.parseReslt(url_str):
-                try:
-                    self.profile.removeAllUrlSchemeHandlers()
-                except Exception:
-                    pass
-                self.cleanup()
 
     def verify(self, url: str) -> bool:
         from urllib.parse import urlparse, parse_qs
         parsed_url = urlparse(url)
         # Code flow: auth://tauth.qq.com/?code=...
-        if "tauth.qq.com" in url and "code=" in url:
+        if (parsed_url.scheme == "auth" and parsed_url.netloc == "tauth.qq.com"
+                and parsed_url.path in ("", "/")
+                and len(parse_qs(parsed_url.query).get("code", [])) == 1):
             return True
         # Implicit flow fallback: imgcache.qq.com with access_token in fragment
-        if parsed_url.netloc == "imgcache.qq.com" and parsed_url.path == "/open/connect/widget/mobile/login/proxy.htm":
+        if (parsed_url.scheme == "https" and parsed_url.netloc == "imgcache.qq.com"
+                and parsed_url.path == "/open/connect/widget/mobile/login/proxy.htm"):
             query_dict = parse_qs(parsed_url.fragment)
-            return "access_token" in query_dict.keys()
+            return all(len(query_dict.get(key, [])) == 1 and bool(query_dict[key][0])
+                       for key in ("access_token", "openid"))
         return False
 
     def parseReslt(self, url):
         from urllib.parse import urlparse, parse_qs
         from logutil import setup_logger
         logger = setup_logger()
+        parsed_url = urlparse(url)
 
         # Code flow: auth://tauth.qq.com/?code=...
-        if "tauth.qq.com" in url and "code=" in url:
-            query_str = url.split("?", 1)[1] if "?" in url else ""
-            query_dict = parse_qs(query_str)
+        if (parsed_url.scheme == "auth" and parsed_url.netloc == "tauth.qq.com"
+                and parsed_url.path in ("", "/")
+                and len(parse_qs(parsed_url.query).get("code", [])) == 1):
+            query_dict = parse_qs(parsed_url.query)
             logger.debug(f"QQ OAuth code flow keys: {list(query_dict.keys())}")
             self.result = {
                 "flow": "code",
@@ -73,7 +56,6 @@ class QQBrowser(WebBrowser):
                 "pf": query_dict.get("pf", [None])[0],
                 "pfkey": query_dict.get("pfkey", [None])[0],
             }
-            logger.debug(f"QQ OAuth code flow: code={self.result['code'][:8] if self.result['code'] else None}...")
             return True
 
         # Implicit flow fallback
@@ -86,8 +68,7 @@ class QQBrowser(WebBrowser):
             "openid": query_dict.get("openid", [None])[0],
             "pay_token": query_dict.get("pay_token", [None])[0],
         }
-        logger.debug(f"QQ OAuth implicit result: openid={self.result['openid']}, "
-                     f"has_access_token={bool(self.result['access_token'])}")
+        logger.debug(f"QQ OAuth implicit result: has_access_token={bool(self.result['access_token'])}")
         return True
 
 
@@ -122,18 +103,17 @@ class QQLogin:
             "visitor_switch": "-1",
             "regChannel": "",
         }
-        self.logger.debug(f"QQ verify params: {verify_data}")
+        self.logger.debug("开始 QQ YSDK 凭据验证")
         url = "https://ysdk.qq.com/auth/qq_verify_login"
         r = requests.get(
             url,
             params=verify_data,
             verify=should_verify_ssl(),
         )
-        self.logger.debug(f"QQ verify request URL: {r.url}")
         rjson = r.json()
-        self.logger.info(f"QQ verify response: {rjson}")
+        self.logger.info(f"QQ verify response: ret={rjson.get('ret')}")
         if r.status_code != 200 or rjson.get("ret") != 0:
-            self.logger.error(f"QQ YSDK 验证失败: {rjson}")
+            self.logger.error(f"QQ YSDK 验证失败: ret={rjson.get('ret')}")
             return False
         self.logger.info("QQ YSDK 验证成功")
         # YSDK qq_verify_login 不返回 atk/openid/atk_expire，需用 QQ 原始 token 补全
@@ -193,13 +173,13 @@ class QQLogin:
             "Auth-Request-Time": timestamp,
         }
         url = "https://ysdk.qq.com/cmd/QQCodeLogin?"
-        self.logger.debug(f"QQCodeLogin request: appID={self.qq_appid}, code={code[:8]}...")
+        self.logger.debug("开始 QQ OAuth code 交换")
         r = requests.post(url, data=body, headers=headers, verify=should_verify_ssl())
         rjson = r.json()
         self.logger.info(f"QQCodeLogin response: code={rjson.get('code')}, errmsg={rjson.get('errmsg')}")
 
         if rjson.get("code") != 0:
-            self.logger.error(f"QQCodeLogin 失败: {rjson}")
+            self.logger.error(f"QQCodeLogin 失败: code={rjson.get('code')}")
             return False
 
         data = rjson.get("data", {})

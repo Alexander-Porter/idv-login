@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import secrets
+from urllib.parse import urlsplit
 import string
 import time
 import channelHandler.miLogin.utils as utils
@@ -17,58 +19,34 @@ from ssl_utils import should_verify_ssl
 
 
 class MiBrowser(WebBrowser):
+    callback_schemes = ("auth",)
+
     def __init__(self):
         super().__init__("xiaomi_app", False, frameless=True)
         self.isQQ=False
+        self._oauth_state = None
 
-        # 无边框窗口使用悬浮按钮，不占用网页布局。
         self.qq_login_button = QPushButton("QQ 登录", self)
-        self.qq_login_button.setObjectName("xiaomi_qq_login_button")
-        self.qq_login_button.setFixedSize(72, 28)
         self.qq_login_button.setToolTip("使用 QQ 登录小米渠道")
-        self.qq_login_button.setStyleSheet(
-            "QPushButton#xiaomi_qq_login_button {"
-            "  background-color: rgba(18, 111, 214, 220);"
-            "  color: white;"
-            "  border: none;"
-            "  border-radius: 14px;"
-            "  font-size: 12px;"
-            "  font-weight: 500;"
-            "}"
-            "QPushButton#xiaomi_qq_login_button:hover {"
-            "  background-color: rgba(32, 129, 235, 240);"
-            "}"
-            "QPushButton#xiaomi_qq_login_button:pressed {"
-            "  background-color: rgba(12, 85, 170, 245);"
-            "}"
-        )
         self.qq_login_button.clicked.connect(self.qq_login)
-        self.qq_login_button.raise_()
-        self._reposition_qq_login_button()
-
-    def _reposition_qq_login_button(self):
-        button = getattr(self, "qq_login_button", None)
-        close_button = getattr(self, "_frameless_close_button", None)
-        if button is None or close_button is None:
-            return
-        button.move(
-            close_button.x() - button.width() - 8,
-            close_button.y(),
-        )
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._reposition_qq_login_button()
+        self.toolBarLayout.addWidget(self.qq_login_button)
 
     def verify(self, url: str) -> bool:
         if self.isQQ:
             from urllib.parse import urlparse, parse_qs
             parsed_url = urlparse(url)
-            if parsed_url.netloc=="imgcache.qq.com" and parsed_url.path=="/open/connect/widget/mobile/login/proxy.htm":
+            if ((parsed_url.scheme == "auth" and parsed_url.netloc == "tauth.qq.com" and parsed_url.path in ("", "/")) or
+                    (parsed_url.scheme == "https" and parsed_url.netloc == "imgcache.qq.com" and parsed_url.path == "/open/connect/widget/mobile/login/proxy.htm")):
                 query_dict = parse_qs(parsed_url.fragment)
-                return "access_token" in query_dict.keys()
+                return all(len(query_dict.get(key, [])) == 1 and bool(query_dict[key][0])
+                           for key in ("access_token", "openid"))
             return False
-        return "code" in self.parse_url_query(url).keys()
+        parsed = urlsplit(url)
+        params = self.parse_url_query(url)
+        return (parsed.scheme in ("http", "https") and parsed.netloc == "game.xiaomi.com"
+                and parsed.path == "/oauthcallback/mioauth"
+                and len(params.get("code", [])) == 1 and bool(params["code"][0])
+                and self._oauth_state is not None and params.get("state") == [self._oauth_state])
 
     def parseReslt(self, url):
         if self.isQQ:
@@ -88,12 +66,16 @@ class MiBrowser(WebBrowser):
     
     def handle_url_change(self, url):
         super().handle_url_change(url)
-        if "graph.qq.com" in url.toString():
+        if self._cleanup_called:
+            return
+        parsed = urlsplit(url.toString())
+        if parsed.scheme == "https" and parsed.netloc == "graph.qq.com":
             self.isQQ=True
             self.logger.info(f"识别到小米渠道QQ登录")
             self.set_url("https://openmobile.qq.com/oauth2.0/m_authorize?client_id=1106134065&scope=all&redirect_uri=auth://tauth.qq.com/&style=qr&response_type=token")
-        if url.toString().startswith("https://game.xiaomi.com/") and "oauthcallback" not in url.toString():
-            self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={generate_md5(str(time.time()))[0:16]}")
+        if parsed.scheme == "https" and parsed.netloc == "game.xiaomi.com" and not parsed.path.startswith("/oauthcallback/"):
+            self._oauth_state = secrets.token_urlsafe(24)
+            self.set_url(f"https://account.xiaomi.com/oauth2/authorize?client_id=2882303761517516898&response_type=code&scope=1%203&redirect_uri=http%3A%2F%2Fgame.xiaomi.com%2Foauthcallback%2Fmioauth&state={self._oauth_state}")
     
     def qq_login(self):
         """QQ登录方法"""
@@ -241,7 +223,7 @@ class MiLogin:
         if result is None:
             # 异步模式：浏览器已显示，等待用户登录完成
             # 必须保持对 browser 的强引用，否则函数返回后局部变量被销毁，
-            # 导致 profile 被释放而 WebEnginePage 仍在运行。
+            # 导致回调丢失，而独立浏览器会话仍在运行。
             self._active_browser = miBrowser
             if on_complete is not None:
                 def _on_async_done(browser):

@@ -25,3 +25,7 @@ _sdk_ref/*
 .trae/
 .windsurf/
 skills-lock.json
+
+# Source-built external MPay transport (manifest must match this build).
+/assets/webview_support_helper.dll
+/src/mpay_browser_build.py

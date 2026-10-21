@@ -24,7 +24,6 @@ from channelHandler.honorLogin.consts import (
 )
 from channelHandler.honorLogin.utils import get_authorization_code
 from channelHandler.WebLoginUtils import WebBrowser
-from PyQt6.QtWebEngineCore import QWebEngineUrlRequestJob, QWebEngineUrlSchemeHandler
 
 DEVICE_RECORD = "honor_device.json"
 
@@ -32,38 +31,25 @@ DEVICE_RECORD = "honor_device.json"
 class HonorBrowser(WebBrowser):
     """荣耀 OAuth 浏览器，拦截 honorid:// scheme。"""
 
-    class HonorSchemeHandler(QWebEngineUrlSchemeHandler):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.parent = parent
+    callback_schemes = ("honorid",)
 
-        def requestStarted(self, info: QWebEngineUrlRequestJob):
-            url = info.requestUrl().toString()
-            if url.startswith("honorid://"):
-                self.parent.notify(info.requestUrl())
-
-    def __init__(self):
-        super().__init__("honor", True, frameless=True)
+    def __init__(self, expected_state):
+        super().__init__("honor", True)
+        self.expected_state = expected_state
         self.logger = setup_logger()
-        self.scheme_handler = self.HonorSchemeHandler(self)
-        self.profile.removeAllUrlSchemeHandlers()
-        self.profile.installUrlSchemeHandler(b"honorid", self.scheme_handler)
 
     def verify(self, url):
-        return url.startswith("honorid://")
+        parsed = urllib.parse.urlsplit(url)
+        expected = urllib.parse.urlsplit(HONOR_REDIRECT_URI)
+        params = urllib.parse.parse_qs(parsed.query)
+        codes = params.get("code", [])
+        return (parsed.scheme == expected.scheme and parsed.netloc == expected.netloc
+                and parsed.path == expected.path and len(codes) == 1 and bool(codes[0])
+                and params.get("state") == [self.expected_state])
 
     def parseReslt(self, url):
         self.result = url
         return True
-
-    def notify(self, url):
-        if self.verify(url.toString()):
-            if self.parseReslt(url.toString()):
-                try:
-                    self.profile.removeAllUrlSchemeHandlers()
-                except Exception:
-                    pass
-                self.cleanup()
 
 
 class HonorLogin:
@@ -109,7 +95,8 @@ class HonorLogin:
         client_id = str(self.channelConfig["app_id"])
         auth_url, self.code_verifier = get_authorization_code(client_id, HONOR_REDIRECT_URI, HONOR_SCOPE)
 
-        browser = HonorBrowser()
+        expected_state = urllib.parse.parse_qs(urllib.parse.urlsplit(auth_url).query)["state"][0]
+        browser = HonorBrowser(expected_state)
         browser.set_url(auth_url)
         res = browser.run()
 
@@ -138,16 +125,16 @@ class HonorLogin:
 
     def _handle_redirect(self, url: str):
         """从 honorid://redirect_url?code=XXX 提取 code，直接传给 Game Center login。"""
-        self.logger.info(f"荣耀 OAuth redirect URL: {url[:80]}...")
+        self.logger.info("已收到荣耀 OAuth 回调")
         parsed = urllib.parse.urlparse(url)
         params = urllib.parse.parse_qs(parsed.query)
         code_list = params.get("code")
         if not code_list:
-            self.logger.error(f"荣耀 OAuth redirect 未包含 code: {url}")
+            self.logger.error("荣耀 OAuth 回调未包含 code")
             return False
 
         auth_code = code_list[0]
-        self.logger.info(f"荣耀 OAuth code 提取成功: {auth_code[:8]}...")
+        self.logger.info("荣耀 OAuth code 提取成功")
 
         # 荣耀 Game Center 直接接受 oauthCode（服务端自行换 token），不需要客户端先 exchange
         return self._game_center_login(auth_code)
@@ -194,7 +181,7 @@ class HonorLogin:
                 self.logger.info("荣耀登录成功")
                 return True
             else:
-                self.logger.error(f"荣耀 Game Center login 未返回有效 unionToken: {data}")
+                self.logger.error("荣耀 Game Center login 未返回有效 unionToken")
                 return False
         except Exception:
             self.logger.exception("荣耀 Game Center login 请求失败")
@@ -264,7 +251,7 @@ class HonorLogin:
                 self.logger.info("荣耀 configLogin 刷新成功")
                 return True
             else:
-                self.logger.warning(f"荣耀 configLogin 刷新失败: {data}")
+                self.logger.warning("荣耀 configLogin 刷新失败")
                 return False
         except Exception:
             self.logger.exception("荣耀 configLogin 请求失败")

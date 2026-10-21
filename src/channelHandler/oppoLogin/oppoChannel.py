@@ -2,8 +2,7 @@ import json
 import time
 from typing import Any, Dict, Optional
 
-from PyQt6.QtCore import QTimer, QUrl
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QTimer
 
 from channelHandler.WebLoginUtils import WebBrowser
 from channelHandler.oppoLogin.consts import (
@@ -24,7 +23,7 @@ class OppoBrowser(WebBrowser):
         super().__init__("oppo", True, frameless=True)
         self.logger = setup_logger()
         self._captured: Optional[Dict[str, Any]] = None
-        self._observed_popup_view: Optional[QWebEngineView] = None
+        self._observed_popup_view = None
         self._observed_popup_page = None
         self._pending_call_executor_callback_id: Optional[str] = None
         self._pending_call_executor_business_id: str = ""
@@ -44,25 +43,10 @@ class OppoBrowser(WebBrowser):
         if not url:
             return
 
-        try:
-            if self._observed_popup_view is not None:
-                self._observed_popup_view.close()
-                self._observed_popup_view.deleteLater()
-        except Exception:
-            pass
-
-        popup = QWebEngineView(self)
-        popup.setWindowTitle("Oppo Verify")
-        popup.resize(800, 900)
-
-        popup_page = self.create_page(self.profile, popup)
-        popup.setPage(popup_page)
-
+        self._close_observed_popup()
+        popup = self.open_popup(url)
         self._observed_popup_view = popup
-        self._observed_popup_page = popup_page
-
-        popup.load(QUrl(url))
-        popup.show()
+        self._observed_popup_page = popup
 
     def _trigger_main_page_refresh(self):
         try:
@@ -78,11 +62,18 @@ class OppoBrowser(WebBrowser):
         try:
             if self._observed_popup_view is not None:
                 self._observed_popup_view.close()
-                self._observed_popup_view.deleteLater()
         except Exception:
             pass
         self._observed_popup_view = None
         self._observed_popup_page = None
+
+    def on_popup_closed(self, page):
+        if page is not None and page is self._observed_popup_page:
+            self._observed_popup_view = None
+            self._observed_popup_page = None
+            self._pending_call_executor_callback_id = None
+            self._pending_call_executor_business_id = ""
+            self._schedule_main_page_refresh()
 
     def _finish_popup_verify(self):
         self._close_observed_popup()
@@ -147,7 +138,7 @@ class OppoBrowser(WebBrowser):
             payload,
             allow_plain_fallback=True,
         )
-        self.logger.debug(f"authentication/auth 响应: {resp}")
+        self.logger.debug("authentication/auth 已响应")
         if isinstance(resp, dict):
             data = resp.get("data")
             if not isinstance(data, dict):
@@ -158,7 +149,7 @@ class OppoBrowser(WebBrowser):
                 if verification_url:
                     self.logger.info("已通过 authentication/auth 获取 verificationUrl")
                     if next_process_token:
-                        self.logger.debug(f"authentication/auth nextProcessToken={next_process_token}")
+                        self.logger.debug("authentication/auth 已提供 nextProcessToken")
                     return verification_url
 
         raise RuntimeError("无法构建有效的 verificationUrl，无法进行后续登录校验。请加群反馈此问题并提供相关日志以便修复。")
@@ -310,7 +301,7 @@ class OppoLogin:
         if resp is None:
             # 异步模式：浏览器已显示，等待用户登录完成
             # 必须保持对 browser 的强引用，否则函数返回后局部变量被销毁，
-            # 导致 profile 被释放而 WebEnginePage 仍在运行。
+            # 导致回调丢失，而独立浏览器会话仍在运行。
             self._active_browser = browser
             if on_complete is not None:
                 def _on_async_done(b):

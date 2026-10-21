@@ -13,7 +13,7 @@ import zipfile
 from fever_assets import file_sha256
 
 
-_CACHE_LAYOUT_VERSION = "zip-v6"
+_CACHE_LAYOUT_VERSION = "zip-v7-external-browser"
 _REQUIRED_SKIN_VERSION = "41"
 
 _WINDOW_MARKER = '<Window size="360,480"'
@@ -140,8 +140,9 @@ def prepare_mpay_skin(
     """Return a cached hosted-login ZIP for MPay ``SetResPath``.
 
     The ZIP resource mode validates ``version.txt`` before accepting the skin.
-    Only ``layout/login.xml`` is changed; every other entry and its ZIP metadata
-    are copied from the verified base archive.
+    Patch the QR account entry and remove the eager ActiveX fallback control.
+    Keep the native WebviewControl placement wrapper required by the SDK helper;
+    it is not a renderer. Every other entry and its metadata are unchanged.
     """
     base_skin_zip = os.path.abspath(base_skin_zip)
     if not zipfile.is_zipfile(base_skin_zip):
@@ -155,6 +156,7 @@ def prepare_mpay_skin(
     with zipfile.ZipFile(base_skin_zip) as archive:
         try:
             original_bytes = archive.read("layout/login.xml")
+            webview_bytes = archive.read("layout/webview.xml")
             version_bytes = archive.read("version.txt")
         except KeyError as error:
             raise ValueError(f"mpay 基础皮肤缺少文件: {error.args[0]}") from error
@@ -171,13 +173,23 @@ def prepare_mpay_skin(
     normalized = original.replace("\r\n", "\n")
     patched = _patch_login_layout(normalized).replace("\n", newline)
     patched_bytes = patched.encode("utf-8")
+    webview = webview_bytes.decode("utf-8-sig")
+    if len(re.findall(r"<WebBrowser\b", webview)) != 1:
+        raise ValueError("无法识别基础 skin 的 ActiveX 控件，拒绝使用嵌入式回退")
+    webview = re.sub(r"<WebBrowser\b([^>]*?)/>",
+                     lambda match: "<Control" + re.sub(r'\s+delaycreate="[^"]*"', '', match[1]) + "/>",
+                     webview)
+    if re.search(r"<WebBrowser\b", webview):
+        raise ValueError("基础 skin 的 ActiveX 控件移除失败")
+    replacements = {"layout/login.xml": patched_bytes,
+                    "layout/webview.xml": webview.encode("utf-8")}
+
 
     expected_manifest_digest = hashlib.sha256()
     with zipfile.ZipFile(base_skin_zip) as archive:
         for info in archive.infolist():
             data = archive.read(info.filename)
-            if info.filename == "layout/login.xml":
-                data = patched_bytes
+            data = replacements.get(info.filename, data)
             _manifest_entry(expected_manifest_digest, info.filename, data)
     expected_manifest = expected_manifest_digest.hexdigest()
 
@@ -203,8 +215,7 @@ def prepare_mpay_skin(
         ) as target_archive:
             for info in source_archive.infolist():
                 data = source_archive.read(info.filename)
-                if info.filename == "layout/login.xml":
-                    data = patched_bytes
+                data = replacements.get(info.filename, data)
                 target_archive.writestr(info, data)
         os.replace(temp_zip, target_zip)
         if not hmac.compare_digest(_archive_manifest(target_zip), expected_manifest):

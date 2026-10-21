@@ -126,6 +126,7 @@ class vivoChannel(channelmgr.channel):
         chosenAccount: str = "",
         uuid: str = "",
         cookies: dict = {},
+        cookieRecords=None,
     ) -> None:
         super().__init__(
             login_info,
@@ -142,6 +143,10 @@ class vivoChannel(channelmgr.channel):
 
         self.game_id = game_id
         self.cookies = cookies
+        if cookieRecords is not None and (not isinstance(cookieRecords, list)
+                or any(not isinstance(item, dict) for item in cookieRecords)):
+            raise ValueError("Invalid saved Vivo cookie records")
+        self.cookieRecords = None if cookieRecords is None else [dict(item) for item in cookieRecords]
         real_game_id = getShortGameId(game_id)
         res = cloudRes.get_channelData(self.channel_name, real_game_id)
         if res == None:
@@ -153,6 +158,7 @@ class vivoChannel(channelmgr.channel):
             self.vivoLogin = VivoLogin(res.get(self.channel_name))
 
         self.vivoLogin.cookies = self.cookies
+        self.vivoLogin.cookieRecords = self.cookieRecords
 
         self.chosenAccount = chosenAccount
         self.realGameId = real_game_id
@@ -189,9 +195,11 @@ class vivoChannel(channelmgr.channel):
         try:
             if on_complete is not None:
                 self.vivoLogin.webLogin(self.cookies, on_complete=_on_browser_done,
+                                        cookie_records=self.cookieRecords,
                                         on_browser_login=lambda: self.unisdk_cache.clear())
                 return None
             return _accept(self.vivoLogin.webLogin(self.cookies,
+                           cookie_records=self.cookieRecords,
                            on_browser_login=lambda: self.unisdk_cache.clear()))
         except Exception as error:
             if on_complete is not None:
@@ -236,6 +244,7 @@ class vivoChannel(channelmgr.channel):
         self.chosenAccount = selected.subOpenId
         self.observe_sdkuid(selected.subOpenId, game_id or self.game_id)
         self.cookies = self.vivoLogin.cookies
+        self.cookieRecords = self.vivoLogin.cookieRecords
         if self.name == self.uuid:
             self.name = f"{candidate.nickName}-{selected.nickName}"
         return True
@@ -261,6 +270,7 @@ class vivoChannel(channelmgr.channel):
             chosenAccount=data.get("chosenAccount", ""),
             uuid=data.get("uuid", ""),
             cookies=data.get("cookies", {}),
+            cookieRecords=data.get("cookieRecords"),
         )
 
     def _build_extra_unisdk_data(self) -> str:
@@ -334,7 +344,9 @@ class vivoChannel(channelmgr.channel):
 
         if not self.is_token_valid():
             if not interactive:
-                restored = self._apply_login_data(self.vivoLogin.webLogin(self.cookies, interactive=False), interactive=False, game_id=game_id)
+                restored = self._apply_login_data(self.vivoLogin.webLogin(
+                    self.cookies, interactive=False, cookie_records=self.cookieRecords),
+                    interactive=False, game_id=game_id)
                 if restored is not True:
                     if on_complete is not None:
                         on_complete(False)
