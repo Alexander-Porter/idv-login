@@ -16,7 +16,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 
 print("Qt smoke: bindings imported", flush=True)
-app = QtWidgets.QApplication([])
+app = QtWidgets.QApplication([sys.argv[0]])  # WebEngine requires a program-name argument
 print("Qt smoke: QApplication created", flush=True)
 icon = QtGui.QIcon(str(Path(sys.argv[1]).resolve()))
 if icon.pixmap(32, 32).isNull():

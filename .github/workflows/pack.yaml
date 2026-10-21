@@ -98,7 +98,7 @@ jobs:
       - name: Check staged Windows Qt runtime
         run: |
           .\python-embed\python.exe -u -X faulthandler tools/smoke_windows_qt.py assets/icon.ico
-          Write-Host "Complete Qt runtime smoke exit code: $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { throw "Complete Qt runtime smoke check failed ($LASTEXITCODE)" }
           .\dist\python-embed\python.exe -u -X faulthandler tools/smoke_windows_qt.py assets/icon.ico
           if ($LASTEXITCODE -ne 0) { throw "Qt packaging smoke check failed ($LASTEXITCODE)" }
         shell: pwsh
