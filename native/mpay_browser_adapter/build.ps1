@@ -19,9 +19,25 @@ if (!(Get-Command cl.exe -ErrorAction SilentlyContinue) -or $env:VSCMD_ARG_TGT_A
     $vs = (& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1)
     if (!$vs) { throw 'No installed Microsoft C++ x64 toolchain was found.' }
     $vcvars = Join-Path $vs 'VC/Auxiliary/Build/vcvarsall.bat'
-    $environment = & $env:ComSpec /d /s /c "`"`"$vcvars`" x64 >nul && set`""
-    if ($LASTEXITCODE -ne 0) { throw 'vcvarsall.bat x64 failed.' }
-    foreach ($line in $environment) {
+    # Pass cmd its raw command line, not PowerShell's re-quoted native argv.
+    # /s removes only the outer pair, leaving the spaced batch path quoted.
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $env:ComSpec
+    $start.Arguments = '/d /u /s /c ""' + $vcvars + '" x64 >nul && set"'
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.StandardOutputEncoding = [Text.Encoding]::Unicode
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        # Drain before waiting so a large environment cannot fill the pipe.
+        $environment = $process.StandardOutput.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) { throw "vcvarsall.bat x64 failed (exit $($process.ExitCode))." }
+        if ([string]::IsNullOrWhiteSpace($environment)) { throw 'vcvarsall.bat returned no environment.' }
+    } finally {
+        $process.Dispose()
+    }
+    foreach ($line in ($environment -split '\r?\n')) {
         if ($line -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process') }
     }
 }
