@@ -11,13 +11,27 @@
 
 ## 1. 使用方式
 
+### 独立浏览器版本的要求
+
+此分支不再内嵌 WebView。启动器和需要网页的渠道登录使用独立的 **Firefox 153 ESR 或 158 正式版**；
+请从 [Mozilla 官方网站](https://www.mozilla.org/firefox/) 获取，Windows 当前构建面向 Windows 10/11 x64。
+不必把 Firefox 设为默认浏览器，工具也不会自动安装它或修改 `auth` / `honorid` 的系统协议关联。
+未安装或版本过旧时会显示原生提示，可打开官方下载页、安装后重试，或取消。
+
+工具为 UI、每个账号和平台登录使用各自的专用 profile，不读取日常浏览器的书签、密码或登录状态。
+现有账号记录仍保留；旧 Qt 浏览器状态不会直接导入，首次网页登录可能需重新认证。
+窗口移动/最大化请使用 Firefox 原生标题栏；关闭启动器窗口不会退出后台代理或下载。
+
+选型、全部渠道/MPay 迁移覆盖、安全边界及尚需平台验收的项目见
+[迁移说明](docs/external-browser-architecture.md)。这不是将登录网页交给默认浏览器后忽略回调的实现。
+
 ### macOS 用户
 
 请参阅 [macOS 使用教程](docs/macOS-tutorial.md)（仅支持 Apple Silicon）
 
 ### 使用预编译版本（Windows）
 1. 从本仓库的``release``页下载最新版本的可执行文件(*.exe)
-- **注:如果你使用的是`Windows7`，请下载带有`Py3.8`后缀的版本；如果你使用的是`Windows8`及以上版本，两者均可，推荐下载带有`Py3.12`后缀的版本**)
+- 本分支的当前 Windows 包要求 Windows 10/11 x64；不要将历史 Python 3.8 包的兼容范围套用到本版本。
 - 下载完成后，**强烈建议**校验其``sha256``是否与 ``release``中``.sha256``的值相同。
     如果``sha256``不同，那么您下载的文件是不安全的，可能存在盗号风险，请检查您的网络环境并重新在**官方仓库**下载文件。
 2. 您可以使用 ``Windows Powershell`` 的 ``Get-FileHash`` 命令来获取文件的``sha256``值，例如，计算v5.0.0-beta版本的`sha256`可以使用以下命令：
@@ -46,15 +60,20 @@
 * 在 Python 官网下载 Python [Python.org](https://www.python.org/downloads/release/python-3123/)
 * 例：64 位电脑 [Windows installer (64-bit)](https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe)
 * 安装Python时要**使用管理员权限**，自定义(Custom)安装，**添加到Path**、**为所有用户安装**和**pip**。
-* 由于新版本的Python **不支持** Windows7，如需在Windows7上构建本程序，可能需要借助**Anaconda**之类的软件安装支持Windows7的python（如 python 3.8）进行构建，具体教程请自行百度。
-* 下载[代码](https://github.com/KKeygen/idv-login/archive/refs/heads/one-key.zip)到本地，解压
+* 当前源码和打包流程使用 Python 3.12、Windows x64；不支持用历史 Python 3.8 环境构建此分支。
+* 下载本仓库对应分支的源码。Windows 平台登录还需已安装的 Microsoft C++ x64 Build Tools。
 * 进入解压后的目录，shift+鼠标右键，选择打开Powershell或终端
 * 输入以下代码并回车
 ```bash
 pip install -r requirements.txt
+# Windows PowerShell，先构建版本锁定的无渲染器 MPay 适配层
+./native/mpay_browser_adapter/build.ps1
 pyinstaller -F src/main.py -n idv-login-v10beta.exe -i assets/icon.ico --version-file assets/version.txt --uac-admin
 ```
-* dist文件夹中的`idv-login-v10beta.exe`就是成品
+* 单文件 PyInstaller 示例并不打包平台登录资源；如需发烧 MPay，必须把 `assets/mpay.dll`、
+  `assets/mpay_default_skin.zip`、本次源码构建的 `assets/webview_support_helper.dll` 放在程序资源目录，
+  并包含匹配的生成清单。推荐使用仓库 `Build and Package` 工作流，它构建并核验这些文件。
+  完整接入说明见 [MPay 适配层](native/mpay_browser_adapter/README.md)。
 
 ### 渠道服登录
 

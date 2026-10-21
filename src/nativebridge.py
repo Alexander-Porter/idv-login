@@ -1,7 +1,7 @@
 # coding=UTF-8
 """Browser-safe native capabilities exposed through the local HTTP API.
 
-The Vue UI can run either inside QtWebEngine or in the user's browser.  This
+The Vue UI runs in an isolated external browser or the game's existing page.  This
 module therefore does not depend on QWebChannel: long-running native actions
 return a task id and are observed through the same local request handler used
 by both frontends.

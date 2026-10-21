@@ -4,6 +4,13 @@
 
 ## 前提条件
 
+此独立浏览器分支要求 [Firefox 153 ESR 或 158 正式版](https://www.mozilla.org/firefox/)。
+把官方 Firefox 安装到 `/Applications` 或当前用户的 `~/Applications`；无需设为默认浏览器。
+没有安装时，工具仍能显示原生提示，安装/更新后点击重试即可；不会自动下载安装。
+网页登录和启动器使用工具专用资料目录，不读取日常 Firefox profile。已有账号 JSON 不变，
+但旧 Qt 登录状态不跨引擎导入，首次网页登录可能需要重新认证。
+发烧 MPay 是 Windows x64 专有入口，macOS 没有新增对该 DLL 的运行承诺。
+
 如果你还没有在 Mac 上安装第五人格，请参看：[Mac 免扫码游玩《第五人格》| 教程分享 - 小红书](http://xhslink.com/a/mKDXBAFyzh89)
 
 ## 安装与运行

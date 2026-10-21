@@ -6,7 +6,7 @@
 2. 无效/无法验证时，用 callback URL 持久化的 refresh_token 调
    oauth-getinfobyrefresh.html；
 3. 仍失败时，用当前业务 state 调 oauth.html + source=4399 + refresh=1；
-4. 仍失败时重新打开 WebView 让用户登录。
+4. 仍失败时重新打开独立浏览器 让用户登录。
 
 refresh_token 只从成功 callback URL 获取；两个无交互刷新接口成功响应都不含
 refresh_token，所以刷新 loginResp 时必须保留已有 refreshToken。
@@ -66,7 +66,7 @@ class m4399Channel(channelmgr.channel):
         self.game_id = game_id
         self.loginResp: Optional[Dict[str, Any]] = loginResp
 
-        # WebView 观测数据。cookie 值持久化，但日志永不打印值。
+        # 登录网页观测数据。cookie 值持久化，但日志永不打印值。
         self.cookies: Dict[str, str] = dict(cookies or {})
         self.cookieRecords: List[Dict[str, Any]] = [
             dict(item) for item in (cookieRecords or []) if isinstance(item, dict)
@@ -258,7 +258,7 @@ class m4399Channel(channelmgr.channel):
     # ── Recovery chain ────────────────────────────────────────
 
     def _recover_existing_credential(self) -> bool:
-        """check -> refresh_token -> state refresh=1。失败后由上层进入 WebView。"""
+        """check -> refresh_token -> state refresh=1。失败后由上层进入独立浏览器。"""
         data = self._get_login_data() or {}
         uid = str(data.get("uid") or "")
         state = str(data.get("state") or "")

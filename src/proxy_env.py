@@ -142,7 +142,7 @@ def _set_win(port: int, no_proxy_domains: list = None):
     _broadcast_env_change()
     # 注册表代理仅供外部进程（如游戏）使用。
     # WM_SETTINGCHANGE 可能导致当前进程的环境块 (PEB) 被更新，
-    # 必须立即清理，否则 QtWebEngine Chromium 子进程会继承代理设置。
+    # 必须立即清理，否则后续启动的独立浏览器等子进程会继承代理设置。
     for var in _PROXY_ENV_VARS:
         os.environ.pop(var, None)
     for var in _NO_PROXY_ENV_VARS:

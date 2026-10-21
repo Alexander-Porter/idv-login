@@ -140,6 +140,14 @@ def handle_exit():
     else:
         print("程序关闭，正在清理！ (logger 未初始化)")
 
+    # Close only sessions owned by this process, before stopping native/UI work.
+    try:
+        from browser_runtime import BrowserRuntime
+        BrowserRuntime.shutdown()
+    except Exception:
+        if logger:
+            logger.error("关闭独立浏览器会话失败")
+
     if app_state.fever_bridge is not None:
         try:
             app_state.fever_bridge.stop()
@@ -389,7 +397,6 @@ def initialize():
 
     _requests_mod.Session.__init__ = _no_trust_env_init
     #Refer to https://forum.qt.io/post/833203. LGTM, yet potentially risky.
-    os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("DOMAIN_TARGET_OVERSEA","sdk-os.mpsdk.easebar.com")
     genv.set("DOMAIN_TARGET_AUTH_STATUS", "mgbsdk.matrix.netease.com")
@@ -488,31 +495,18 @@ def initialize():
     migrate_channel_records()
     app_state.channels_helper = ChannelManager()
 
-    logger.info("初始化内置浏览器")
+    logger.info("初始化原生界面及独立浏览器控制器")
     os.environ.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
     os.environ.pop('QT_PLUGIN_PATH', None)
     os.environ.pop('LD_LIBRARY_PATH', None)   # Linux/macOS 下动态库搜索路径
-    # 移除进程环境中的代理变量，防止 QtWebEngine (Chromium 子进程) 继承后
-    # 将 OAuth 登录页面等 HTTPS 流量路由到 mitmproxy 导致加载失败。
-    # 游戏子进程通过 mitm_proxy.get_proxy_env() 获取独立的代理配置。
-    for _pvar in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
-                  "NO_PROXY", "no_proxy"):
-        os.environ.pop(_pvar, None)
-    # 双保险: 通过 Chromium 命令行参数显式禁用代理
-    _chromium_flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
-    if "--no-proxy-server" not in _chromium_flags:
-        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
-            (_chromium_flags + " " if _chromium_flags else "") + "--no-proxy-server"
-        )
+    # Browser sessions explicitly bypass the game proxy in their isolated
+    # child-process environment. The host retains native Qt dialogs only.
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtNetwork import QNetworkProxyFactory, QNetworkProxy
     from uimgr import (
         configure_application_icon,
         configure_windows_app_identity,
-        register_url_scheme,
     )
-    # Register custom URL schemes before creating QApplication
-    register_url_scheme()
     configure_windows_app_identity()
 
     argv = sys.argv if sys.argv else ["idv-login"]
@@ -524,14 +518,9 @@ def initialize():
 
     # 关闭所有窗口后不退出应用 —— 本工具是后台代理服务，应持续运行。
     app.setQuitOnLastWindowClosed(False)
-    # 标记主事件循环即将运行，让 WebBrowser.run() 使用局部 QEventLoop
-    # 而非再次调用 app.exec()。否则登录窗口关闭时 cleanup() 会调用
-    # app.quit() 导致整个应用退出，管理页面无法收到登录结果。
+    # Login completion is asynchronous and must not quit the host event loop.
     app.setProperty("_main_loop_running", True)
-
-    # 显式告知 Qt (及其内嵌 Chromium) 不使用任何代理。
-    # Qt 文档: "If QNetworkProxy::applicationProxy is set, it will also be
-    # used for Qt WebEngine." 这是控制 Chromium 代理行为的官方 API。
+    # Native Qt networking must not use the game proxy either.
     QNetworkProxyFactory.setUseSystemConfiguration(False)
     QNetworkProxy.setApplicationProxy(
         QNetworkProxy(QNetworkProxy.ProxyType.NoProxy)

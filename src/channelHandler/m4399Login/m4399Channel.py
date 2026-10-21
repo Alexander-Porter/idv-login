@@ -3,9 +3,9 @@
 
 网页登录流程：
 1. POST /openapiv2/oauth.html -> code=607 + result.login_url
-2. Qt WebView 加载 login_url，用户完成 4399 通行证登录
+2. 独立浏览器加载 login_url，用户完成 4399 通行证登录
 3. 页面自然跳转 /openapi/oauth-callback.html?... 并显示 code=100 JSON
-4. loadFinished 后用 QWebEnginePage.toPlainText() 读取 JSON
+4. loadFinished 后用 ExternalPage.toPlainText() 读取 JSON
 5. refresh_token 只存在于成功 callback URL query 中，因此单独捕获并持久化
 
 无交互恢复接口：
@@ -27,9 +27,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
-from PyQt6.QtCore import QTimer
 
 from channelHandler.WebLoginUtils import WebBrowser
+from browser_cookies import CookieExport
 from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 
@@ -400,6 +400,13 @@ class M4399Login:
 class M4399Browser(WebBrowser):
     """自然加载 callback JSON，并捕获 RT/cookie；不二次请求 callback URL。"""
 
+    # Observation only. These records are never replayed to an HTTP endpoint or
+    # written back into Firefox; its native profile retains partition identity.
+    cookie_export = CookieExport(
+        source_origins=("https://m.4399api.com", "http://m.4399api.com"),
+        source_paths=(OAUTH_CALLBACK_PATH, OAUTH_CALLBACK_PATH + "/"),
+    )
+
     def __init__(self, login_url: str):
         # WebBrowser.__init__ 会先连接 self.cookie_added。
         self._cookie_records: Dict[str, Dict[str, Any]] = {}
@@ -414,11 +421,6 @@ class M4399Browser(WebBrowser):
         super().__init__("m4399", True, frameless=True)
         self.logger = setup_logger()
         self.resize(430, 680)
-
-        try:
-            self.profile.cookieStore().loadAllCookies()
-        except Exception:
-            self.logger.exception("[4399-cookie] 加载 profile 既有 cookies 失败")
 
     # ── Privacy-safe navigation logs ──────────────────────────
 
@@ -436,76 +438,30 @@ class M4399Browser(WebBrowser):
 
     # ── Cookie observation ────────────────────────────────────
 
-    @staticmethod
-    def _cookie_text(value) -> str:
-        try:
-            return bytes(value).decode("utf-8", errors="replace")
-        except Exception:
-            try:
-                return value.data().decode("utf-8", errors="replace")
-            except Exception:
-                return str(value)
+    def cookies_replaced(self):
+        self._cookie_records.clear()
 
     def cookie_added(self, cookie):
-        """保存 cookie 值；debug 仅记录元数据，不输出 value。"""
-        try:
-            name = self._cookie_text(cookie.name())
-            value = self._cookie_text(cookie.value())
-            domain = str(cookie.domain() or "")
-            path = str(cookie.path() or "/")
-            is_session = bool(cookie.isSessionCookie())
-            is_secure = bool(cookie.isSecure())
-            is_http_only = bool(cookie.isHttpOnly())
-
-            expires_epoch: Optional[int] = None
-            expires_iso: Optional[str] = None
-            remaining_seconds: Optional[int] = None
-            if not is_session:
-                expiry = cookie.expirationDate()
-                if expiry.isValid():
-                    expires_epoch = int(expiry.toSecsSinceEpoch())
-                    expires_iso = expiry.toUTC().toString(
-                        "yyyy-MM-ddTHH:mm:ss'Z'"
-                    )
-                    remaining_seconds = expires_epoch - int(time.time())
-
-            same_site = "unknown"
-            try:
-                policy = cookie.sameSitePolicy()
-                same_site = getattr(policy, "name", str(policy))
-            except Exception:
-                pass
-
-            self.cookies[name] = value
-            key = f"{domain}\n{path}\n{name}"
-            self._cookie_records[key] = {
-                "name": name,
-                "value": value,
-                "domain": domain,
-                "path": path,
-                "session": is_session,
-                "expires_epoch": expires_epoch,
-                "expires_iso": expires_iso,
-                "secure": is_secure,
-                "http_only": is_http_only,
-                "same_site": same_site,
-            }
-
-            kind = "session" if is_session else "persistent"
-            remaining = (
-                "session"
-                if remaining_seconds is None
-                else f"{remaining_seconds}s/{remaining_seconds / 86400:.2f}d"
-            )
-            self.logger.debug(
-                "[4399-cookie] "
-                f"name={name!r} domain={domain!r} path={path!r} "
-                f"type={kind} expires={expires_iso or '-'} remaining={remaining} "
-                f"secure={is_secure} httpOnly={is_http_only} "
-                f"sameSite={same_site} value_len={len(value)}"
-            )
-        except Exception:
-            self.logger.exception("[4399-cookie] 解析 cookie 元数据失败")
+        """Keep full domain/path/expiry metadata from the browser cookie API."""
+        import datetime
+        expires = float(cookie.get("expires", -1))
+        persistent = expires > 0
+        self.cookies[cookie["name"]] = cookie["value"]
+        key = f"{cookie.get('domain', '')}\n{cookie.get('path', '/')}\n{cookie['name']}"
+        self._cookie_records[key] = {
+            "name": cookie["name"], "value": cookie["value"],
+            "domain": cookie.get("domain", ""), "path": cookie.get("path", "/"),
+            "session": not persistent,
+            "expires_epoch": int(expires) if persistent else None,
+            "expires_iso": datetime.datetime.fromtimestamp(expires, datetime.timezone.utc).isoformat() if persistent else None,
+            "secure": bool(cookie.get("secure")),
+            "http_only": bool(cookie.get("httpOnly")),
+            "same_site": cookie.get("sameSite", "unknown"),
+            # This is the observation context, not an individual cookie's
+            # partition key (BiDi does not expose that per-cookie label).
+            "source_origin": cookie.get("source_origin", ""),
+            "source_path": cookie.get("source_path", ""),
+        }
 
     def export_cookie_records(self) -> List[Dict[str, Any]]:
         return [dict(item) for item in self._cookie_records.values()]
@@ -541,11 +497,14 @@ class M4399Browser(WebBrowser):
             self.logger.exception("4399 callback query 元数据解析失败")
 
     def on_load_finished(self, success: bool):
-        # 不调用基类：基类失败日志会打印完整 URL，callback URL 含敏感 query。
-        if self.page is None:
-            return
+        self.on_page_load_finished(self.page, success)
 
-        current_url = self.page.url().toString()
+    def on_page_load_finished(self, page, success: bool):
+        # Read the actual callback page, including a supplier-created popup.
+        # Replaying a one-use callback in the main page would consume it twice.
+        if page is None:
+            return
+        current_url = page.url().toString()
         if not success:
             try:
                 parsed = urlparse(current_url)
@@ -564,11 +523,14 @@ class M4399Browser(WebBrowser):
 
         self._capture_callback_query(current_url)
         self._callback_read_pending = True
+        cookie_token = page.cookie_token
         self.logger.debug("4399 OAuth callback 页面已加载，读取页面 JSON")
-        self.page.toPlainText(self._consume_callback_text)
+        page.toPlainText(lambda text: self._consume_callback_text(text, cookie_token))
 
-    def _consume_callback_text(self, text: str):
+    def _consume_callback_text(self, text: str, cookie_token=None):
         self._callback_read_pending = False
+        if self._cleanup_called:
+            return
         raw = str(text or "").strip()
         try:
             data = json.loads(raw)
@@ -590,13 +552,12 @@ class M4399Browser(WebBrowser):
                 f"access_token_present={bool(result.get('access_token'))}, "
                 f"refresh_token_present={bool(self.refresh_token)}"
             )
-            QTimer.singleShot(0, self.cleanup)
+            # Request the transaction immediately. Deferring by a Qt tick could
+            # let a callback window's automatic close complete as cancellation.
+            self.cleanup(cookie_token)
             return
 
         self.logger.warning(
             "4399 oauth-callback 未返回成功: "
             f"code={code or '?'}"
         )
-
-    def cleanup(self):
-        super().cleanup()

@@ -22,6 +22,7 @@ from logutil import setup_logger
 from ssl_utils import should_verify_ssl
 
 from channelHandler.WebLoginUtils import WebBrowser
+from browser_cookies import CookieExport
 from channelHandler.qihooLogin import consts as C
 from channelHandler.qihooLogin.crypto import (
     build_from,
@@ -50,6 +51,12 @@ class QihooBrowser(WebBrowser):
 
     成功判定：URL 跳到 destUrl（i.360.cn 首页），并取得 Q/T cookie。
     """
+
+    cookie_export = CookieExport(
+        source_origins=("https://i.360.cn",),
+        source_paths=("/", "/index"),
+        names=frozenset((C.COOKIE_Q, C.COOKIE_T)),
+    )
 
     def __init__(self):
         super().__init__("360_assistant", True, frameless=True)
@@ -151,7 +158,7 @@ class QihooLogin:
 
         try:
             resp = requests.get(url, timeout=timeout, headers=headers,
-                                verify=should_verify_ssl())
+                                verify=should_verify_ssl(), allow_redirects=False)
         except Exception as exc:
             self.logger.debug(f"{TAG} 请求异常 method={method}: {exc}")
             return {"ok": False, "errno": None, "errmsg": str(exc), "data": {}}

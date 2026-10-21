@@ -13,7 +13,7 @@ def _js_string_literal(s: str) -> str:
 
 
 def build_mock_native_js(consts: OppoNativeConsts = DEFAULT_CONSTS) -> str:
-    """生成注入到 WebView 的 HeytapNativeApi mock。
+    """生成注入到登录页面 的 HeytapNativeApi mock。
 
     - 常量来自 Python（后续 idToken 请求也可复用）
     - 额外捕获 invoke('vip.onFinish', param, ...) 并通过 console 回传

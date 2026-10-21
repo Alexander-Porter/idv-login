@@ -2,7 +2,7 @@
 
 登录方式：
   1. 二维码登录（默认）：调用 biligame API 生成二维码 → 用户扫码 → 轮询获取 token
-  2. 网页登录（备选）：QWebEngine 打开 sdk.biligame.com/login/ → 用户 OTP 或账密登录 → 拦截响应
+  2. 网页登录（备选）：独立浏览器打开 sdk.biligame.com/login/ → 用户 OTP 或账密登录 → 拦截响应
 """
 
 import base64
@@ -272,7 +272,7 @@ def _build_intercept_js() -> str:
 
 
 class BilibiliBrowser(WebBrowser):
-    """QWebEngine 浏览器：加载 B站 登录页并捕获登录结果。"""
+    """独立浏览器：加载 B站 登录页并捕获登录结果。"""
 
     def __init__(
         self,
@@ -310,7 +310,7 @@ class BilibiliBrowser(WebBrowser):
         # 网络日志（调试用）
         if message.startswith(BILI_NET_PREFIX):
             payload = message[len(BILI_NET_PREFIX):]
-            self.logger.debug(f"[bili-net] {payload[:500]}")
+            self.logger.debug("[bili-net] 已收到网络事件（不记录请求或响应正文）")
             return
 
         # 登录成功
@@ -319,7 +319,7 @@ class BilibiliBrowser(WebBrowser):
             try:
                 data = json.loads(payload)
             except Exception:
-                self.logger.warning(f"[bili-login] JSON 解析失败: {payload[:200]}")
+                self.logger.warning("[bili-login] JSON 解析失败")
                 return
 
             # 密码登录响应可能嵌套在 data 字段下，统一展平到根级

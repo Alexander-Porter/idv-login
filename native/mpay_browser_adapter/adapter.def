@@ -1,0 +1,18 @@
+LIBRARY webview_support_helper
+EXPORTS
+    CheckMpayWebviewHelperSupportVersion
+    CreateMpayWebviewHelperSupport
+    MpayWebviewSupport_Initialize
+    MpayWebviewSupport_RegisterCallbacks
+    MpayWebviewSupport_RegisterJsBridgeHandlers
+    MpayWebviewSupport_CreateWebviewAsChild
+    MpayWebviewSupport_LoadUrl
+    MpayWebviewSupport_ExecuteJavaScript
+    MpayWebviewSupport_Resize
+    MpayWebviewSupport_ClearBrowserData
+    MpayWebviewSupport_Destroy
+    IDV_MpayBrowser_ABIVersion
+    IDV_MpayBrowser_SetHost
+    IDV_MpayBrowser_Loaded
+    IDV_MpayBrowser_Message
+    IDV_MpayBrowser_CloseHolder

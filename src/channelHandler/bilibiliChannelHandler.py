@@ -1,7 +1,7 @@
 # coding=UTF-8
 """Bilibili (哔哩哔哩) 网页登录渠道。
 
-登录流程：QWebEngine 打开 sdk.biligame.com/login/ → 用户 OTP 登录 → 拦截响应 → SAUTH 换 token。
+登录流程：独立浏览器打开 sdk.biligame.com/login/ → 用户 OTP 登录 → 拦截响应 → SAUTH 换 token。
 """
 from __future__ import annotations
 

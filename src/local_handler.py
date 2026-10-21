@@ -37,7 +37,7 @@ class LocalRequestHandler:
     """Handles /_idv-login/* API requests locally.
 
     Used by both the mitmproxy addon (for game WebView requests)
-    and the QtWebEngine URL scheme handler (for the standalone Qt window).
+    and the isolated external-browser transport (for the standalone UI).
 
     Each call to ``handle()`` is stateless w.r.t. the handler itself;
     all persistent state lives in ``genv`` / managers.
@@ -96,7 +96,7 @@ class LocalRequestHandler:
 
         return self._route(path, method, args, json_body)
 
-    # For the Qt scheme handler which uses a simpler interface
+    # Shared by the isolated external UI transport and the existing proxy
     def handle_simple(self, path: str, method: str = "GET",
                       args: dict = None, json_body: dict = None) -> Tuple[int, dict, bytes]:
         return self._route(path, method, args or {}, json_body)
@@ -1128,7 +1128,7 @@ class LocalRequestHandler:
             startup_args = launcher_data.get("startup_params", "") or ""
             content_id = file_info.get("app_content_id")
 
-            # New browser/WebEngine UI: directory selection is a separate HTTP
+            # Browser UI: directory selection is a separate HTTP
             # native task, so hashing and download preparation can run off the
             # Qt event loop.  Omitting target_dir keeps the released HTML flow.
             payload = body or args or {}
@@ -1828,8 +1828,9 @@ class LocalRequestHandler:
     def _native_capabilities(self, args, body, method):
         from nativebridge import capabilities
         result = capabilities()
-        result["window_drag"] = bool(app_state.ui_mgr)
-        result["window_toggle_maximize"] = bool(app_state.ui_mgr)
+        result["shell"] = getattr(app_state.ui_mgr, "shell_kind", "browser")
+        result["window_drag"] = bool(getattr(app_state.ui_mgr, "window_drag_supported", False))
+        result["window_toggle_maximize"] = bool(getattr(app_state.ui_mgr, "window_toggle_maximize_supported", False))
         return self._json_response(200, result)
 
     def _native_window_drag(self, args, body, method):
@@ -1837,7 +1838,7 @@ class LocalRequestHandler:
         started = bool(ui_mgr and ui_mgr.start_system_move())
         return self._json_response(200, {
             "success": started,
-            "supported": bool(ui_mgr),
+            "supported": bool(getattr(ui_mgr, "window_drag_supported", False)),
         })
 
     def _native_window_toggle_maximize(self, args, body, method):
@@ -1845,7 +1846,7 @@ class LocalRequestHandler:
         changed = bool(ui_mgr and ui_mgr.toggle_maximized())
         return self._json_response(200, {
             "success": changed,
-            "supported": bool(ui_mgr),
+            "supported": bool(getattr(ui_mgr, "window_toggle_maximize_supported", False)),
         })
 
     def _native_pick_directory(self, args, body, method):

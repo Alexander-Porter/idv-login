@@ -6,7 +6,6 @@ import ctypes
 from collections import deque
 import json
 import os
-import re
 import sys
 import threading
 import time
@@ -35,10 +34,6 @@ MPAY_PARENT_HWND_OPTION = b"mpay_option_parent_hwnd"
 SESSION_LIVENESS_CHECK_INTERVAL_SECONDS = 0.5
 
 
-_MPAY_LOG_SECRET_RE = re.compile(
-    r"(?i)(\b(?:access_token|refresh_token|authorization|cookie|session|ticket|token)\b"
-    r"\s*[:=]\s*[\"']?)([^\s,;&\"'}]+)"
-)
 
 
 class FeverBridge:
@@ -413,6 +408,7 @@ class FeverBridge:
             except Exception:
                 self.logger.exception("隔离失败的 mpay 运行时失败")
             self.logger.exception("启动平台托管 mpay 登录失败")
+            app_state.toast("平台登录无法启动，请检查安装包中的 MPay 适配层与日志后重试。", 6000)
 
     def _load_mpay_dll(self, target_long_game_id: str):
         if self._mpay is not None:
@@ -483,6 +479,9 @@ class FeverBridge:
         self._generation += 1
         generation = self._generation
         callback_pointer = self._build_callbacks(generation)
+        from mpay_browser import MpayBrowserAdapter
+        self._browser_adapter = MpayBrowserAdapter.instance()
+        self._browser_adapter.attach(self, target_long_game_id)
 
         base_skin_path = install_asset_path("mpay_default_skin.zip")
         skin_path = prepare_mpay_skin(
@@ -505,14 +504,31 @@ class FeverBridge:
             f"result={resource_result}, path={skin_path}"
         )
 
+        # The bundled MPay SDK login flow can open web verification.
+        # Its SetOption ABI dereferences an int32 pointer; set this BEFORE init
+        # so verification uses the SDK outer-browser flow. Third-party login
+        # independently uses our preloaded external-browser helper. Do not use the unrelated
+        # privacy/protocol option: default protocol links already ShellExecute.
+        set_option = getattr(
+            self._mpay, "?SetOption@CMpay_Interface@Mpay@@SAXPEBDPEBX@Z"
+        )
+        set_option.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
+        set_option.restype = None
+        # Pinned SDK SetOption reads a BYTE for vlog_writefile and int32 for
+        # plog_level. The verbose-file flag alone still permits level <=8
+        # records; level 0 suppresses the known SDK payload diagnostics too.
+        native_file_logs = ctypes.c_uint8(0)
+        normal_log_level = ctypes.c_int(0)
+        set_option(b"mpay_option_vlog_writefile", ctypes.byref(native_file_logs))
+        set_option(b"mpay_option_plog_level", ctypes.byref(normal_log_level))
+        external_verification = ctypes.c_int(1)
+        set_option(b"mpay_option_web_verify_is_outer_browser_open",
+                   ctypes.byref(external_verification))
+
+
         self._prepare_mpay_host_window()
         window = self._mpay_host_window
         if window is not None:
-            set_option = getattr(
-                self._mpay, "?SetOption@CMpay_Interface@Mpay@@SAXPEBDPEBX@Z"
-            )
-            set_option.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
-            set_option.restype = None
             hwnd = ctypes.c_void_p(int(window.winId()))
             # SetOption dereferences a pointer to the HWND value immediately.
             # `gameWndHandle` is not an MPay option in this DLL; the supported
@@ -750,17 +766,11 @@ class FeverBridge:
     def _install_mpay_log_hook(self):
         log_callback_type = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
 
-        def on_log(message):
-            try:
-                if not message:
-                    return
-                text = message.decode("utf-8", errors="replace")
-                for line in text.splitlines() or [text]:
-                    sanitized = _MPAY_LOG_SECRET_RE.sub(r"\1***", line)
-                    self.logger.warning(f"[mpay] {sanitized}")
-            except Exception:
-                # Never let a Python exception escape through the native hook.
-                self.logger.exception("处理 mpay 日志失败")
+        def on_log(_message):
+            # SDK diagnostics include raw JS payloads, account objects and HTTP
+            # bodies. Regex redaction cannot make arbitrary native logs safe.
+            # Keep the callback installed, but never persist their contents.
+            return
 
         self._log_hook_ref = log_callback_type(on_log)
         set_log_hook = getattr(
@@ -924,6 +934,9 @@ class FeverBridge:
             return
 
         retiring_generation = self._generation
+        adapter = getattr(self, '_browser_adapter', None)
+        if adapter is not None:
+            adapter.retire(self, retiring_generation)
         self._generation += 1
 
         native_hwnds = self._collect_mpay_window_handles()
