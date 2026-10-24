@@ -44,7 +44,7 @@ class SecureWriteTests(unittest.TestCase):
         self.original = b'{"saved": "old"}'
         self.path.write_bytes(self.original)
         if sys.platform == "win32":
-            # ACL policy is independent of atomicity and requires elevation.
+            # Native ACL behavior is covered by test_secure_write_windows.py.
             acl_patch = mock.patch.object(secure_write, "_win_restrict_acl")
             acl_patch.start()
             self.addCleanup(acl_patch.stop)
