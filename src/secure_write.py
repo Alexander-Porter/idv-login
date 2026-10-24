@@ -3,13 +3,12 @@
 Restricted-permission file writes.
 
 All sensitively-stored files (account tokens, config, keys, etc.)
-should use the helpers in this module so that they are readable
-only by the current user.
+should use the helpers in this module. Unix files are private to the current
+user; Windows also retains access for Administrators and SYSTEM.
 
 Writes are atomic: data goes to a temporary file first, then
-``os.replace()`` swaps it into place.  A per-path file lock
-(``msvcrt`` on Windows, ``fcntl`` on Unix) prevents concurrent
-writers from corrupting each other.
+``os.replace()`` swaps it into place.  A per-path thread lock serializes
+writers within this process. Failed writes leave the destination unchanged.
 """
 
 import json
@@ -34,7 +33,7 @@ def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
     """Write *data* atomically via temp-file + os.replace().
 
     On Unix the temp file is created with mode 0o600 when *restrict_unix*
-    is True.  On Windows, ACLs are applied after the rename.
+    is True. On Windows, ACLs are restricted before writing any payload.
     """
     dirpath = os.path.dirname(os.path.abspath(filepath)) or "."
     fd = None
@@ -55,12 +54,12 @@ def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
                 delete=False, mode="wb",
             ) as tmp:
                 tmp_path = tmp.name
+                if sys.platform == "win32":
+                    _win_restrict_acl(tmp_path)
                 tmp.write(data)
                 tmp.flush()
                 os.fsync(tmp.fileno())
 
-        if sys.platform == "win32":
-            _win_restrict_acl(tmp_path)
         os.replace(tmp_path, filepath)
         tmp_path = None  # rename succeeded, nothing to clean up
     finally:
@@ -77,52 +76,59 @@ def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
 
 
 def write_file_restricted(filepath: str, data: bytes):
-    """Write *data* (bytes) atomically and restrict permissions."""
+    """Write *data* atomically; raise on lock timeout or write failure."""
     lock = _get_lock(filepath)
-    lock.acquire(timeout=5)
+    if not lock.acquire(timeout=5):
+        raise TimeoutError('文件写入锁获取超时')
     try:
         _atomic_write(filepath, data)
-    except Exception:
-        # Fallback: standard write (still better than losing data silently)
-        with open(filepath, "wb") as f:
-            f.write(data)
     finally:
-        try:
-            lock.release()
-        except RuntimeError:
-            pass
+        lock.release()
 
 
 def write_json_restricted(filepath: str, obj, *, atomic_required=False):
-    """Write JSON; strict callers never fall back to truncating the live file."""
+    """Write JSON atomically, preserving the destination on failure.
+
+    ``atomic_required`` is retained for compatibility; all writes now require
+    atomic replacement, including callers that omit it or pass False.
+    """
     text = json.dumps(obj, ensure_ascii=False)
     data = text.encode("utf-8")
-    lock = _get_lock(filepath)
-    acquired = lock.acquire(timeout=5)
-    if not acquired and atomic_required:
-        raise TimeoutError('Configuration write lock timed out')
-    try:
-        _atomic_write(filepath, data)
-    except Exception:
-        if atomic_required:
-            raise
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(obj, f, ensure_ascii=False)
-    finally:
-        if acquired:
-            lock.release()
+    write_file_restricted(filepath, data)
 
 
 def _win_restrict_acl(filepath: str):
-    """Restrict ACL to Administrators + SYSTEM on Windows."""
+    """Restrict ACL to the current user, Administrators and SYSTEM."""
+    import csv
+    import re
     import subprocess
-    subprocess.run(
-        ["icacls", filepath, "/reset"],
-        capture_output=True, timeout=10,
-    )
-    subprocess.run(
-        ["icacls", filepath, "/inheritance:r",
-         "/grant:r", "*S-1-5-32-544:(F)",
-         "/grant:r", "*S-1-5-18:(F)"],
-        capture_output=True, timeout=10,
-    )
+    try:
+        system_dir = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+        run_options = dict(
+            capture_output=True, timeout=10, check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        identity = subprocess.run(
+            [os.path.join(system_dir, "whoami.exe"), "/user", "/fo", "csv", "/nh"],
+            text=True, encoding="utf-8", errors="replace", **run_options,
+        )
+        rows = list(csv.reader(identity.stdout.splitlines()))
+        if len(rows) != 1 or len(rows[0]) != 2:
+            raise ValueError("Invalid user identity")
+        sid = rows[0][1]
+        if not re.fullmatch(r"S-1-(?:[0-9]+-)*[0-9]+", sid):
+            raise ValueError("Invalid user SID")
+        subprocess.run(
+            [os.path.join(system_dir, "icacls.exe"), filepath, "/reset"],
+            **run_options,
+        )
+        subprocess.run(
+            [os.path.join(system_dir, "icacls.exe"), filepath, "/inheritance:r",
+             "/grant:r", f"*{sid}:(F)",
+             "/grant:r", "*S-1-5-32-544:(F)",
+             "/grant:r", "*S-1-5-18:(F)"],
+            **run_options,
+        )
+    except (OSError, subprocess.SubprocessError, ValueError, csv.Error):
+        # Avoid including identity information or command output in logs.
+        raise OSError('无法设置文件访问权限') from None
