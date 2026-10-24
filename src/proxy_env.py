@@ -8,6 +8,8 @@
 """
 
 import ctypes
+import copy
+from contextlib import contextmanager
 import os
 import subprocess
 import sys
@@ -72,6 +74,18 @@ def unset_proxy():
         _unset_darwin()
     else:
         _unset_linux()
+
+
+def reset_proxy_state():
+    """恢复代理并删除工具配置，整个操作共用同一把跨进程锁。"""
+    with _proxy_state_lock():
+        if sys.platform == "darwin":
+            _unset_darwin_locked()
+        elif sys.platform == "linux":
+            _unset_linux_locked()
+        else:
+            raise OSError("此平台不使用系统代理恢复记录")
+        return genv.reset_cache()
 
 
 # ==================================================================
@@ -218,74 +232,200 @@ def _broadcast_env_change():
 #  macOS — networksetup 系统代理
 # ==================================================================
 
-def _get_network_services() -> list:
-    """列出 macOS 上所有网络服务名称。"""
+_DARWIN_PROXY_STATE = "_SAVED_DARWIN_PROXY_SVCS"
+_LINUX_PROXY_STATE = "_SAVED_LINUX_PROXY"
+
+
+@contextmanager
+def _proxy_state_lock():
+    """串行化系统代理修改；进程退出后内核会自动释放文件锁。"""
+    import fcntl
+    workdir = genv.get("FP_WORKDIR") or os.getcwd()
+    fd = os.open(os.path.join(workdir, ".proxy-state.lock"), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise OSError("另一个进程正在修改系统代理，请稍后重试") from None
+        yield
+    finally:
+        os.close(fd)
+
+
+def _save_proxy_state(key, state):
+    # 必须先落盘，失败时不能改变系统设置或发布新的内存状态。
+    genv.set(key, state, True, require_saved=True)
+
+
+def _load_proxy_state(key):
+    # 不能信任 genv 的进程内缓存：其他进程可能已经接管或清除了记录。
+    saved = genv.get_from_file(key, None, require_read=True)
+    if not saved:
+        return None
+    if not isinstance(saved, dict) or saved.get("version") != 1:
+        raise OSError("代理恢复记录格式不支持，请手动检查系统代理设置")
+    owner = saved.get("owner_pid")
+    if type(owner) is not int or owner <= 0:
+        raise OSError("代理恢复记录无效")
+    if owner != os.getpid():
+        try:
+            os.kill(owner, 0)
+        except ProcessLookupError:
+            pass
+        except OSError:
+            raise OSError("无法确认代理记录所属进程已退出，未修改系统代理") from None
+        else:
+            raise OSError("另一个工具进程仍持有系统代理设置")
+    return copy.deepcopy(saved)
+
+
+def _networksetup(args):
     try:
         result = subprocess.run(
-            ["networksetup", "-listnetworkserviceorder"],
-            capture_output=True, text=True, timeout=5,
+            ["networksetup"] + args, capture_output=True, text=True,
+            timeout=5, check=True, env=dict(os.environ, LC_ALL="C", LANG="C"),
         )
-        services = []
-        for line in result.stdout.splitlines():
-            line = line.strip()
-            if line.startswith("(") and ")" in line:
-                svc = line.split(")", 1)[1].strip()
-                if svc and not svc.startswith("*"):
-                    services.append(svc)
-        return services or ["Wi-Fi"]
-    except Exception:
-        return ["Wi-Fi"]
+        return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        raise OSError("无法读取或修改 macOS 系统代理设置") from None
+
+
+def _get_network_services() -> list:
+    """只返回实际查询到的、已启用的 macOS 网络服务。"""
+    services = []
+    for line in _networksetup(["-listnetworkserviceorder"]).splitlines():
+        line = line.strip()
+        if line.startswith("(") and ")" in line:
+            number, service = line[1:].split(")", 1)
+            service = service.strip()
+            if number.isdigit() and service and not service.startswith("*"):
+                services.append(service)
+    return services
+
+
+def _read_darwin_proxy(service, protocol):
+    fields = {}
+    for line in _networksetup([f"-get{protocol}proxy", service]).splitlines():
+        if ":" in line:
+            key, value = line.split(":", 1)
+            fields[key.strip()] = value.strip()
+    try:
+        if fields["Enabled"] not in ("Yes", "No") or fields["Authenticated Proxy Enabled"] not in ("0", "1"):
+            raise ValueError()
+        port = int(fields["Port"])
+        if not 0 <= port <= 65535:
+            raise ValueError()
+        return dict(enabled=fields["Enabled"] == "Yes", server=fields["Server"],
+                    port=port, authenticated=fields["Authenticated Proxy Enabled"] == "1")
+    except (KeyError, ValueError):
+        raise OSError("无法解析 macOS 系统代理设置，未修改该网络服务") from None
+
+
+def _validate_darwin_state(saved):
+    services = saved.get("services")
+    if not isinstance(services, dict):
+        raise OSError("代理恢复记录无效")
+    for service, protocols in services.items():
+        if not isinstance(service, str) or not isinstance(protocols, dict) or set(protocols) != {"web", "secureweb"}:
+            raise OSError("代理恢复记录无效")
+        for entry in protocols.values():
+            if not isinstance(entry, dict):
+                raise OSError("代理恢复记录无效")
+            for name in ("before", "after"):
+                state = entry.get(name)
+                if (not isinstance(state, dict) or set(state) != {"enabled", "server", "port", "authenticated"}
+                        or type(state["enabled"]) is not bool or state["authenticated"] is not False
+                        or not isinstance(state["server"], str) or type(state["port"]) is not int
+                        or not 0 <= state["port"] <= 65535):
+                    raise OSError("代理恢复记录无效")
+            after = entry["after"]
+            if after != dict(enabled=True, server="127.0.0.1", port=after["port"], authenticated=False):
+                raise OSError("代理恢复记录无效")
 
 
 def _set_darwin(port: int):
-    services = _get_network_services()
-    saved = {}
-    for svc in services:
+    with _proxy_state_lock():
+        _set_darwin_locked(port)
+
+
+def _set_darwin_locked(port):
+    _unset_darwin_locked()
+    services = {}
+    for service in _get_network_services():
+        before = {protocol: _read_darwin_proxy(service, protocol) for protocol in ("web", "secureweb")}
+        if any(state["authenticated"] for state in before.values()):
+            _get_logger().warning("网络服务使用认证代理，已跳过以保留原凭据")
+            continue
+        services[service] = {
+            protocol: dict(before=state, after=dict(enabled=True, server="127.0.0.1", port=port, authenticated=False))
+            for protocol, state in before.items()
+        }
+    if not services:
+        raise OSError("没有可安全设置代理的网络服务")
+    saved = dict(version=1, owner_pid=os.getpid(), services=services)
+    _validate_darwin_state(saved)
+    _save_proxy_state(_DARWIN_PROXY_STATE, saved)
+    try:
+        for service, protocols in services.items():
+            for protocol, entry in protocols.items():
+                _networksetup([f"-set{protocol}proxy", service, "127.0.0.1", str(port), "off"])
+                if _read_darwin_proxy(service, protocol) != entry["after"]:
+                    raise OSError("系统代理设置未生效")
+    except OSError:
         try:
-            subprocess.run(
-                ["networksetup", "-setwebproxy", svc, "127.0.0.1", str(port)],
-                capture_output=True, timeout=5,
-            )
-            subprocess.run(
-                ["networksetup", "-setsecurewebproxy", svc, "127.0.0.1", str(port)],
-                capture_output=True, timeout=5,
-            )
-            saved[svc] = True
-            _get_logger().info(f"已为网络服务 {svc} 设置系统代理 127.0.0.1:{port}")
-        except Exception as e:
-            _get_logger().warning(f"为 {svc} 设置系统代理失败: {e}")
-    genv.set("_SAVED_DARWIN_PROXY_SVCS", saved)
+            _unset_darwin_locked()
+        except OSError:
+            _get_logger().warning("部分代理设置未能恢复，已保留记录供下次启动重试")
+        raise OSError("设置 macOS 系统代理失败") from None
+    _get_logger().info("已设置 macOS 系统代理并保存原始配置")
 
 
 def _unset_darwin():
-    saved = genv.get("_SAVED_DARWIN_PROXY_SVCS")
+    with _proxy_state_lock():
+        _unset_darwin_locked()
+
+
+def _unset_darwin_locked():
+    saved = _load_proxy_state(_DARWIN_PROXY_STATE)
     if not saved:
         return
-    for svc in saved:
-        try:
-            subprocess.run(
-                ["networksetup", "-setwebproxystate", svc, "off"],
-                capture_output=True, timeout=5,
-            )
-            subprocess.run(
-                ["networksetup", "-setsecurewebproxystate", svc, "off"],
-                capture_output=True, timeout=5,
-            )
-            _get_logger().info(f"已为网络服务 {svc} 关闭系统代理")
-        except Exception:
-            pass
-    genv.set("_SAVED_DARWIN_PROXY_SVCS", None)
+    _validate_darwin_state(saved)
+    if saved["owner_pid"] != os.getpid():
+        saved["owner_pid"] = os.getpid()
+        _save_proxy_state(_DARWIN_PROXY_STATE, saved)
+    failed = False
+    for service, protocols in saved["services"].items():
+        for protocol, entry in protocols.items():
+            try:
+                before, after = entry["before"], entry["after"]
+                current = _read_darwin_proxy(service, protocol)
+                if current == before:
+                    continue
+                # 恢复地址的命令会同时启用代理；持久化恢复阶段以跨越此崩溃窗口。
+                endpoints = [(state["server"], state["port"]) for state in (before, after)]
+                restoring = (entry.get("restoring") and not current["authenticated"]
+                             and (current["server"], current["port"]) in endpoints)
+                if current != after and not restoring:
+                    _get_logger().warning("系统代理已被外部修改，保留当前设置")
+                    continue
+                entry["restoring"] = True
+                _save_proxy_state(_DARWIN_PROXY_STATE, saved)
+                try:
+                    _networksetup([f"-set{protocol}proxy", service, before["server"], str(before["port"]), "off"])
+                finally:
+                    _networksetup([f"-set{protocol}proxystate", service, "on" if before["enabled"] else "off"])
+                if _read_darwin_proxy(service, protocol) != before:
+                    raise OSError("系统代理恢复未生效")
+            except OSError:
+                failed = True
+    if failed:
+        raise OSError("部分 macOS 系统代理未能恢复，已保留记录供重试")
+    _save_proxy_state(_DARWIN_PROXY_STATE, {})
+    _get_logger().info("已恢复 macOS 原始系统代理配置")
 
 
 # ==================================================================
 #  Linux — gsettings (GNOME 系统代理)
-#
-#  Crossover/Wine 在 Linux 上使用 Wine 框架，Wine 的 WinHTTP/WinINET
-#  实现会读取 GNOME 的系统代理设置。因此通过 gsettings 设置代理后，
-#  用户通过 Crossover 启动的 Windows 游戏也能走 mitmproxy。
-#
-#  工具以 root 运行 (sudo)，需要以实际用户身份执行 gsettings 才能
-#  修改用户的 GNOME 代理配置。
 # ==================================================================
 
 def _get_real_user() -> str:
@@ -293,65 +433,120 @@ def _get_real_user() -> str:
     return os.environ.get("SUDO_USER", "")
 
 
-def _gsettings_cmd(args: list, user: str = "") -> bool:
-    """以指定用户执行 gsettings 命令。如果 user 为空则直接执行。"""
+def _gsettings_cmd(args: list, user: str = "") -> str:
+    """以原用户身份执行命令，保留 get 返回的 GVariant 文本用于精确恢复。"""
     cmd = ["gsettings"] + args
     if user:
         cmd = ["sudo", "-u", user] + cmd
     try:
-        subprocess.run(cmd, capture_output=True, timeout=5, check=True)
-        return True
-    except Exception:
-        return False
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, check=True)
+        return (result.stdout or "").strip()
+    except (OSError, subprocess.SubprocessError):
+        raise OSError("无法读取或修改 GNOME 系统代理设置") from None
 
 
 def _has_gsettings() -> bool:
-    """检测 gsettings 是否可用。"""
     try:
-        subprocess.run(
-            ["gsettings", "--version"],
-            capture_output=True, timeout=5,
-        )
+        subprocess.run(["gsettings", "--version"], capture_output=True, timeout=5, check=True)
         return True
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return False
 
 
+def _validate_linux_state(saved):
+    groups, mode = saved.get("groups"), saved.get("mode")
+    if (not isinstance(saved.get("user"), str) or not isinstance(groups, list) or len(groups) != 2
+            or not isinstance(mode, dict) or mode.get("before") not in ("'auto'", "'manual'", "'none'")
+            or mode.get("after") != "'manual'" or not all(isinstance(group, dict) for group in groups)):
+        raise OSError("代理恢复记录无效")
+    if {group.get("schema") for group in groups} != {"org.gnome.system.proxy.http", "org.gnome.system.proxy.https"}:
+        raise OSError("代理恢复记录无效")
+    for group in groups:
+        for phase in ("before", "after"):
+            values = group.get(phase)
+            if (not isinstance(values, dict) or set(values) != {"host", "port"}
+                    or not all(isinstance(value, str) and value for value in values.values())
+                    or not values["port"].isdigit() or not 0 <= int(values["port"]) <= 65535):
+                raise OSError("代理恢复记录无效")
+        if group["after"]["host"] != "'127.0.0.1'":
+            raise OSError("代理恢复记录无效")
+
+
 def _set_linux(port: int):
+    with _proxy_state_lock():
+        _set_linux_locked(port)
+
+
+def _set_linux_locked(port):
+    _unset_linux_locked()
     if not _has_gsettings():
-        _get_logger().warning(
-            "未检测到 gsettings（非 GNOME 桌面环境）。"
-            "请手动设置系统代理为 http://127.0.0.1:%d，"
-            "或在启动游戏前设置环境变量 http_proxy / https_proxy。",
-            port,
-        )
+        _get_logger().warning("未检测到 gsettings，请手动配置游戏代理")
         return
-
     user = _get_real_user()
-    ok = True
-    ok &= _gsettings_cmd(["set", "org.gnome.system.proxy", "mode", "manual"], user)
-    ok &= _gsettings_cmd(["set", "org.gnome.system.proxy.http", "host", "127.0.0.1"], user)
-    ok &= _gsettings_cmd(["set", "org.gnome.system.proxy.http", "port", str(port)], user)
-    ok &= _gsettings_cmd(["set", "org.gnome.system.proxy.https", "host", "127.0.0.1"], user)
-    ok &= _gsettings_cmd(["set", "org.gnome.system.proxy.https", "port", str(port)], user)
-
-    if ok:
-        genv.set("_SAVED_LINUX_PROXY", {"user": user, "port": port})
-        _get_logger().info(f"已通过 gsettings 设置 GNOME 系统代理 127.0.0.1:{port}")
-    else:
-        _get_logger().warning(
-            "gsettings 设置代理失败。"
-            "请手动设置系统代理为 http://127.0.0.1:%d，"
-            "或在启动游戏前设置环境变量 http_proxy / https_proxy。",
-            port,
-        )
+    groups = []
+    for protocol in ("http", "https"):
+        schema = "org.gnome.system.proxy." + protocol
+        before = {key: _gsettings_cmd(["get", schema, key], user) for key in ("host", "port")}
+        groups.append(dict(schema=schema, before=before, after=dict(host="'127.0.0.1'", port=str(port))))
+    mode = _gsettings_cmd(["get", "org.gnome.system.proxy", "mode"], user)
+    saved = dict(version=1, owner_pid=os.getpid(), user=user, groups=groups, mode=dict(before=mode, after="'manual'"))
+    _validate_linux_state(saved)
+    _save_proxy_state(_LINUX_PROXY_STATE, saved)
+    try:
+        for group in groups:
+            for key, value in group["after"].items():
+                _gsettings_cmd(["set", group["schema"], key, value], user)
+                if _gsettings_cmd(["get", group["schema"], key], user) != value:
+                    raise OSError("系统代理设置未生效")
+        _gsettings_cmd(["set", "org.gnome.system.proxy", "mode", "'manual'"], user)
+        if _gsettings_cmd(["get", "org.gnome.system.proxy", "mode"], user) != "'manual'":
+            raise OSError("系统代理设置未生效")
+    except OSError:
+        try:
+            _unset_linux_locked()
+        except OSError:
+            _get_logger().warning("部分代理设置未能恢复，已保留记录供下次启动重试")
+        raise OSError("设置 GNOME 系统代理失败") from None
+    _get_logger().info("已设置 GNOME 系统代理并保存原始配置")
 
 
 def _unset_linux():
-    saved = genv.get("_SAVED_LINUX_PROXY")
+    with _proxy_state_lock():
+        _unset_linux_locked()
+
+
+def _unset_linux_locked():
+    saved = _load_proxy_state(_LINUX_PROXY_STATE)
     if not saved:
         return
-    user = saved.get("user", "")
-    _gsettings_cmd(["set", "org.gnome.system.proxy", "mode", "none"], user)
-    genv.set("_SAVED_LINUX_PROXY", None)
-    _get_logger().info("已通过 gsettings 恢复 GNOME 系统代理设置")
+    _validate_linux_state(saved)
+    user = saved["user"]
+    if saved["owner_pid"] != os.getpid():
+        saved["owner_pid"] = os.getpid()
+        _save_proxy_state(_LINUX_PROXY_STATE, saved)
+    failed = external = False
+    for group in saved["groups"]:
+        try:
+            schema, before, after = group["schema"], group["before"], group["after"]
+            current = {key: _gsettings_cmd(["get", schema, key], user) for key in before}
+            if any(current[key] not in (before[key], after[key]) for key in before):
+                external = True
+                _get_logger().warning("系统代理已被外部修改，保留当前设置")
+                continue
+            for key, value in before.items():
+                if current[key] != value:
+                    _gsettings_cmd(["set", schema, key, value], user)
+                    if _gsettings_cmd(["get", schema, key], user) != value:
+                        raise OSError("系统代理恢复未生效")
+        except OSError:
+            failed = True
+    if not failed and not external:
+        current = _gsettings_cmd(["get", "org.gnome.system.proxy", "mode"], user)
+        if current == saved["mode"]["after"] and current != saved["mode"]["before"]:
+            _gsettings_cmd(["set", "org.gnome.system.proxy", "mode", saved["mode"]["before"]], user)
+            if _gsettings_cmd(["get", "org.gnome.system.proxy", "mode"], user) != saved["mode"]["before"]:
+                failed = True
+    if failed:
+        raise OSError("部分 GNOME 系统代理未能恢复，已保留记录供重试")
+    _save_proxy_state(_LINUX_PROXY_STATE, {})
+    _get_logger().info("已恢复 GNOME 原始系统代理配置")
