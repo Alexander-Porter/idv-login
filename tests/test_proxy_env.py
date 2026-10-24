@@ -147,6 +147,43 @@ class MacProxyTests(unittest.TestCase):
         self.module._unset_darwin()
         self.assertEqual(self.commands.services, self.original)
 
+    def test_empty_server_and_zero_port_are_restored_without_substitution(self):
+        for enabled in (False, True):
+            for server, port in (("", 0), ("", 8080), ("old.example", 0)):
+                with self.subTest(enabled=enabled, server=server, port=port):
+                    before = proxy(enabled, server, port)
+                    self.commands.services["USB Ethernet"] = {
+                        "http": copy.deepcopy(before), "https": copy.deepcopy(before),
+                    }
+                    self.module._set_darwin(10717)
+                    self.module._unset_darwin()
+                    self.assertEqual(self.commands.services["USB Ethernet"],
+                                     {"http": before, "https": before})
+                    self.assertEqual(self.state.disk["_SAVED_DARWIN_PROXY_SVCS"], {})
+
+    def test_empty_endpoint_setter_failure_disables_proxy_and_retains_backup(self):
+        self.module._set_darwin(10717)
+        self.commands.fail = ("-setwebproxy", "USB Ethernet")
+        with self.assertRaises(OSError):
+            self.module._unset_darwin()
+        self.assertEqual(self.commands.services["USB Ethernet"]["http"],
+                         proxy(False, "127.0.0.1", 10717))
+        self.assertTrue(self.state.disk["_SAVED_DARWIN_PROXY_SVCS"])
+        self.module = load_proxy(SavedState(self.state.disk))
+        self.module._unset_darwin()
+        self.assertEqual(self.commands.services, self.original)
+
+    def test_empty_endpoint_restored_before_disable_failure_is_retried(self):
+        self.module._set_darwin(10717)
+        self.commands.fail = ("-setwebproxystate", "USB Ethernet")
+        with self.assertRaises(OSError):
+            self.module._unset_darwin()
+        self.assertEqual(self.commands.services["USB Ethernet"]["http"], proxy(True))
+        self.assertTrue(self.state.disk["_SAVED_DARWIN_PROXY_SVCS"])
+        self.module = load_proxy(SavedState(self.state.disk))
+        self.module._unset_darwin()
+        self.assertEqual(self.commands.services, self.original)
+
     def test_repeated_setup_preserves_original_snapshot(self):
         self.module._set_darwin(10717)
         self.module._set_darwin(10718)
