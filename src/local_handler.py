@@ -2114,7 +2114,17 @@ class LocalRequestHandler:
         with LocalRequestHandler._reset_lock:
             if LocalRequestHandler._reset_started:
                 return self._json_response(202, {"success": True, "restarting": True})
-            config_path = genv.reset_cache()
+            if sys.platform in ("darwin", "linux"):
+                from proxy_env import reset_proxy_state
+                try:
+                    config_path = reset_proxy_state()
+                except OSError:
+                    return self._json_response(500, {
+                        "success": False,
+                        "error": "未能恢复系统代理或重置配置，请稍后重试",
+                    })
+            else:
+                config_path = genv.reset_cache()
             LocalRequestHandler._reset_started = True
 
         self.logger.warning("用户已重置工具状态，config.json 已删除，工具即将重启")

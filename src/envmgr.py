@@ -115,7 +115,7 @@ class genv:
             except:
                 return default
 
-    def get_from_file(key,value):
+    def get_from_file(key,value, *, require_read=False):
         try:
             if os.path.exists(_cachePath):
                 with open(_cachePath, 'r', encoding='utf-8') as f:
@@ -127,4 +127,6 @@ class genv:
             else:
                 return value
         except:
+            if require_read:
+                raise OSError('Persistent configuration read failed') from None
             return value

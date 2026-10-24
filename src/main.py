@@ -1637,6 +1637,9 @@ def main(cli_args=None):
     logger = setup_logger() 
 
     try:
+        # 在新一轮初始化之前恢复上次异常退出留下的系统代理。
+        if sys.platform in ("darwin", "linux"):
+            _unset_proxy()
         cloudBuildInfo()
         # hotfix gate: verify config cache can be written before importing most app modules.
         # macOS PyInstaller hotfixes are loaded via an import hook, so it must be installed
