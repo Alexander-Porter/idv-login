@@ -7,9 +7,8 @@ should use the helpers in this module so that they are readable
 only by the current user.
 
 Writes are atomic: data goes to a temporary file first, then
-``os.replace()`` swaps it into place.  A per-path file lock
-(``msvcrt`` on Windows, ``fcntl`` on Unix) prevents concurrent
-writers from corrupting each other.
+``os.replace()`` swaps it into place.  A per-path thread lock serializes
+writers within this process. Failed writes leave the destination unchanged.
 """
 
 import json
@@ -34,7 +33,7 @@ def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
     """Write *data* atomically via temp-file + os.replace().
 
     On Unix the temp file is created with mode 0o600 when *restrict_unix*
-    is True.  On Windows, ACLs are applied after the rename.
+    is True.  On Windows, ACLs are applied before the replacement.
     """
     dirpath = os.path.dirname(os.path.abspath(filepath)) or "."
     fd = None
@@ -77,40 +76,25 @@ def _atomic_write(filepath: str, data: bytes, *, restrict_unix: bool = True):
 
 
 def write_file_restricted(filepath: str, data: bytes):
-    """Write *data* (bytes) atomically and restrict permissions."""
+    """Write *data* atomically; raise on lock timeout or write failure."""
     lock = _get_lock(filepath)
-    lock.acquire(timeout=5)
+    if not lock.acquire(timeout=5):
+        raise TimeoutError('文件写入锁获取超时')
     try:
         _atomic_write(filepath, data)
-    except Exception:
-        # Fallback: standard write (still better than losing data silently)
-        with open(filepath, "wb") as f:
-            f.write(data)
     finally:
-        try:
-            lock.release()
-        except RuntimeError:
-            pass
+        lock.release()
 
 
 def write_json_restricted(filepath: str, obj, *, atomic_required=False):
-    """Write JSON; strict callers never fall back to truncating the live file."""
+    """Write JSON atomically, preserving the destination on failure.
+
+    ``atomic_required`` is retained for compatibility; all writes now require
+    atomic replacement, including callers that omit it or pass False.
+    """
     text = json.dumps(obj, ensure_ascii=False)
     data = text.encode("utf-8")
-    lock = _get_lock(filepath)
-    acquired = lock.acquire(timeout=5)
-    if not acquired and atomic_required:
-        raise TimeoutError('Configuration write lock timed out')
-    try:
-        _atomic_write(filepath, data)
-    except Exception:
-        if atomic_required:
-            raise
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(obj, f, ensure_ascii=False)
-    finally:
-        if acquired:
-            lock.release()
+    write_file_restricted(filepath, data)
 
 
 def _win_restrict_acl(filepath: str):
